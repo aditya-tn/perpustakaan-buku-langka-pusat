@@ -7,28 +7,37 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(false)
 
-  const handleSearch = async (e) => {
-    e.preventDefault()
-    if (!searchTerm.trim()) return
-    
-    setLoading(true)
-    console.log('Searching for:', searchTerm)
+ const handleSearch = async (e) => {
+  e.preventDefault()
+  if (!searchTerm.trim()) return
+  
+  setLoading(true)
+  console.log('🔍 Searching for:', searchTerm)
 
+  try {
     const { data, error } = await supabase
       .from('books')
       .select('*')
       .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
       .limit(20)
 
+    console.log('📊 Search results:', data)
+    console.log('❌ Search error:', error)
+
     if (error) {
-      console.error('Search error:', error)
+      console.error('Search failed:', error)
+      // Tampilkan error ke user
+      alert('Error searching: ' + error.message)
     } else {
-      console.log('Search results:', data)
       setSearchResults(data || [])
     }
+  } catch (err) {
+    console.error('🚨 Critical error:', err)
+    alert('System error: ' + err.message)
+  } finally {
     setLoading(false)
   }
-
+}
   return (
     <div style={{ 
       minHeight: '100vh', 
