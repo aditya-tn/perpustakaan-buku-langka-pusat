@@ -326,7 +326,7 @@ export default function Home() {
         marginTop: '3rem'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
-          <p>&copy; 2024 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI</p>
+          <p>&copy; 2025 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI</p>
         </div>
       </footer>
     </div>
