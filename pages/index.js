@@ -23,7 +23,7 @@ export default function Home() {
         .from('books')
         .select('*')
         .or(orConditions.join(','))
-        .limit(20)
+        // LIMIT DIHAPUS
 
       console.log('🔍 Individual word results:', data)
       if (data && data.length > 0) {
@@ -35,7 +35,7 @@ export default function Home() {
           .from('books')
           .select('*')
           .or(titleConditions.join(','))
-          .limit(10)
+          // LIMIT DIHAPUS
         
         console.log('🔍 Title-only results:', titleData)
         if (titleData && titleData.length > 0) {
@@ -70,7 +70,8 @@ export default function Home() {
         const searchPattern = `%${searchTerm}%` // Cari frase lengkap dulu
         query = query.or(`judul.ilike.${searchPattern},pengarang.ilike.${searchPattern},penerbit.ilike.${searchPattern}`)
         
-        const { data, error } = await query.limit(20)
+        const { data, error } = await query
+        // LIMIT DIHAPUS
         
         if (!error && data && data.length > 0) {
           console.log('✅ Found with phrase search:', data.length)
@@ -84,7 +85,7 @@ export default function Home() {
         // Single word search
         const { data, error } = await query
           .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
-          .limit(20)
+          // LIMIT DIHAPUS
 
         if (error) {
           console.error('Search failed:', error)
@@ -326,7 +327,7 @@ export default function Home() {
         marginTop: '3rem'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
-          <p>&copy; 2025 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI</p>
+          <p>&copy; 2024 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI</p>
         </div>
       </footer>
     </div>
