@@ -594,7 +594,7 @@ export default function Home() {
           textAlign: 'center'
         }}>
           <p style={{ margin: 0, fontSize: '1rem' }}>
-            &copy; 2024 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI
+            &copy; 2025 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI
           </p>
           <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', opacity: 0.7 }}>
             Melestarikan warisan literasi Indonesia untuk generasi mendatang
