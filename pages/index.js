@@ -7,26 +7,45 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(false)
 
-  // Function untuk alternative search approach
-  const alternativeSearch = async (searchWords) => {
+  // Function untuk search individual words
+  const searchIndividualWords = async (searchWords) => {
     try {
-      // Coba search dengan AND logic (semua kata harus match)
-      const andConditions = searchWords.map(word => 
-        `judul.ilike.%${word}%`
-      ).join(',')
+      // Buat OR condition untuk setiap kata di setiap field
+      const orConditions = []
+      
+      searchWords.forEach(word => {
+        orConditions.push(`judul.ilike.%${word}%`)
+        orConditions.push(`pengarang.ilike.%${word}%`) 
+        orConditions.push(`penerbit.ilike.%${word}%`)
+      })
 
       const { data } = await supabase
         .from('books')
         .select('*')
-        .or(andConditions)
+        .or(orConditions.join(','))
         .limit(20)
 
-      console.log('🔍 Alternative results:', data)
+      console.log('🔍 Individual word results:', data)
       if (data && data.length > 0) {
         setSearchResults(data)
+      } else {
+        // Jika masih kosong, coba search hanya di judul
+        const titleConditions = searchWords.map(word => `judul.ilike.%${word}%`)
+        const { data: titleData } = await supabase
+          .from('books')
+          .select('*')
+          .or(titleConditions.join(','))
+          .limit(10)
+        
+        console.log('🔍 Title-only results:', titleData)
+        if (titleData && titleData.length > 0) {
+          setSearchResults(titleData)
+        } else {
+          setSearchResults([])
+        }
       }
     } catch (err) {
-      console.error('Alternative search error:', err)
+      console.error('Individual word search error:', err)
     }
   }
 
@@ -38,41 +57,39 @@ export default function Home() {
     console.log('🔍 Searching for:', searchTerm)
 
     try {
-      // Split search term into individual words
-      const searchWords = searchTerm.trim().split(/\s+/)
+      // Clean and split search term
+      const searchWords = searchTerm.trim().split(/\s+/).filter(word => word.length > 0)
       console.log('📝 Search words:', searchWords)
 
       let query = supabase
         .from('books')
         .select('*')
 
-      // Build OR conditions for each word
       if (searchWords.length > 1) {
-        // Multiple words: search each word in multiple fields
-        const orConditions = searchWords.map(word => 
-          `judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`
-        ).join(',')
-
-        query = query.or(orConditions)
-      } else {
-        // Single word: normal search
-        query = query.or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
-      }
-
-      const { data, error } = await query.limit(20)
-
-      console.log('📊 Search results:', data)
-      console.log('❌ Search error:', error)
-
-      if (error) {
-        console.error('Search failed:', error)
-      } else {
-        setSearchResults(data || [])
+        // Untuk multiple words: buat OR condition yang lebih sederhana
+        const searchPattern = `%${searchTerm}%` // Cari frase lengkap dulu
+        query = query.or(`judul.ilike.${searchPattern},pengarang.ilike.${searchPattern},penerbit.ilike.${searchPattern}`)
         
-        // Jika hasil kosong, coba dengan approach berbeda
-        if (data.length === 0 && searchWords.length > 1) {
-          console.log('🔄 Trying alternative search...')
-          await alternativeSearch(searchWords)
+        const { data, error } = await query.limit(20)
+        
+        if (!error && data && data.length > 0) {
+          console.log('✅ Found with phrase search:', data.length)
+          setSearchResults(data)
+        } else {
+          // Jika frase tidak ketemu, cari individual words
+          console.log('🔄 Trying individual word search...')
+          await searchIndividualWords(searchWords)
+        }
+      } else {
+        // Single word search
+        const { data, error } = await query
+          .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
+          .limit(20)
+
+        if (error) {
+          console.error('Search failed:', error)
+        } else {
+          setSearchResults(data || [])
         }
       }
     } catch (err) {
