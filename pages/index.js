@@ -10,6 +10,7 @@ export default function Home() {
   const [itemsPerPage, setItemsPerPage] = useState(20)
   const [showStats, setShowStats] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   // Detect mobile screen
   useEffect(() => {
@@ -21,6 +22,18 @@ export default function Home() {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (isMenuOpen) {
+        setIsMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [isMenuOpen])
 
   // Hide stats when search results appear
   useEffect(() => {
@@ -117,6 +130,12 @@ export default function Home() {
     setCurrentPage(1)
   }
 
+  // Toggle mobile menu
+  const toggleMenu = (e) => {
+    e.stopPropagation()
+    setIsMenuOpen(!isMenuOpen)
+  }
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -130,14 +149,14 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      {/* Modern Header - Responsive */}
+      {/* Modern Header - Responsive dengan Hamburger Menu */}
       <header style={{
         backgroundColor: 'white',
         boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
         padding: isMobile ? '0.75rem 1rem' : '1rem 0',
         position: 'sticky',
         top: 0,
-        zIndex: 100
+        zIndex: 1000
       }}>
         <div style={{ 
           maxWidth: '1200px', 
@@ -146,76 +165,200 @@ export default function Home() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? '0.75rem' : '0'
+          flexDirection: isMobile ? 'row' : 'row',
+          gap: isMobile ? '0' : '0'
         }}>
-          <div style={{ textAlign: isMobile ? 'center' : 'left' }}>
-            <h1 style={{ 
-              fontSize: isMobile ? '1.25rem' : '1.5rem', 
-              fontWeight: '700',
-              color: '#1a202c',
-              margin: 0
-            }}>
-              Koleksi Buku Langka
-            </h1>
-            <p style={{ 
-              fontSize: isMobile ? '0.8rem' : '0.9rem', 
-              color: '#718096',
-              margin: '0.25rem 0 0 0'
-            }}>
-              Perpustakaan Nasional RI
-            </p>
+          {/* Logo Section */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '1rem',
+            flex: isMobile ? 1 : 'auto'
+          }}>
+            {isMobile && (
+              <button
+                onClick={toggleMenu}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  borderRadius: '4px',
+                  color: '#4a5568'
+                }}
+              >
+                {isMenuOpen ? '✕' : '☰'}
+              </button>
+            )}
+            <div>
+              <h1 style={{ 
+                fontSize: isMobile ? '1.1rem' : '1.5rem', 
+                fontWeight: '700',
+                color: '#1a202c',
+                margin: 0,
+                lineHeight: '1.2'
+              }}>
+                Koleksi Buku Langka
+              </h1>
+              <p style={{ 
+                fontSize: isMobile ? '0.7rem' : '0.9rem', 
+                color: '#718096',
+                margin: '0.1rem 0 0 0'
+              }}>
+                Perpustakaan Nasional RI
+              </p>
+            </div>
           </div>
           
-          <nav style={{ 
-            display: 'flex', 
-            gap: isMobile ? '1rem' : '2rem', 
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            justifyContent: isMobile ? 'center' : 'flex-end'
-          }}>
-            <a href="/" style={{ 
-              color: '#2d3748', 
-              textDecoration: 'none',
-              fontWeight: '600',
-              fontSize: isMobile ? '0.85rem' : '0.95rem',
-              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-              borderRadius: '6px',
-              backgroundColor: '#f7fafc'
+          {/* Desktop Navigation */}
+          {!isMobile && (
+            <nav style={{ 
+              display: 'flex', 
+              gap: '2rem', 
+              alignItems: 'center'
             }}>
-              Beranda
-            </a>
-            <a href="/koleksi" style={{ 
-              color: '#4a5568', 
-              textDecoration: 'none',
-              fontSize: isMobile ? '0.85rem' : '0.95rem',
-              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-              borderRadius: '6px',
-              transition: 'all 0.2s'
+              <a href="/" style={{ 
+                color: '#2d3748', 
+                textDecoration: 'none',
+                fontWeight: '600',
+                fontSize: '0.95rem',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                backgroundColor: '#f7fafc'
+              }}>
+                Beranda
+              </a>
+              <a href="/koleksi" style={{ 
+                color: '#4a5568', 
+                textDecoration: 'none',
+                fontSize: '0.95rem',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                transition: 'all 0.2s'
+              }}>
+                Koleksi
+              </a>
+              <a href="/layanan" style={{ 
+                color: '#4a5568', 
+                textDecoration: 'none',
+                fontSize: '0.95rem',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                transition: 'all 0.2s'
+              }}>
+                Layanan
+              </a>
+              <a href="/profil" style={{ 
+                color: '#4a5568', 
+                textDecoration: 'none',
+                fontSize: '0.95rem',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                transition: 'all 0.2s'
+              }}>
+                Profil
+              </a>
+            </nav>
+          )}
+
+          {/* Mobile Navigation Overlay */}
+          {isMobile && isMenuOpen && (
+            <div style={{
+              position: 'fixed',
+              top: '100%',
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              padding: '1rem',
+              zIndex: 999,
+              borderTop: '1px solid #e2e8f0'
             }}>
-              Koleksi
-            </a>
-            <a href="/layanan" style={{ 
-              color: '#4a5568', 
-              textDecoration: 'none',
-              fontSize: isMobile ? '0.85rem' : '0.95rem',
-              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-              borderRadius: '6px',
-              transition: 'all 0.2s'
-            }}>
-              Layanan
-            </a>
-            <a href="/profil" style={{ 
-              color: '#4a5568', 
-              textDecoration: 'none',
-              fontSize: isMobile ? '0.85rem' : '0.95rem',
-              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-              borderRadius: '6px',
-              transition: 'all 0.2s'
-            }}>
-              Profil
-            </a>
-          </nav>
+              <nav style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <a 
+                  href="/" 
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{ 
+                    color: '#2d3748', 
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    fontSize: '1rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    backgroundColor: '#f7fafc',
+                    display: 'block'
+                  }}
+                >
+                  📚 Beranda
+                </a>
+                <a 
+                  href="/koleksi" 
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{ 
+                    color: '#4a5568', 
+                    textDecoration: 'none',
+                    fontSize: '1rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    transition: 'all 0.2s',
+                    display: 'block'
+                  }}
+                >
+                  📖 Koleksi
+                </a>
+                <a 
+                  href="/layanan" 
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{ 
+                    color: '#4a5568', 
+                    textDecoration: 'none',
+                    fontSize: '1rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    transition: 'all 0.2s',
+                    display: 'block'
+                  }}
+                >
+                  🛎️ Layanan
+                </a>
+                <a 
+                  href="/profil" 
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{ 
+                    color: '#4a5568', 
+                    textDecoration: 'none',
+                    fontSize: '1rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    transition: 'all 0.2s',
+                    display: 'block'
+                  }}
+                >
+                  ℹ️ Profil
+                </a>
+                <a 
+                  href="/kritik-saran" 
+                  onClick={() => setIsMenuOpen(false)}
+                  style={{ 
+                    color: '#4a5568', 
+                    textDecoration: 'none',
+                    fontSize: '1rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '8px',
+                    transition: 'all 0.2s',
+                    display: 'block'
+                  }}
+                >
+                  💬 Kritik & Saran
+                </a>
+              </nav>
+            </div>
+          )}
         </div>
       </header>
 
