@@ -17,7 +17,7 @@ export default function Koleksi() {
   const [tahunFilter, setTahunFilter] = useState('')
   const [sortBy, setSortBy] = useState('judul')
   const [sortOrder, setSortOrder] = useState('asc')
-  const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState('list') // DEFAULT: LIST VIEW
 
   // Detect mobile screen
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function Koleksi() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Load all books
+  // Load all books - FIX: Load semua data tanpa limit
   useEffect(() => {
     loadAllBooks()
   }, [])
@@ -35,15 +35,38 @@ export default function Koleksi() {
   const loadAllBooks = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('books')
-        .select('*')
-        .order('judul', { ascending: true })
-
-      if (error) throw error
       
-      setBooks(data || [])
-      setFilteredBooks(data || [])
+      // Load semua data dengan pagination manual jika perlu
+      let allBooks = []
+      let page = 0
+      const pageSize = 1000
+      let hasMore = true
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('books')
+          .select('*')
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+          .order('judul', { ascending: true })
+
+        if (error) throw error
+        
+        if (data && data.length > 0) {
+          allBooks = [...allBooks, ...data]
+          page++
+          
+          // Jika dapat kurang dari pageSize, berarti sudah akhir
+          if (data.length < pageSize) {
+            hasMore = false
+          }
+        } else {
+          hasMore = false
+        }
+      }
+      
+      console.log(`Loaded ${allBooks.length} books total`)
+      setBooks(allBooks)
+      setFilteredBooks(allBooks)
     } catch (error) {
       console.error('Error loading books:', error)
     } finally {
@@ -51,17 +74,17 @@ export default function Koleksi() {
     }
   }
 
-  // Apply filters and sorting
+  // Apply filters and sorting - FIX: Improved sorting logic
   useEffect(() => {
     let result = [...books]
 
     // Apply search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim()
       result = result.filter(book => 
-        book.judul?.toLowerCase().includes(searchLower) ||
-        book.pengarang?.toLowerCase().includes(searchLower) ||
-        book.penerbit?.toLowerCase().includes(searchLower)
+        (book.judul?.toLowerCase() || '').includes(searchLower) ||
+        (book.pengarang?.toLowerCase() || '').includes(searchLower) ||
+        (book.penerbit?.toLowerCase() || '').includes(searchLower)
       )
     }
 
@@ -72,26 +95,29 @@ export default function Koleksi() {
       )
     }
 
-    // Apply sorting
+    // Apply sorting - FIX: Improved sorting logic
     result.sort((a, b) => {
       let aValue = a[sortBy] || ''
       let bValue = b[sortBy] || ''
       
-      // Handle string comparison
-      if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase()
-        bValue = bValue.toLowerCase()
-      }
+      // Handle empty values
+      if (!aValue && !bValue) return 0
+      if (!aValue) return sortOrder === 'asc' ? 1 : -1
+      if (!bValue) return sortOrder === 'asc' ? -1 : 1
+      
+      // Convert to string for consistent comparison
+      aValue = aValue.toString().toLowerCase().trim()
+      bValue = bValue.toString().toLowerCase().trim()
 
       if (sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+        return aValue.localeCompare(bValue, 'id', { numeric: true })
       } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+        return bValue.localeCompare(aValue, 'id', { numeric: true })
       }
     })
 
     setFilteredBooks(result)
-    setCurrentPage(1) // Reset to first page when filters change
+    setCurrentPage(1)
   }, [books, searchTerm, tahunFilter, sortBy, sortOrder])
 
   // Pagination calculations
@@ -120,8 +146,10 @@ export default function Koleksi() {
   // Get unique years for filter dropdown
   const uniqueYears = [...new Set(books
     .map(book => book.tahun_terbit)
-    .filter(year => year && year.toString().length === 4)
-    .sort((a, b) => b - a)
+    .filter(year => year && year.toString().match(/^\d{4}$/)) // Only 4-digit years
+    .map(year => parseInt(year))
+    .filter(year => year > 1500 && year < 2100) // Reasonable year range
+    .sort((a, b) => b - a) // Descending order
   )]
 
   return (
@@ -153,7 +181,7 @@ export default function Koleksi() {
           margin: '0 auto',
           lineHeight: '1.5'
         }}>
-          Jelajahi khazanah literatur langka Indonesia dari koleksi Perpustakaan Nasional RI
+          Jelajahi {books.length.toLocaleString()} khazanah literatur langka Indonesia
         </p>
       </section>
 
@@ -178,7 +206,7 @@ export default function Koleksi() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cari dalam koleksi..."
+              placeholder="Cari judul, pengarang, atau penerbit..."
               style={{
                 width: '100%',
                 padding: '0.75rem 1rem',
@@ -209,16 +237,16 @@ export default function Koleksi() {
                 borderRadius: '8px',
                 backgroundColor: 'white',
                 fontSize: '0.9rem',
-                minWidth: '120px'
+                minWidth: '140px'
               }}
             >
               <option value="">Semua Tahun</option>
-              {uniqueYears.slice(0, 50).map(year => (
+              {uniqueYears.slice(0, 100).map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
 
-            {/* Sort By */}
+            {/* Sort By - FIX: Improved options */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -228,12 +256,13 @@ export default function Koleksi() {
                 borderRadius: '8px',
                 backgroundColor: 'white',
                 fontSize: '0.9rem',
-                minWidth: '140px'
+                minWidth: '150px'
               }}
             >
-              <option value="judul">Sortir Judul</option>
-              <option value="tahun_terbit">Sortir Tahun</option>
-              <option value="pengarang">Sortir Pengarang</option>
+              <option value="judul">Urutkan: Judul</option>
+              <option value="tahun_terbit">Urutkan: Tahun</option>
+              <option value="pengarang">Urutkan: Pengarang</option>
+              <option value="penerbit">Urutkan: Penerbit</option>
             </select>
 
             {/* Sort Order */}
@@ -243,35 +272,25 @@ export default function Koleksi() {
                 padding: '0.75rem 1rem',
                 border: '1px solid #e2e8f0',
                 borderRadius: '8px',
-                backgroundColor: 'white',
+                backgroundColor: sortOrder === 'asc' ? '#e6fffa' : '#fed7d7',
+                color: '#2d3748',
                 fontSize: '0.9rem',
                 cursor: 'pointer',
-                minWidth: '50px'
+                minWidth: '50px',
+                fontWeight: '600'
               }}
+              title={sortOrder === 'asc' ? 'A-Z / Terlama' : 'Z-A / Terbaru'}
             >
-              {sortOrder === 'asc' ? '↑' : '↓'}
+              {sortOrder === 'asc' ? 'A→Z' : 'Z→A'}
             </button>
 
-            {/* View Mode */}
+            {/* View Mode - FIX: Default list view */}
             <div style={{
               display: 'flex',
               border: '1px solid #e2e8f0',
               borderRadius: '8px',
               overflow: 'hidden'
             }}>
-              <button
-                onClick={() => setViewMode('grid')}
-                style={{
-                  padding: '0.75rem 1rem',
-                  border: 'none',
-                  backgroundColor: viewMode === 'grid' ? '#4299e1' : 'white',
-                  color: viewMode === 'grid' ? 'white' : '#4a5568',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem'
-                }}
-              >
-                ▦
-              </button>
               <button
                 onClick={() => setViewMode('list')}
                 style={{
@@ -280,29 +299,48 @@ export default function Koleksi() {
                   backgroundColor: viewMode === 'list' ? '#4299e1' : 'white',
                   color: viewMode === 'list' ? 'white' : '#4a5568',
                   cursor: 'pointer',
-                  fontSize: '0.9rem'
+                  fontSize: '0.9rem',
+                  fontWeight: viewMode === 'list' ? '600' : '400'
                 }}
+                title="Tampilan List"
               >
-                ☰
+                ☰ List
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                style={{
+                  padding: '0.75rem 1rem',
+                  border: 'none',
+                  backgroundColor: viewMode === 'grid' ? '#4299e1' : 'white',
+                  color: viewMode === 'grid' ? 'white' : '#4a5568',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: viewMode === 'grid' ? '600' : '400'
+                }}
+                title="Tampilan Grid"
+              >
+                ▦ Grid
               </button>
             </div>
 
             {/* Clear Filters */}
-            <button
-              onClick={clearFilters}
-              style={{
-                padding: '0.75rem 1rem',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                backgroundColor: '#f56565',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: '500'
-              }}
-            >
-              Clear
-            </button>
+            {(searchTerm || tahunFilter || sortBy !== 'judul' || sortOrder !== 'asc') && (
+              <button
+                onClick={clearFilters}
+                style={{
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  backgroundColor: '#f56565',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: '500'
+                }}
+              >
+                🔄 Reset
+              </button>
+            )}
           </div>
 
           {/* Items Per Page */}
@@ -313,7 +351,7 @@ export default function Koleksi() {
             flex: isMobile ? 'none' : 0.5
           }}>
             <span style={{ fontSize: '0.9rem', color: '#4a5568', whiteSpace: 'nowrap' }}>
-              Tampilkan:
+              Per halaman:
             </span>
             <select 
               value={itemsPerPage}
@@ -329,6 +367,7 @@ export default function Koleksi() {
               <option value={20}>20</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
+              <option value={200}>200</option>
             </select>
           </div>
         </div>
@@ -363,11 +402,19 @@ export default function Koleksi() {
               margin: '0.25rem 0 0 0',
               fontSize: '0.9rem'
             }}>
-              {loading ? 'Memuat...' : `${filteredBooks.length.toLocaleString()} buku ditemukan`}
+              {loading ? (
+                <span>Memuat {books.length.toLocaleString()} buku...</span>
+              ) : (
+                <span>
+                  <strong>{filteredBooks.length.toLocaleString()}</strong> buku 
+                  {searchTerm && ` untuk "${searchTerm}"`}
+                  {tahunFilter && ` tahun ${tahunFilter}`}
+                </span>
+              )}
             </p>
           </div>
           
-          {!loading && (
+          {!loading && filteredBooks.length > 0 && (
             <div style={{
               fontSize: '0.9rem',
               color: '#718096',
@@ -376,7 +423,7 @@ export default function Koleksi() {
               borderRadius: '6px',
               border: '1px solid #e2e8f0'
             }}>
-              Menampilkan <strong>{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredBooks.length)}</strong> dari <strong>{filteredBooks.length.toLocaleString()}</strong> buku
+              Menampilkan <strong>{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredBooks.length)}</strong> 
               {totalPages > 1 && ` • Halaman ${currentPage} dari ${totalPages}`}
             </div>
           )}
@@ -387,7 +434,8 @@ export default function Koleksi() {
       <section style={{ 
         maxWidth: '1400px', 
         margin: '2rem auto',
-        padding: isMobile ? '0 1rem' : '0 2rem'
+        padding: isMobile ? '0 1rem' : '0 2rem',
+        minHeight: '500px'
       }}>
         {loading ? (
           <div style={{
@@ -396,10 +444,39 @@ export default function Koleksi() {
             color: '#718096'
           }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
-            <p>Memuat koleksi buku langka...</p>
+            <p>Memuat {books.length.toLocaleString()} koleksi buku langka...</p>
+            <div style={{ 
+              width: '200px', 
+              height: '4px', 
+              backgroundColor: '#e2e8f0',
+              borderRadius: '2px',
+              margin: '2rem auto',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                height: '100%',
+                backgroundColor: '#4299e1',
+                width: '60%',
+                animation: 'loading 2s ease-in-out infinite'
+              }}></div>
+            </div>
           </div>
         ) : (
           <>
+            {/* DEFAULT: List View */}
+            {viewMode === 'list' && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                marginBottom: '3rem'
+              }}>
+                {currentItems.map((book) => (
+                  <BookListItem key={book.id} book={book} isMobile={isMobile} />
+                ))}
+              </div>
+            )}
+
             {/* Grid View */}
             {viewMode === 'grid' && (
               <div style={{
@@ -414,20 +491,6 @@ export default function Koleksi() {
               </div>
             )}
 
-            {/* List View */}
-            {viewMode === 'list' && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1rem',
-                marginBottom: '3rem'
-              }}>
-                {currentItems.map((book) => (
-                  <BookListItem key={book.id} book={book} isMobile={isMobile} />
-                ))}
-              </div>
-            )}
-
             {/* No Results */}
             {filteredBooks.length === 0 && !loading && (
               <div style={{
@@ -437,7 +500,7 @@ export default function Koleksi() {
               }}>
                 <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔍</div>
                 <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Tidak ada buku ditemukan</h3>
-                <p>Coba ubah filter pencarian Anda</p>
+                <p>Silakan coba kata kunci atau filter yang berbeda</p>
                 <button
                   onClick={clearFilters}
                   style={{
@@ -451,13 +514,13 @@ export default function Koleksi() {
                     fontWeight: '500'
                   }}
                 >
-                  Tampilkan Semua Buku
+                  Tampilkan Semua {books.length.toLocaleString()} Buku
                 </button>
               </div>
             )}
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {totalPages > 1 && filteredBooks.length > 0 && (
               <Pagination 
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -468,11 +531,20 @@ export default function Koleksi() {
           </>
         )}
       </section>
+
+      {/* Loading Animation */}
+      <style jsx>{`
+        @keyframes loading {
+          0% { transform: translateX(-100%); }
+          50% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+      `}</style>
     </Layout>
   )
 }
 
-// Book Card Component (Grid View)
+// Book Card Component (Grid View) - SAMA
 function BookCard({ book, isMobile }) {
   return (
     <div style={{
@@ -588,7 +660,7 @@ function BookCard({ book, isMobile }) {
   )
 }
 
-// Book List Item Component (List View)
+// Book List Item Component (List View) - SAMA
 function BookListItem({ book, isMobile }) {
   return (
     <div style={{
@@ -633,7 +705,10 @@ function BookListItem({ book, isMobile }) {
             lineHeight: '1.5',
             fontStyle: 'italic'
           }}>
-            {book.deskripsi_fisik}
+            {book.deskripsi_fisik.length > 200 
+              ? `${book.deskripsi_fisik.substring(0, 200)}...` 
+              : book.deskripsi_fisik
+            }
           </p>
         )}
       </div>
@@ -689,7 +764,7 @@ function BookListItem({ book, isMobile }) {
   )
 }
 
-// Pagination Component
+// Pagination Component - SAMA
 function Pagination({ currentPage, totalPages, paginate, isMobile }) {
   const getPageNumbers = () => {
     const pages = []
