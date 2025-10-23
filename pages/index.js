@@ -6,17 +6,13 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(false)
-  
-  // State untuk pagination
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(20) // Default 20 per halaman
+  const [itemsPerPage, setItemsPerPage] = useState(20)
 
-  // Function untuk search individual words
+  // Search function tetap sama
   const searchIndividualWords = async (searchWords) => {
     try {
-      // Buat OR condition untuk setiap kata di setiap field
       const orConditions = []
-      
       searchWords.forEach(word => {
         orConditions.push(`judul.ilike.%${word}%`)
         orConditions.push(`pengarang.ilike.%${word}%`) 
@@ -28,18 +24,15 @@ export default function Home() {
         .select('*')
         .or(orConditions.join(','))
 
-      console.log('🔍 Individual word results:', data)
       if (data && data.length > 0) {
         setSearchResults(data)
       } else {
-        // Jika masih kosong, coba search hanya di judul
         const titleConditions = searchWords.map(word => `judul.ilike.%${word}%`)
         const { data: titleData } = await supabase
           .from('books')
           .select('*')
           .or(titleConditions.join(','))
         
-        console.log('🔍 Title-only results:', titleData)
         if (titleData && titleData.length > 0) {
           setSearchResults(titleData)
         } else {
@@ -56,21 +49,17 @@ export default function Home() {
     if (!searchTerm.trim()) return
     
     setLoading(true)
-    setCurrentPage(1) // Reset ke halaman 1 setiap search baru
+    setCurrentPage(1)
     console.log('🔍 Searching for:', searchTerm)
 
     try {
-      // Clean and split search term
       const searchWords = searchTerm.trim().split(/\s+/).filter(word => word.length > 0)
       console.log('📝 Search words:', searchWords)
 
-      let query = supabase
-        .from('books')
-        .select('*')
+      let query = supabase.from('books').select('*')
 
       if (searchWords.length > 1) {
-        // Untuk multiple words: buat OR condition yang lebih sederhana
-        const searchPattern = `%${searchTerm}%` // Cari frase lengkap dulu
+        const searchPattern = `%${searchTerm}%`
         query = query.or(`judul.ilike.${searchPattern},pengarang.ilike.${searchPattern},penerbit.ilike.${searchPattern}`)
         
         const { data, error } = await query
@@ -79,12 +68,10 @@ export default function Home() {
           console.log('✅ Found with phrase search:', data.length)
           setSearchResults(data)
         } else {
-          // Jika frase tidak ketemu, cari individual words
           console.log('🔄 Trying individual word search...')
           await searchIndividualWords(searchWords)
         }
       } else {
-        // Single word search
         const { data, error } = await query
           .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
 
@@ -101,155 +88,253 @@ export default function Home() {
     }
   }
 
-  // Hitung data untuk pagination
+  // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = searchResults.slice(indexOfFirstItem, indexOfLastItem)
   const totalPages = Math.ceil(searchResults.length / itemsPerPage)
-
-  // Function untuk ganti halaman
   const paginate = (pageNumber) => setCurrentPage(pageNumber)
-
-  // Function untuk ganti items per page
   const handleItemsPerPageChange = (e) => {
     setItemsPerPage(Number(e.target.value))
-    setCurrentPage(1) // Reset ke halaman 1
+    setCurrentPage(1)
   }
 
   return (
     <div style={{ 
       minHeight: '100vh', 
-      backgroundColor: '#FFFEF7',
-      fontFamily: 'Arial, sans-serif'
+      backgroundColor: '#fafafa',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      lineHeight: '1.6'
     }}>
       <Head>
-        <title>Layanan Koleksi Buku Langka - Perpustakaan Nasional RI</title>
+        <title>Koleksi Buku Langka - Perpustakaan Nasional RI</title>
+        <meta name="description" content="Temukan khazanah literatur langka Indonesia dari koleksi Perpustakaan Nasional RI" />
       </Head>
 
-      {/* Header */}
+      {/* Modern Header */}
       <header style={{
-        backgroundColor: '#8B4513',
-        color: 'white',
-        padding: '1rem'
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-            Layanan Koleksi Buku Langka - Perpustakaan Nasional RI
-          </h1>
-        </div>
-      </header>
-
-      {/* Navigation */}
-      <nav style={{
-        backgroundColor: '#D2691E',
-        padding: '0.5rem 1rem'
+        backgroundColor: 'white',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        padding: '1rem 0',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
       }}>
         <div style={{ 
           maxWidth: '1200px', 
           margin: '0 auto',
+          padding: '0 2rem',
           display: 'flex',
-          gap: '2rem'
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
-          <a href="/" style={{ color: 'white', textDecoration: 'none' }}>Beranda</a>
-          <a href="/koleksi" style={{ color: 'white', textDecoration: 'none' }}>Koleksi</a>
-          <a href="/layanan" style={{ color: 'white', textDecoration: 'none' }}>Layanan</a>
-          <a href="/profil" style={{ color: 'white', textDecoration: 'none' }}>Profil</a>
+          <div>
+            <h1 style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: '700',
+              color: '#1a202c',
+              margin: 0
+            }}>
+              Koleksi Buku Langka
+            </h1>
+            <p style={{ 
+              fontSize: '0.9rem', 
+              color: '#718096',
+              margin: '0.25rem 0 0 0'
+            }}>
+              Perpustakaan Nasional RI
+            </p>
+          </div>
+          
+          <nav style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+            <a href="/" style={{ 
+              color: '#2d3748', 
+              textDecoration: 'none',
+              fontWeight: '600',
+              fontSize: '0.95rem',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              backgroundColor: '#f7fafc'
+            }}>
+              Beranda
+            </a>
+            <a href="/koleksi" style={{ 
+              color: '#4a5568', 
+              textDecoration: 'none',
+              fontSize: '0.95rem',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              transition: 'all 0.2s'
+            }}>
+              Koleksi
+            </a>
+            <a href="/layanan" style={{ 
+              color: '#4a5568', 
+              textDecoration: 'none',
+              fontSize: '0.95rem',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              transition: 'all 0.2s'
+            }}>
+              Layanan
+            </a>
+            <a href="/profil" style={{ 
+              color: '#4a5568', 
+              textDecoration: 'none',
+              fontSize: '0.95rem',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              transition: 'all 0.2s'
+            }}>
+              Profil
+            </a>
+          </nav>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero Section */}
+      {/* Modern Hero Section */}
       <section style={{
-        backgroundColor: '#f5f5f0',
-        padding: '3rem 1rem',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '4rem 2rem',
         textAlign: 'center'
       }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <h2 style={{
-            fontSize: '2.5rem',
-            fontWeight: 'bold',
-            color: '#2C1810',
-            marginBottom: '1rem'
+            fontSize: '3rem',
+            fontWeight: '800',
+            marginBottom: '1rem',
+            lineHeight: '1.2'
           }}>
-            Koleksi 85,000+ Buku Langka
+            Khazanah Literasi Nusantara
           </h2>
           <p style={{
-            fontSize: '1.2rem',
-            color: '#2C1810',
-            marginBottom: '2rem'
+            fontSize: '1.25rem',
+            marginBottom: '2.5rem',
+            opacity: 0.9,
+            fontWeight: '300'
           }}>
-            Temukan khazanah literatur langka Indonesia
+            Jelajahi 85.000+ koleksi buku langka warisan budaya Indonesia
           </p>
           
           <form onSubmit={handleSearch} style={{ maxWidth: '600px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ 
+              display: 'flex', 
+              gap: '0',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+            }}>
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Cari judul, pengarang, atau tahun..."
+                placeholder="Cari judul, pengarang, atau tahun terbit..."
                 style={{
                   flex: 1,
-                  padding: '0.75rem',
-                  border: '2px solid #D2691E',
-                  borderRadius: '8px',
-                  fontSize: '1rem'
+                  padding: '1.25rem 1.5rem',
+                  border: 'none',
+                  fontSize: '1.1rem',
+                  outline: 'none'
                 }}
               />
               <button 
                 type="submit"
                 disabled={loading}
                 style={{
-                  backgroundColor: '#8B4513',
+                  backgroundColor: '#f56565',
                   color: 'white',
-                  padding: '0.75rem 1.5rem',
+                  padding: '0 2.5rem',
                   border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  cursor: 'pointer'
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
                 }}
               >
-                {loading ? 'Mencari...' : 'Cari'}
+                {loading ? '🔍' : 'Cari'}
               </button>
             </div>
           </form>
         </div>
       </section>
 
-      {/* Search Results */}
+      {/* Stats Section */}
+      <section style={{
+        backgroundColor: 'white',
+        padding: '3rem 2rem'
+      }}>
+        <div style={{ 
+          maxWidth: '1200px', 
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '2rem',
+          textAlign: 'center'
+        }}>
+          <div>
+            <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
+            <div style={{ color: '#718096', fontWeight: '500' }}>Koleksi Buku</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
+            <div style={{ color: '#718096', fontWeight: '500' }}>Tahun Sejarah</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
+            <div style={{ color: '#718096', fontWeight: '500' }}>Bahasa</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
+            <div style={{ color: '#718096', fontWeight: '500' }}>Akses Digital</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Search Results - Modern Design */}
       {searchResults.length > 0 && (
         <section style={{ 
-          maxWidth: '1200px', 
-          margin: '2rem auto',
-          padding: '0 1rem'
+          maxWidth: '1400px', 
+          margin: '3rem auto',
+          padding: '0 2rem'
         }}>
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '1rem',
+            marginBottom: '2rem',
             flexWrap: 'wrap',
             gap: '1rem'
           }}>
-            <h3 style={{ 
-              fontSize: '1.5rem', 
-              fontWeight: 'bold',
-              color: '#2C1810',
-              margin: 0
-            }}>
-              Hasil Pencarian ({searchResults.length} buku)
-            </h3>
+            <div>
+              <h3 style={{ 
+                fontSize: '1.75rem', 
+                fontWeight: '700',
+                color: '#2d3748',
+                margin: 0
+              }}>
+                Hasil Pencarian
+              </h3>
+              <p style={{ 
+                color: '#718096',
+                margin: '0.5rem 0 0 0'
+              }}>
+                {searchResults.length} buku ditemukan
+              </p>
+            </div>
             
-            {/* Items Per Page Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.9rem', color: '#666' }}>Tampilkan:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span style={{ fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Tampilkan:</span>
               <select 
                 value={itemsPerPage}
                 onChange={handleItemsPerPageChange}
                 style={{
-                  padding: '0.5rem',
-                  border: '1px solid #D2691E',
-                  borderRadius: '4px',
-                  backgroundColor: 'white'
+                  padding: '0.5rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  fontSize: '0.9rem',
+                  outline: 'none'
                 }}
               >
                 <option value={20}>20 per halaman</option>
@@ -261,155 +346,158 @@ export default function Home() {
 
           {/* Pagination Info */}
           <div style={{
-            marginBottom: '1rem',
+            marginBottom: '2rem',
             fontSize: '0.9rem',
-            color: '#666'
+            color: '#718096',
+            padding: '1rem',
+            backgroundColor: '#f7fafc',
+            borderRadius: '8px'
           }}>
-            Menampilkan {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, searchResults.length)} dari {searchResults.length} buku
-            {totalPages > 1 && ` (Halaman ${currentPage} dari ${totalPages})`}
+            Menampilkan <strong>{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, searchResults.length)}</strong> dari <strong>{searchResults.length}</strong> buku
+            {totalPages > 1 && ` • Halaman ${currentPage} dari ${totalPages}`}
           </div>
 
+          {/* Modern Book Grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: '1rem'
+            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+            gap: '1.5rem',
+            marginBottom: '3rem'
           }}>
             {currentItems.map((book) => (
               <div key={book.id} style={{
                 backgroundColor: 'white',
-                padding: '1rem',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                border: '1px solid #f5f5f0'
+                padding: '1.5rem',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                border: '1px solid #f0f0f0',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer'
               }}>
                 <h4 style={{ 
-                  fontWeight: 'bold',
-                  color: '#2C1810',
-                  marginBottom: '0.5rem',
-                  fontSize: '1.1rem'
+                  fontWeight: '600',
+                  color: '#2d3748',
+                  marginBottom: '0.75rem',
+                  fontSize: '1.1rem',
+                  lineHeight: '1.4'
                 }}>
                   {book.judul}
                 </h4>
                 
-                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-                  <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
-                </p>
-                
-                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-                  <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
-                </p>
-                
-                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-                  <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
-                </p>
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.9rem', color: '#4a5568', marginBottom: '0.25rem' }}>
+                    <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#4a5568', marginBottom: '0.25rem' }}>
+                    <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>
+                    <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
+                  </div>
+                </div>
 
                 {book.deskripsi_fisik && (
-                  <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
-                    <strong>Deskripsi:</strong> {book.deskripsi_fisik}
+                  <p style={{ 
+                    fontSize: '0.85rem', 
+                    color: '#718096', 
+                    marginTop: '0.75rem',
+                    lineHeight: '1.5',
+                    fontStyle: 'italic'
+                  }}>
+                    {book.deskripsi_fisik}
                   </p>
                 )}
 
-                {/* TOMBOL OPAC & PEMESANAN */}
+                {/* Modern Action Buttons */}
                 <div style={{ 
-                  marginTop: '1rem', 
+                  marginTop: '1.25rem', 
                   display: 'flex', 
-                  gap: '0.5rem',
+                  gap: '0.75rem',
                   flexWrap: 'wrap'
                 }}>
-                  {/* Tombol Lihat OPAC */}
                   {book.lihat_opac && book.lihat_opac !== 'null' && (
                     <a 
                       href={book.lihat_opac}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        backgroundColor: '#8B4513',
+                        backgroundColor: '#4299e1',
                         color: 'white',
                         padding: '0.5rem 1rem',
-                        borderRadius: '4px',
+                        borderRadius: '6px',
                         textDecoration: 'none',
-                        fontSize: '0.8rem',
-                        display: 'inline-block'
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                        transition: 'all 0.2s'
                       }}
                     >
-                      📖 LIHAT OPAC
+                      📖 Lihat OPAC
                     </a>
                   )}
 
-                  {/* Tombol Pesan Koleksi */}
                   {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
                     <a 
                       href={book.link_pesan_koleksi}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        backgroundColor: '#D2691E',
+                        backgroundColor: '#48bb78',
                         color: 'white',
                         padding: '0.5rem 1rem',
-                        borderRadius: '4px',
+                        borderRadius: '6px',
                         textDecoration: 'none',
-                        fontSize: '0.8rem',
-                        display: 'inline-block'
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                        transition: 'all 0.2s'
                       }}
                     >
-                      📥 PESAN KOLEKSI
+                      📥 Pesan Koleksi
                     </a>
-                  )}
-
-                  {/* Jika tidak ada link, tampilkan placeholder */}
-                  {(!book.lihat_opac || book.lihat_opac === 'null') && 
-                   (!book.link_pesan_koleksi || book.link_pesan_koleksi === 'null') && (
-                    <span style={{
-                      color: '#999',
-                      fontSize: '0.8rem',
-                      fontStyle: 'italic'
-                    }}>
-                      Link tidak tersedia
-                    </span>
                   )}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Pagination Controls */}
+          {/* Pagination Controls - Modern */}
           {totalPages > 1 && (
             <div style={{
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
               gap: '0.5rem',
-              marginTop: '2rem',
-              flexWrap: 'wrap'
+              marginTop: '3rem'
             }}>
               <button
                 onClick={() => paginate(1)}
                 disabled={currentPage === 1}
                 style={{
-                  padding: '0.5rem 1rem',
-                  border: '1px solid #D2691E',
-                  backgroundColor: currentPage === 1 ? '#f5f5f0' : 'white',
-                  color: currentPage === 1 ? '#999' : '#2C1810',
-                  borderRadius: '4px',
-                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: currentPage === 1 ? '#f7fafc' : 'white',
+                  color: currentPage === 1 ? '#a0aec0' : '#4a5568',
+                  borderRadius: '8px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontWeight: '500'
                 }}
               >
-                ⏮️ First
+                ⏮️
               </button>
               
               <button
                 onClick={() => paginate(currentPage - 1)}
                 disabled={currentPage === 1}
                 style={{
-                  padding: '0.5rem 1rem',
-                  border: '1px solid #D2691E',
-                  backgroundColor: currentPage === 1 ? '#f5f5f0' : 'white',
-                  color: currentPage === 1 ? '#999' : '#2C1810',
-                  borderRadius: '4px',
-                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: currentPage === 1 ? '#f7fafc' : 'white',
+                  color: currentPage === 1 ? '#a0aec0' : '#4a5568',
+                  borderRadius: '8px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontWeight: '500'
                 }}
               >
-                ◀️ Prev
+                ◀️
               </button>
 
               {/* Page Numbers */}
@@ -430,13 +518,14 @@ export default function Home() {
                     key={pageNumber}
                     onClick={() => paginate(pageNumber)}
                     style={{
-                      padding: '0.5rem 1rem',
-                      border: '1px solid #D2691E',
-                      backgroundColor: currentPage === pageNumber ? '#8B4513' : 'white',
-                      color: currentPage === pageNumber ? 'white' : '#2C1810',
-                      borderRadius: '4px',
+                      padding: '0.75rem 1rem',
+                      border: '1px solid #e2e8f0',
+                      backgroundColor: currentPage === pageNumber ? '#4299e1' : 'white',
+                      color: currentPage === pageNumber ? 'white' : '#4a5568',
+                      borderRadius: '8px',
                       cursor: 'pointer',
-                      fontWeight: currentPage === pageNumber ? 'bold' : 'normal'
+                      fontWeight: '500',
+                      minWidth: '3rem'
                     }}
                   >
                     {pageNumber}
@@ -448,45 +537,56 @@ export default function Home() {
                 onClick={() => paginate(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 style={{
-                  padding: '0.5rem 1rem',
-                  border: '1px solid #D2691E',
-                  backgroundColor: currentPage === totalPages ? '#f5f5f0' : 'white',
-                  color: currentPage === totalPages ? '#999' : '#2C1810',
-                  borderRadius: '4px',
-                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: currentPage === totalPages ? '#f7fafc' : 'white',
+                  color: currentPage === totalPages ? '#a0aec0' : '#4a5568',
+                  borderRadius: '8px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  fontWeight: '500'
                 }}
               >
-                Next ▶️
+                ▶️
               </button>
               
               <button
                 onClick={() => paginate(totalPages)}
                 disabled={currentPage === totalPages}
                 style={{
-                  padding: '0.5rem 1rem',
-                  border: '1px solid #D2691E',
-                  backgroundColor: currentPage === totalPages ? '#f5f5f0' : 'white',
-                  color: currentPage === totalPages ? '#999' : '#2C1810',
-                  borderRadius: '4px',
-                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: currentPage === totalPages ? '#f7fafc' : 'white',
+                  color: currentPage === totalPages ? '#a0aec0' : '#4a5568',
+                  borderRadius: '8px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  fontWeight: '500'
                 }}
               >
-                Last ⏭️
+                ⏭️
               </button>
             </div>
           )}
         </section>
       )}
 
-      {/* Footer */}
+      {/* Modern Footer */}
       <footer style={{
-        backgroundColor: '#2C1810',
+        backgroundColor: '#2d3748',
         color: 'white',
-        padding: '2rem 1rem',
-        marginTop: '3rem'
+        padding: '3rem 2rem',
+        marginTop: '4rem'
       }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
-          <p>&copy; 2024 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI</p>
+        <div style={{ 
+          maxWidth: '1200px', 
+          margin: '0 auto',
+          textAlign: 'center'
+        }}>
+          <p style={{ margin: 0, fontSize: '1rem' }}>
+            &copy; 2024 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI
+          </p>
+          <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem', opacity: 0.7 }}>
+            Melestarikan warisan literasi Indonesia untuk generasi mendatang
+          </p>
         </div>
       </footer>
     </div>
