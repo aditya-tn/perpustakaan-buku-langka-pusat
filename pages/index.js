@@ -7,37 +7,37 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(false)
 
- const handleSearch = async (e) => {
-  e.preventDefault()
-  if (!searchTerm.trim()) return
-  
-  setLoading(true)
-  console.log('🔍 Searching for:', searchTerm)
+  const handleSearch = async (e) => {
+    e.preventDefault()
+    if (!searchTerm.trim()) return
+    
+    setLoading(true)
+    console.log('🔍 Searching for:', searchTerm)
 
-  try {
-    const { data, error } = await supabase
-      .from('books')
-      .select('*')
-      .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
-      .limit(20)
+    try {
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
+        .limit(20)
 
-    console.log('📊 Search results:', data)
-    console.log('❌ Search error:', error)
+      console.log('📊 Search results:', data)
+      console.log('❌ Search error:', error)
 
-    if (error) {
-      console.error('Search failed:', error)
-      // Tampilkan error ke user
-      alert('Error searching: ' + error.message)
-    } else {
-      setSearchResults(data || [])
+      if (error) {
+        console.error('Search failed:', error)
+        alert('Error searching: ' + error.message)
+      } else {
+        setSearchResults(data || [])
+      }
+    } catch (err) {
+      console.error('🚨 Critical error:', err)
+      alert('System error: ' + err.message)
+    } finally {
+      setLoading(false)
     }
-  } catch (err) {
-    console.error('🚨 Critical error:', err)
-    alert('System error: ' + err.message)
-  } finally {
-    setLoading(false)
   }
-}
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -158,103 +158,102 @@ export default function Home() {
             gap: '1rem'
           }}>
             {searchResults.map((book) => (
-// Cari bagian ini di pages/index.js (sekitar line 130-160)
-// GANTI code book card dengan yang ini:
+              <div key={book.id} style={{
+                backgroundColor: 'white',
+                padding: '1rem',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                border: '1px solid #f5f5f0'
+              }}>
+                <h4 style={{ 
+                  fontWeight: 'bold',
+                  color: '#2C1810',
+                  marginBottom: '0.5rem',
+                  fontSize: '1.1rem'
+                }}>
+                  {book.judul}
+                </h4>
+                
+                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+                  <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
+                </p>
+                
+                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+                  <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
+                </p>
+                
+                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+                  <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
+                </p>
 
-<div key={book.id} style={{
-  backgroundColor: 'white',
-  padding: '1rem',
-  borderRadius: '8px',
-  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  border: '1px solid #f5f5f0'
-}}>
-  <h4 style={{ 
-    fontWeight: 'bold',
-    color: '#2C1810',
-    marginBottom: '0.5rem',
-    fontSize: '1.1rem'
-  }}>
-    {book.judul}
-  </h4>
-  
-  <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-    <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
-  </p>
-  
-  <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-    <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
-  </p>
-  
-  <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-    <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
-  </p>
+                {book.deskripsi_fisik && (
+                  <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
+                    <strong>Deskripsi:</strong> {book.deskripsi_fisik}
+                  </p>
+                )}
 
-  {book.deskripsi_fisik && (
-    <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
-      <strong>Deskripsi:</strong> {book.deskripsi_fisik}
-    </p>
-  )}
+                {/* TOMBOL OPAC & PEMESANAN */}
+                <div style={{ 
+                  marginTop: '1rem', 
+                  display: 'flex', 
+                  gap: '0.5rem',
+                  flexWrap: 'wrap'
+                }}>
+                  {/* Tombol Lihat OPAC */}
+                  {book.lihat_opac && book.lihat_opac !== 'null' && (
+                    <a 
+                      href={book.lihat_opac}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        backgroundColor: '#8B4513',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '4px',
+                        textDecoration: 'none',
+                        fontSize: '0.8rem',
+                        display: 'inline-block'
+                      }}
+                    >
+                      📖 LIHAT OPAC
+                    </a>
+                  )}
 
-  {/* TOMBOL OPAC & PEMESANAN */}
-  <div style={{ 
-    marginTop: '1rem', 
-    display: 'flex', 
-    gap: '0.5rem',
-    flexWrap: 'wrap'
-  }}>
-    {/* Tombol Lihat OPAC */}
-    {book.lihat_opac && book.lihat_opac !== 'null' && (
-      <a 
-        href={book.lihat_opac}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          backgroundColor: '#8B4513',
-          color: 'white',
-          padding: '0.5rem 1rem',
-          borderRadius: '4px',
-          textDecoration: 'none',
-          fontSize: '0.8rem',
-          display: 'inline-block'
-        }}
-      >
-        📖 LIHAT OPAC
-      </a>
-    )}
+                  {/* Tombol Pesan Koleksi */}
+                  {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
+                    <a 
+                      href={book.link_pesan_koleksi}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        backgroundColor: '#D2691E',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '4px',
+                        textDecoration: 'none',
+                        fontSize: '0.8rem',
+                        display: 'inline-block'
+                      }}
+                    >
+                      📥 PESAN KOLEKSI
+                    </a>
+                  )}
 
-    {/* Tombol Pesan Koleksi */}
-    {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
-      <a 
-        href={book.link_pesan_koleksi}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          backgroundColor: '#D2691E',
-          color: 'white',
-          padding: '0.5rem 1rem',
-          borderRadius: '4px',
-          textDecoration: 'none',
-          fontSize: '0.8rem',
-          display: 'inline-block'
-        }}
-      >
-        📥 PESAN KOLEKSI
-      </a>
-    )}
-
-    {/* Jika tidak ada link, tampilkan placeholder */}
-    {(!book.lihat_opac || book.lihat_opac === 'null') && 
-     (!book.link_pesan_koleksi || book.link_pesan_koleksi === 'null') && (
-      <span style={{
-        color: '#999',
-        fontSize: '0.8rem',
-        fontStyle: 'italic'
-      }}>
-        Link tidak tersedia
-      </span>
-    )}
-  </div>
-</div>
+                  {/* Jika tidak ada link, tampilkan placeholder */}
+                  {(!book.lihat_opac || book.lihat_opac === 'null') && 
+                   (!book.link_pesan_koleksi || book.link_pesan_koleksi === 'null') && (
+                    <span style={{
+                      color: '#999',
+                      fontSize: '0.8rem',
+                      fontStyle: 'italic'
+                    }}>
+                      Link tidak tersedia
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
