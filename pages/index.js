@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
+import Layout from '../components/Layout'
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -10,7 +11,6 @@ export default function Home() {
   const [itemsPerPage, setItemsPerPage] = useState(20)
   const [showStats, setShowStats] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   // Detect mobile screen
   useEffect(() => {
@@ -32,18 +32,6 @@ export default function Home() {
       })
     }
   }, [currentPage, searchResults.length])
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      if (isMenuOpen) {
-        setIsMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [isMenuOpen])
 
   // Hide stats when search results appear
   useEffect(() => {
@@ -145,249 +133,13 @@ export default function Home() {
     setCurrentPage(1)
   }
 
-  // Toggle mobile menu
-  const toggleMenu = (e) => {
-    e.stopPropagation()
-    setIsMenuOpen(!isMenuOpen)
-  }
-
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      backgroundColor: '#fafafa',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      lineHeight: '1.6'
-    }}>
+    <Layout isMobile={isMobile}>
       <Head>
         <title>Koleksi Buku Langka - Perpustakaan Nasional RI</title>
         <meta name="description" content="Temukan khazanah literatur langka Indonesia dari koleksi Perpustakaan Nasional RI" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-
-      {/* Modern Header - FIXED VERSION */}
-      <header style={{
-        backgroundColor: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        padding: isMobile ? '0.75rem 1rem' : '1rem 0',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000
-      }}>
-        <div style={{ 
-          maxWidth: '1200px', 
-          margin: '0 auto',
-          padding: isMobile ? '0' : '0 2rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          position: 'relative'
-        }}>
-          {/* Logo Section */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '1rem'
-          }}>
-            {isMobile && (
-              <button
-                onClick={toggleMenu}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  padding: '0.25rem',
-                  borderRadius: '4px',
-                  color: '#4a5568',
-                  width: '40px',
-                  height: '40px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                {isMenuOpen ? '✕' : '☰'}
-              </button>
-            )}
-            <div>
-              <h1 style={{ 
-                fontSize: isMobile ? '1.1rem' : '1.5rem', 
-                fontWeight: '700',
-                color: '#1a202c',
-                margin: 0,
-                lineHeight: '1.2'
-              }}>
-                Koleksi Buku Langka
-              </h1>
-              <p style={{ 
-                fontSize: isMobile ? '0.7rem' : '0.9rem', 
-                color: '#718096',
-                margin: '0.1rem 0 0 0'
-              }}>
-                Perpustakaan Nasional RI
-              </p>
-            </div>
-          </div>
-          
-          {/* Desktop Navigation */}
-          {!isMobile && (
-            <nav style={{ 
-              display: 'flex', 
-              gap: '2rem', 
-              alignItems: 'center'
-            }}>
-              <a href="/" style={{ 
-                color: '#2d3748', 
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '0.95rem',
-                padding: '0.5rem 1rem',
-                borderRadius: '6px',
-                backgroundColor: '#f7fafc'
-              }}>
-                Beranda
-              </a>
-              <a href="/koleksi" style={{ 
-                color: '#4a5568', 
-                textDecoration: 'none',
-                fontSize: '0.95rem',
-                padding: '0.5rem 1rem',
-                borderRadius: '6px',
-                transition: 'all 0.2s'
-              }}>
-                Koleksi
-              </a>
-              <a href="/layanan" style={{ 
-                color: '#4a5568', 
-                textDecoration: 'none',
-                fontSize: '0.95rem',
-                padding: '0.5rem 1rem',
-                borderRadius: '6px',
-                transition: 'all 0.2s'
-              }}>
-                Layanan
-              </a>
-              <a href="/profil" style={{ 
-                color: '#4a5568', 
-                textDecoration: 'none',
-                fontSize: '0.95rem',
-                padding: '0.5rem 1rem',
-                borderRadius: '6px',
-                transition: 'all 0.2s'
-              }}>
-                Profil
-              </a>
-            </nav>
-          )}
-
-          {/* Mobile Navigation - SIMPLE & WORKING */}
-          {isMobile && isMenuOpen && (
-            <div 
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 0.75rem)',
-                left: '1rem',
-                right: '1rem',
-                backgroundColor: 'white',
-                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
-                padding: '1rem',
-                borderRadius: '12px',
-                zIndex: 1001,
-                border: '1px solid #e2e8f0'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <nav style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.25rem'
-              }}>
-                <a 
-                  href="/" 
-                  onClick={() => setIsMenuOpen(false)}
-                  style={{ 
-                    color: '#2d3748', 
-                    textDecoration: 'none',
-                    fontWeight: '600',
-                    fontSize: '1rem',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    backgroundColor: '#f7fafc',
-                    display: 'block',
-                    textAlign: 'center'
-                  }}
-                >
-                  Beranda
-                </a>
-                <a 
-                  href="/koleksi" 
-                  onClick={() => setIsMenuOpen(false)}
-                  style={{ 
-                    color: '#4a5568', 
-                    textDecoration: 'none',
-                    fontSize: '1rem',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    display: 'block',
-                    textAlign: 'center',
-                    backgroundColor: 'white'
-                  }}
-                >
-                  Koleksi
-                </a>
-                <a 
-                  href="/layanan" 
-                  onClick={() => setIsMenuOpen(false)}
-                  style={{ 
-                    color: '#4a5568', 
-                    textDecoration: 'none',
-                    fontSize: '1rem',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    display: 'block',
-                    textAlign: 'center',
-                    backgroundColor: 'white'
-                  }}
-                >
-                  Layanan
-                </a>
-                <a 
-                  href="/profil" 
-                  onClick={() => setIsMenuOpen(false)}
-                  style={{ 
-                    color: '#4a5568', 
-                    textDecoration: 'none',
-                    fontSize: '1rem',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                    display: 'block',
-                    textAlign: 'center',
-                    backgroundColor: 'white'
-                  }}
-                >
-                  Profil
-                </a>
-              </nav>
-            </div>
-          )}
-        </div>
-
-        {/* Overlay untuk close menu ketika klik di luar */}
-        {isMobile && isMenuOpen && (
-          <div 
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'transparent',
-              zIndex: 999
-            }}
-            onClick={() => setIsMenuOpen(false)}
-          />
-        )}
-      </header>
 
       {/* Modern Hero Section - Responsive */}
       <section style={{
@@ -806,40 +558,6 @@ export default function Home() {
         </section>
       )}
 
-      {/* Modern Footer dengan Version */}
-      <footer style={{
-        backgroundColor: '#2d3748',
-        color: 'white',
-        padding: isMobile ? '2rem 1rem' : '3rem 2rem',
-        marginTop: '4rem'
-      }}>
-        <div style={{ 
-          maxWidth: '1200px', 
-          margin: '0 auto',
-          textAlign: 'center'
-        }}>
-          <p style={{ margin: 0, fontSize: isMobile ? '0.9rem' : '1rem' }}>
-            &copy; 2025 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI
-          </p>
-          <p style={{ margin: '0.5rem 0 0 0', fontSize: isMobile ? '0.8rem' : '0.9rem', opacity: 0.7 }}>
-            Melestarikan warisan literasi Indonesia untuk generasi mendatang
-          </p>
-          {/* Version Badge */}
-          <div style={{
-            marginTop: '1rem',
-            display: 'inline-block',
-            backgroundColor: '#4a5568',
-            color: 'white',
-            padding: '0.25rem 0.75rem',
-            borderRadius: '12px',
-            fontSize: isMobile ? '0.7rem' : '0.8rem',
-            fontWeight: '500'
-          }}>
-            Beta v.01
-          </div>
-        </div>
-      </footer>
-
       {/* CSS Animation */}
       <style jsx>{`
         @keyframes fadeInUp {
@@ -853,6 +571,6 @@ export default function Home() {
           }
         }
       `}</style>
-    </div>
+    </Layout>
   )
 }
