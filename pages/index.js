@@ -158,37 +158,103 @@ export default function Home() {
             gap: '1rem'
           }}>
             {searchResults.map((book) => (
-              <div key={book.id} style={{
-                backgroundColor: 'white',
-                padding: '1rem',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                border: '1px solid #f5f5f0'
-              }}>
-                <h4 style={{ 
-                  fontWeight: 'bold',
-                  color: '#2C1810',
-                  marginBottom: '0.5rem'
-                }}>
-                  {book.judul}
-                </h4>
-                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-                  <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
-                </p>
-                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-                  <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
-                </p>
-                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
-                  <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
-                </p>
-                {book.deskripsi_fisik && (
-                  <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
-                    {book.deskripsi_fisik}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
+// Cari bagian ini di pages/index.js (sekitar line 130-160)
+// GANTI code book card dengan yang ini:
+
+<div key={book.id} style={{
+  backgroundColor: 'white',
+  padding: '1rem',
+  borderRadius: '8px',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  border: '1px solid #f5f5f0'
+}}>
+  <h4 style={{ 
+    fontWeight: 'bold',
+    color: '#2C1810',
+    marginBottom: '0.5rem',
+    fontSize: '1.1rem'
+  }}>
+    {book.judul}
+  </h4>
+  
+  <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+    <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
+  </p>
+  
+  <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+    <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
+  </p>
+  
+  <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+    <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
+  </p>
+
+  {book.deskripsi_fisik && (
+    <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
+      <strong>Deskripsi:</strong> {book.deskripsi_fisik}
+    </p>
+  )}
+
+  {/* TOMBOL OPAC & PEMESANAN */}
+  <div style={{ 
+    marginTop: '1rem', 
+    display: 'flex', 
+    gap: '0.5rem',
+    flexWrap: 'wrap'
+  }}>
+    {/* Tombol Lihat OPAC */}
+    {book.lihat_opac && book.lihat_opac !== 'null' && (
+      <a 
+        href={book.lihat_opac}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          backgroundColor: '#8B4513',
+          color: 'white',
+          padding: '0.5rem 1rem',
+          borderRadius: '4px',
+          textDecoration: 'none',
+          fontSize: '0.8rem',
+          display: 'inline-block'
+        }}
+      >
+        📖 LIHAT OPAC
+      </a>
+    )}
+
+    {/* Tombol Pesan Koleksi */}
+    {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
+      <a 
+        href={book.link_pesan_koleksi}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          backgroundColor: '#D2691E',
+          color: 'white',
+          padding: '0.5rem 1rem',
+          borderRadius: '4px',
+          textDecoration: 'none',
+          fontSize: '0.8rem',
+          display: 'inline-block'
+        }}
+      >
+        📥 PESAN KOLEKSI
+      </a>
+    )}
+
+    {/* Jika tidak ada link, tampilkan placeholder */}
+    {(!book.lihat_opac || book.lihat_opac === 'null') && 
+     (!book.link_pesan_koleksi || book.link_pesan_koleksi === 'null') && (
+      <span style={{
+        color: '#999',
+        fontSize: '0.8rem',
+        fontStyle: 'italic'
+      }}>
+        Link tidak tersedia
+      </span>
+    )}
+  </div>
+</div>
         </section>
       )}
 
