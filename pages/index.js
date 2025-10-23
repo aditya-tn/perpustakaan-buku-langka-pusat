@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 
@@ -8,6 +8,16 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(20)
+  const [showStats, setShowStats] = useState(true)
+
+  // Hide stats when search results appear
+  useEffect(() => {
+    if (searchResults.length > 0) {
+      setShowStats(false)
+    } else {
+      setShowStats(true)
+    }
+  }, [searchResults])
 
   // Search function tetap sama
   const searchIndividualWords = async (searchWords) => {
@@ -50,11 +60,9 @@ export default function Home() {
     
     setLoading(true)
     setCurrentPage(1)
-    console.log('🔍 Searching for:', searchTerm)
 
     try {
       const searchWords = searchTerm.trim().split(/\s+/).filter(word => word.length > 0)
-      console.log('📝 Search words:', searchWords)
 
       let query = supabase.from('books').select('*')
 
@@ -65,10 +73,8 @@ export default function Home() {
         const { data, error } = await query
         
         if (!error && data && data.length > 0) {
-          console.log('✅ Found with phrase search:', data.length)
           setSearchResults(data)
         } else {
-          console.log('🔄 Trying individual word search...')
           await searchIndividualWords(searchWords)
         }
       } else {
@@ -206,7 +212,7 @@ export default function Home() {
             marginBottom: '1rem',
             lineHeight: '1.2'
           }}>
-            Khazanah Literasi Nusantara
+            Memori Literasi Nusantara
           </h2>
           <p style={{
             fontSize: '1.25rem',
@@ -214,7 +220,7 @@ export default function Home() {
             opacity: 0.9,
             fontWeight: '300'
           }}>
-            Jelajahi 85.000+ koleksi buku langka warisan budaya Indonesia
+            85.000+ warisan budaya di layanan buku langka - Perpustakaan Nasional RI
           </p>
           
           <form onSubmit={handleSearch} style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -259,44 +265,50 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section style={{
-        backgroundColor: 'white',
-        padding: '3rem 2rem'
-      }}>
-        <div style={{ 
-          maxWidth: '1200px', 
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '2rem',
-          textAlign: 'center'
+      {/* Stats Section dengan Smooth Transition */}
+      {showStats && (
+        <section style={{
+          backgroundColor: 'white',
+          padding: '3rem 2rem',
+          transition: 'all 0.3s ease-in-out',
+          opacity: showStats ? 1 : 0,
+          transform: showStats ? 'translateY(0)' : 'translateY(-20px)'
         }}>
-          <div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
-            <div style={{ color: '#718096', fontWeight: '500' }}>Koleksi Buku</div>
+          <div style={{ 
+            maxWidth: '1200px', 
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '2rem',
+            textAlign: 'center'
+          }}>
+            <div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
+              <div style={{ color: '#718096', fontWeight: '500' }}>Koleksi Buku</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
+              <div style={{ color: '#718096', fontWeight: '500' }}>Tahun Sejarah</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
+              <div style={{ color: '#718096', fontWeight: '500' }}>Bahasa</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
+              <div style={{ color: '#718096', fontWeight: '500' }}>Akses Digital</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
-            <div style={{ color: '#718096', fontWeight: '500' }}>Tahun Sejarah</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
-            <div style={{ color: '#718096', fontWeight: '500' }}>Bahasa</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
-            <div style={{ color: '#718096', fontWeight: '500' }}>Akses Digital</div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Search Results - Modern Design */}
       {searchResults.length > 0 && (
         <section style={{ 
           maxWidth: '1400px', 
           margin: '3rem auto',
-          padding: '0 2rem'
+          padding: '0 2rem',
+          animation: 'fadeInUp 0.5s ease-out'
         }}>
           <div style={{
             display: 'flex',
@@ -589,6 +601,20 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* CSS Animation */}
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   )
 }
