@@ -134,8 +134,7 @@ function PemesananKoleksi({ isMobile }) {
         fontSize: isMobile ? '0.9rem' : '1rem'
       }}>
         Untuk mengakses koleksi buku langka, silakan isi formulir pemesanan berikut. 
-        Tim kami akan menghubungi Anda untuk konfirmasi dan pengaturan jadwal.
-        Pemesanan harus dilakukan minimal <strong>3 hari kerja</strong> sebelumnya.
+        Tim kami akan memanggil Anda untuk menyerahkan koleksi.
       </p>
       
       {/* Google Form Embed */}
@@ -183,22 +182,19 @@ function PemesananKoleksi({ isMobile }) {
           lineHeight: '1.6'
         }}>
           <li style={{ marginBottom: '0.5rem' }}>
-            <strong>Waktu Pemesanan:</strong> Minimal 3 hari kerja sebelumnya
+            <strong>Waktu Pemesanan:</strong> Hanya pada saat jam layanan buka
           </li>
           <li style={{ marginBottom: '0.5rem' }}>
-            <strong>Lokasi Akses:</strong> Buku hanya dapat diakses di ruang baca khusus
+            <strong>Lokasi Akses:</strong> Buku hanya dapat dibaca ditempat, tidak diperkenankan dibawa pulang atau ke lantai lain
           </li>
           <li style={{ marginBottom: '0.5rem' }}>
-            <strong>Durasi:</strong> Waktu akses maksimal 4 jam per sesi
+            <strong>Durasi:</strong> Maksimal peminjaman 5 buku untuk sekali pinjam 
           </li>
           <li style={{ marginBottom: '0.5rem' }}>
             <strong>Reproduksi:</strong> Dilarang memfotokopi atau mereproduksi koleksi
           </li>
           <li style={{ marginBottom: '0.5rem' }}>
-            <strong>Identitas:</strong> Wajib menunjukkan KTP/Kartu Pelajar
-          </li>
-          <li>
-            <strong>Konfirmasi:</strong> Tim akan menghubungi via email/telepon
+            <strong>Identitas:</strong> Wajib menyerahkan Kartu Anggota Perpusnas RI / KTP / Kartu Pelajar / Kartu identitas lain yang relevan
           </li>
         </ul>
       </div>
@@ -231,7 +227,7 @@ function PemesananRuangBaca({ isMobile }) {
       }}>
         Reservasi ruang baca khusus untuk penelitian dan studi mendalam. 
         Tersedia fasilitas lengkap dengan atmosfer yang kondusif.
-        Pemesanan harus dilakukan minimal <strong>2 hari kerja</strong> sebelumnya.
+        Pemesanan harus dilakukan pada saat <strong>jam kerja layanan</strong>.
       </p>
       
       {/* Google Form Embed */}
@@ -311,7 +307,7 @@ function PemesananRuangBaca({ isMobile }) {
             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📶</div>
             <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>WiFi Cepat</h4>
             <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem', lineHeight: '1.5' }}>
-              Internet berkecepatan tinggi khusus untuk penelitian dan akses database akademik
+              Internet berkecepatan tinggi untuk penelitian dan akses database e-resources Perpustakaan Nasional RI
             </p>
           </div>
 
