@@ -6,6 +6,10 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(false)
+  
+  // State untuk pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(20) // Default 20 per halaman
 
   // Function untuk search individual words
   const searchIndividualWords = async (searchWords) => {
@@ -23,7 +27,6 @@ export default function Home() {
         .from('books')
         .select('*')
         .or(orConditions.join(','))
-        // LIMIT DIHAPUS
 
       console.log('🔍 Individual word results:', data)
       if (data && data.length > 0) {
@@ -35,7 +38,6 @@ export default function Home() {
           .from('books')
           .select('*')
           .or(titleConditions.join(','))
-          // LIMIT DIHAPUS
         
         console.log('🔍 Title-only results:', titleData)
         if (titleData && titleData.length > 0) {
@@ -54,6 +56,7 @@ export default function Home() {
     if (!searchTerm.trim()) return
     
     setLoading(true)
+    setCurrentPage(1) // Reset ke halaman 1 setiap search baru
     console.log('🔍 Searching for:', searchTerm)
 
     try {
@@ -71,7 +74,6 @@ export default function Home() {
         query = query.or(`judul.ilike.${searchPattern},pengarang.ilike.${searchPattern},penerbit.ilike.${searchPattern}`)
         
         const { data, error } = await query
-        // LIMIT DIHAPUS
         
         if (!error && data && data.length > 0) {
           console.log('✅ Found with phrase search:', data.length)
@@ -85,7 +87,6 @@ export default function Home() {
         // Single word search
         const { data, error } = await query
           .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
-          // LIMIT DIHAPUS
 
         if (error) {
           console.error('Search failed:', error)
@@ -98,6 +99,21 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Hitung data untuk pagination
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentItems = searchResults.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(searchResults.length / itemsPerPage)
+
+  // Function untuk ganti halaman
+  const paginate = (pageNumber) => setCurrentPage(pageNumber)
+
+  // Function untuk ganti items per page
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value))
+    setCurrentPage(1) // Reset ke halaman 1
   }
 
   return (
@@ -206,20 +222,59 @@ export default function Home() {
           margin: '2rem auto',
           padding: '0 1rem'
         }}>
-          <h3 style={{ 
-            fontSize: '1.5rem', 
-            fontWeight: 'bold',
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             marginBottom: '1rem',
-            color: '#2C1810'
+            flexWrap: 'wrap',
+            gap: '1rem'
           }}>
-            Hasil Pencarian ({searchResults.length} buku)
-          </h3>
+            <h3 style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 'bold',
+              color: '#2C1810',
+              margin: 0
+            }}>
+              Hasil Pencarian ({searchResults.length} buku)
+            </h3>
+            
+            {/* Items Per Page Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.9rem', color: '#666' }}>Tampilkan:</span>
+              <select 
+                value={itemsPerPage}
+                onChange={handleItemsPerPageChange}
+                style={{
+                  padding: '0.5rem',
+                  border: '1px solid #D2691E',
+                  borderRadius: '4px',
+                  backgroundColor: 'white'
+                }}
+              >
+                <option value={20}>20 per halaman</option>
+                <option value={50}>50 per halaman</option>
+                <option value={100}>100 per halaman</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Pagination Info */}
+          <div style={{
+            marginBottom: '1rem',
+            fontSize: '0.9rem',
+            color: '#666'
+          }}>
+            Menampilkan {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, searchResults.length)} dari {searchResults.length} buku
+            {totalPages > 1 && ` (Halaman ${currentPage} dari ${totalPages})`}
+          </div>
+
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
             gap: '1rem'
           }}>
-            {searchResults.map((book) => (
+            {currentItems.map((book) => (
               <div key={book.id} style={{
                 backgroundColor: 'white',
                 padding: '1rem',
@@ -316,6 +371,110 @@ export default function Home() {
               </div>
             ))}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginTop: '2rem',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={() => paginate(1)}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid #D2691E',
+                  backgroundColor: currentPage === 1 ? '#f5f5f0' : 'white',
+                  color: currentPage === 1 ? '#999' : '#2C1810',
+                  borderRadius: '4px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                ⏮️ First
+              </button>
+              
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid #D2691E',
+                  backgroundColor: currentPage === 1 ? '#f5f5f0' : 'white',
+                  color: currentPage === 1 ? '#999' : '#2C1810',
+                  borderRadius: '4px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                ◀️ Prev
+              </button>
+
+              {/* Page Numbers */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNumber
+                if (totalPages <= 5) {
+                  pageNumber = i + 1
+                } else if (currentPage <= 3) {
+                  pageNumber = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  pageNumber = totalPages - 4 + i
+                } else {
+                  pageNumber = currentPage - 2 + i
+                }
+
+                return (
+                  <button
+                    key={pageNumber}
+                    onClick={() => paginate(pageNumber)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: '1px solid #D2691E',
+                      backgroundColor: currentPage === pageNumber ? '#8B4513' : 'white',
+                      color: currentPage === pageNumber ? 'white' : '#2C1810',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: currentPage === pageNumber ? 'bold' : 'normal'
+                    }}
+                  >
+                    {pageNumber}
+                  </button>
+                )
+              })}
+
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid #D2691E',
+                  backgroundColor: currentPage === totalPages ? '#f5f5f0' : 'white',
+                  color: currentPage === totalPages ? '#999' : '#2C1810',
+                  borderRadius: '4px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Next ▶️
+              </button>
+              
+              <button
+                onClick={() => paginate(totalPages)}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid #D2691E',
+                  backgroundColor: currentPage === totalPages ? '#f5f5f0' : 'white',
+                  color: currentPage === totalPages ? '#999' : '#2C1810',
+                  borderRadius: '4px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Last ⏭️
+              </button>
+            </div>
+          )}
         </section>
       )}
 
