@@ -1,217 +1,317 @@
-// pages/index.js
-import { useState, useEffect } from 'react';
-import Head from 'next/head';
-
-// Komponen Advanced Search Bar
-function AdvancedSearchBar({ books, onSearchResults }) {
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const handleSearch = (term) => {
-    setSearchTerm(term);
-    
-    if (!term.trim()) {
-      onSearchResults(books);
-      return;
-    }
-
-    const keywords = term.toLowerCase().split(' ').filter(word => word.length > 0);
-    
-    const results = books.filter(book => {
-      const searchableText = `
-        ${book.title || ''} 
-        ${book.author || ''} 
-        ${book.description || ''}
-        ${book.category || ''}
-        ${book.publisher || ''}
-      `.toLowerCase();
-
-      return keywords.every(keyword => searchableText.includes(keyword));
-    });
-
-    onSearchResults(results);
-  };
-
-  return (
-    <div className="search-bar mb-6">
-      <input
-        type="text"
-        placeholder="Cari buku... (contoh: sejarah majapahit, novel terjemahan, sastra jawa)"
-        value={searchTerm}
-        onChange={(e) => handleSearch(e.target.value)}
-        className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-      />
-      {searchTerm && (
-        <div className="mt-2 text-sm text-gray-600">
-          <p>Mencari: "{searchTerm}" • {searchTerm.split(' ').filter(w => w.length > 0).length} kata kunci</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Komponen Book Card
-function BookCard({ book }) {
-  return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="p-4">
-        <h3 className="font-bold text-lg mb-2 text-gray-800">{book.title}</h3>
-        <p className="text-gray-600 mb-1"><strong>Pengarang:</strong> {book.author}</p>
-        <p className="text-gray-600 mb-1"><strong>Kategori:</strong> {book.category}</p>
-        <p className="text-gray-600 mb-1"><strong>Tahun:</strong> {book.year}</p>
-        <p className="text-gray-500 text-sm mt-2 line-clamp-2">{book.description}</p>
-        <button className="mt-3 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
-          Detail Buku
-        </button>
-      </div>
-    </div>
-  );
-}
+import { useState } from 'react'
+import Head from 'next/head'
+import { supabase } from '../lib/supabase'
 
 export default function Home() {
-  const [allBooks, setAllBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]);
-  const [searchInfo, setSearchInfo] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [loading, setLoading] = useState(false)
 
-  // Data contoh buku (nanti bisa ganti dengan data dari database)
-  const sampleBooks = [
-    {
-      id: 1,
-      title: "Sejarah Majapahit: Kejayaan Nusantara",
-      author: "Prof. Dr. Sastro Wijaya",
-      category: "Sejarah",
-      year: "2018",
-      description: "Buku ini mengupas tuntas sejarah kerajaan Majapahit dari masa kejayaan hingga keruntuhannya.",
-      publisher: "Pustaka Nusantara"
-    },
-    {
-      id: 2,
-      title: "Nagarakretagama dan Sejarah Kuno",
-      author: "Dr. Bambang Sutopo",
-      category: "Sejarah",
-      year: "2020",
-      description: "Analisis mendalam tentang kitab Nagarakretagama sebagai sumber sejarah kuno Indonesia.",
-      publisher: "Balai Arkeologi"
-    },
-    {
-      id: 3,
-      title: "Sastra Jawa Kuno",
-      author: "Dra. Sri Mulyani",
-      category: "Sastra",
-      year: "2019",
-      description: "Kumpulan dan analisis karya sastra Jawa kuno beserta terjemahan modern.",
-      publisher: "Universitas Indonesia Press"
-    },
-    {
-      id: 4,
-      title: "Arsitektur Candi Majapahit",
-      author: "Ir. Teguh Santoso",
-      category: "Arsitektur",
-      year: "2017",
-      description: "Studi tentang arsitektur dan struktur candi-candi peninggalan Majapahit.",
-      publisher: "Penerbit Teknik"
-    },
-    {
-      id: 5,
-      title: "Novel Sejarah: Sang Pemberani",
-      author: "Ahmad Fauzi",
-      category: "Novel",
-      year: "2021",
-      description: "Novel historis tentang petualangan seorang pahlawan muda di zaman Majapahit.",
-      publisher: "Pustaka Fiksi"
-    },
-    {
-      id: 6,
-      title: "Terjemahan Kakawin Sutasoma",
-      author: "Prof. Suryo Negoro",
-      category: "Sastra",
-      year: "2015",
-      description: "Terjemahan lengkap dan penjelasan Kakawin Sutasoma beserta nilai filosofisnya.",
-      publisher: "Lembaga Bahasa"
+  // Function untuk alternative search approach
+  const alternativeSearch = async (searchWords) => {
+    try {
+      // Coba search dengan AND logic (semua kata harus match)
+      const andConditions = searchWords.map(word => 
+        `judul.ilike.%${word}%`
+      ).join(',')
+
+      const { data } = await supabase
+        .from('books')
+        .select('*')
+        .or(andConditions)
+        .limit(20)
+
+      console.log('🔍 Alternative results:', data)
+      if (data && data.length > 0) {
+        setSearchResults(data)
+      }
+    } catch (err) {
+      console.error('Alternative search error:', err)
     }
-  ];
+  }
 
-  useEffect(() => {
-    // Simulasi loading data
-    setTimeout(() => {
-      setAllBooks(sampleBooks);
-      setFilteredBooks(sampleBooks);
-      setSearchInfo(`Menampilkan semua ${sampleBooks.length} koleksi buku`);
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+  const handleSearch = async (e) => {
+    e.preventDefault()
+    if (!searchTerm.trim()) return
+    
+    setLoading(true)
+    console.log('🔍 Searching for:', searchTerm)
 
-  const handleSearchResults = (results) => {
-    setFilteredBooks(results);
-    setSearchInfo(`Ditemukan ${results.length} hasil pencarian`);
-  };
+    try {
+      // Split search term into individual words
+      const searchWords = searchTerm.trim().split(/\s+/)
+      console.log('📝 Search words:', searchWords)
+
+      let query = supabase
+        .from('books')
+        .select('*')
+
+      // Build OR conditions for each word
+      if (searchWords.length > 1) {
+        // Multiple words: search each word in multiple fields
+        const orConditions = searchWords.map(word => 
+          `judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`
+        ).join(',')
+
+        query = query.or(orConditions)
+      } else {
+        // Single word: normal search
+        query = query.or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
+      }
+
+      const { data, error } = await query.limit(20)
+
+      console.log('📊 Search results:', data)
+      console.log('❌ Search error:', error)
+
+      if (error) {
+        console.error('Search failed:', error)
+      } else {
+        setSearchResults(data || [])
+        
+        // Jika hasil kosong, coba dengan approach berbeda
+        if (data.length === 0 && searchWords.length > 1) {
+          console.log('🔄 Trying alternative search...')
+          await alternativeSearch(searchWords)
+        }
+      }
+    } catch (err) {
+      console.error('🚨 Critical error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#FFFEF7',
+      fontFamily: 'Arial, sans-serif'
+    }}>
       <Head>
-        <title>Perpustakaan Buku Langka Pusat</title>
-        <meta name="description" content="Koleksi buku langka dan naskah kuno" />
+        <title>Layanan Koleksi Buku Langka - Perpustakaan Nasional RI</title>
       </Head>
 
       {/* Header */}
-      <header className="bg-blue-800 text-white py-6">
-        <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold">Perpustakaan Buku Langka Pusat</h1>
-          <p className="text-blue-200 mt-2">Koleksi Naskah Kuno dan Buku Langka Nusantara</p>
+      <header style={{
+        backgroundColor: '#8B4513',
+        color: 'white',
+        padding: '1rem'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+            Layanan Koleksi Buku Langka - Perpustakaan Nasional RI
+          </h1>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Search Section */}
-        <section className="mb-8">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">Cari Koleksi Buku</h2>
-          <AdvancedSearchBar 
-            books={allBooks} 
-            onSearchResults={handleSearchResults}
-          />
+      {/* Navigation */}
+      <nav style={{
+        backgroundColor: '#D2691E',
+        padding: '0.5rem 1rem'
+      }}>
+        <div style={{ 
+          maxWidth: '1200px', 
+          margin: '0 auto',
+          display: 'flex',
+          gap: '2rem'
+        }}>
+          <a href="/" style={{ color: 'white', textDecoration: 'none' }}>Beranda</a>
+          <a href="/koleksi" style={{ color: 'white', textDecoration: 'none' }}>Koleksi</a>
+          <a href="/layanan" style={{ color: 'white', textDecoration: 'none' }}>Layanan</a>
+          <a href="/profil" style={{ color: 'white', textDecoration: 'none' }}>Profil</a>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section style={{
+        backgroundColor: '#f5f5f0',
+        padding: '3rem 1rem',
+        textAlign: 'center'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{
+            fontSize: '2.5rem',
+            fontWeight: 'bold',
+            color: '#2C1810',
+            marginBottom: '1rem'
+          }}>
+            Koleksi 85,000+ Buku Langka
+          </h2>
+          <p style={{
+            fontSize: '1.2rem',
+            color: '#2C1810',
+            marginBottom: '2rem'
+          }}>
+            Temukan khazanah literatur langka Indonesia
+          </p>
+          
+          <form onSubmit={handleSearch} style={{ maxWidth: '600px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari judul, pengarang, atau tahun..."
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  border: '2px solid #D2691E',
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+              />
+              <button 
+                type="submit"
+                disabled={loading}
+                style={{
+                  backgroundColor: '#8B4513',
+                  color: 'white',
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  cursor: 'pointer'
+                }}
+              >
+                {loading ? 'Mencari...' : 'Cari'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* Search Results */}
+      {searchResults.length > 0 && (
+        <section style={{ 
+          maxWidth: '1200px', 
+          margin: '2rem auto',
+          padding: '0 1rem'
+        }}>
+          <h3 style={{ 
+            fontSize: '1.5rem', 
+            fontWeight: 'bold',
+            marginBottom: '1rem',
+            color: '#2C1810'
+          }}>
+            Hasil Pencarian ({searchResults.length} buku)
+          </h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '1rem'
+          }}>
+            {searchResults.map((book) => (
+              <div key={book.id} style={{
+                backgroundColor: 'white',
+                padding: '1rem',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                border: '1px solid #f5f5f0'
+              }}>
+                <h4 style={{ 
+                  fontWeight: 'bold',
+                  color: '#2C1810',
+                  marginBottom: '0.5rem',
+                  fontSize: '1.1rem'
+                }}>
+                  {book.judul}
+                </h4>
+                
+                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+                  <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
+                </p>
+                
+                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+                  <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
+                </p>
+                
+                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0.25rem 0' }}>
+                  <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
+                </p>
+
+                {book.deskripsi_fisik && (
+                  <p style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.5rem' }}>
+                    <strong>Deskripsi:</strong> {book.deskripsi_fisik}
+                  </p>
+                )}
+
+                {/* TOMBOL OPAC & PEMESANAN */}
+                <div style={{ 
+                  marginTop: '1rem', 
+                  display: 'flex', 
+                  gap: '0.5rem',
+                  flexWrap: 'wrap'
+                }}>
+                  {/* Tombol Lihat OPAC */}
+                  {book.lihat_opac && book.lihat_opac !== 'null' && (
+                    <a 
+                      href={book.lihat_opac}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        backgroundColor: '#8B4513',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '4px',
+                        textDecoration: 'none',
+                        fontSize: '0.8rem',
+                        display: 'inline-block'
+                      }}
+                    >
+                      📖 LIHAT OPAC
+                    </a>
+                  )}
+
+                  {/* Tombol Pesan Koleksi */}
+                  {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
+                    <a 
+                      href={book.link_pesan_koleksi}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        backgroundColor: '#D2691E',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '4px',
+                        textDecoration: 'none',
+                        fontSize: '0.8rem',
+                        display: 'inline-block'
+                      }}
+                    >
+                      📥 PESAN KOLEKSI
+                    </a>
+                  )}
+
+                  {/* Jika tidak ada link, tampilkan placeholder */}
+                  {(!book.lihat_opac || book.lihat_opac === 'null') && 
+                   (!book.link_pesan_koleksi || book.link_pesan_koleksi === 'null') && (
+                    <span style={{
+                      color: '#999',
+                      fontSize: '0.8rem',
+                      fontStyle: 'italic'
+                    }}>
+                      Link tidak tersedia
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
-
-        {/* Search Info */}
-        {searchInfo && (
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-blue-800 font-medium">{searchInfo}</p>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className="text-center py-8">
-            <p className="text-gray-600">Memuat koleksi buku...</p>
-          </div>
-        )}
-
-        {/* Books Grid */}
-        {!isLoading && (
-          <section>
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Koleksi Buku</h2>
-            {filteredBooks.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredBooks.map(book => (
-                  <BookCard key={book.id} book={book} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 bg-white rounded-lg shadow">
-                <p className="text-gray-600 text-lg">Tidak ditemukan buku yang sesuai dengan pencarian.</p>
-                <p className="text-gray-500 mt-2">Coba gunakan kata kunci yang lebih umum atau kurangi filter.</p>
-              </div>
-            )}
-          </section>
-        )}
-      </main>
+      )}
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-white py-6 mt-12">
-        <div className="container mx-auto px-4 text-center">
-          <p>&copy; 2024 Perpustakaan Buku Langka Pusat. All rights reserved.</p>
+      <footer style={{
+        backgroundColor: '#2C1810',
+        color: 'white',
+        padding: '2rem 1rem',
+        marginTop: '3rem'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
+          <p>&copy; 2024 Layanan Koleksi Buku Langka - Perpustakaan Nasional RI</p>
         </div>
       </footer>
     </div>
-  );
+  )
 }
