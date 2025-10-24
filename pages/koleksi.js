@@ -1,4 +1,4 @@
-// pages/koleksi.js - DEBUG VERSION
+// pages/koleksi.js - FIXED VERSION
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
@@ -6,6 +6,12 @@ import ErrorBoundary from '../components/ErrorBoundary'
 import { supabase } from '../lib/supabase'
 
 const ITEMS_PER_PAGE = 100
+
+// Force Update Hook
+function useForceUpdate() {
+  const [_, forceUpdate] = useState(0);
+  return useCallback(() => forceUpdate(prev => prev + 1), []);
+}
 
 function Koleksi() {
   const [visibleBooks, setVisibleBooks] = useState([])
@@ -23,8 +29,10 @@ function Koleksi() {
   const [sortOrder, setSortOrder] = useState('asc')
   const [viewMode, setViewMode] = useState('list')
 
-  // Refs
+  // Refs & Force Update
   const isInitialLoad = useRef(true)
+  const forceUpdate = useForceUpdate()
+  const renderKey = useRef(0)
 
   // Detect mobile screen
   useEffect(() => {
@@ -45,13 +53,37 @@ function Koleksi() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Build query - DEBUG VERSION
+  // Enhanced setVisibleBooks dengan force render
+  const setVisibleBooksEnhanced = useCallback((newData) => {
+    console.log('🔄 SET VISIBLE BOOKS ENHANCED:', newData?.length || 0)
+    
+    // Method 1: Clear dulu untuk memastikan perubahan terdeteksi
+    setVisibleBooks([]);
+    
+    // Beri waktu untuk React memproses clear state
+    setTimeout(() => {
+      // Clone array untuk reference baru
+      const clonedData = newData ? [...newData] : [];
+      setVisibleBooks(clonedData);
+      console.log('✅ Data baru di-set:', clonedData.length);
+      
+      // Increment render key untuk force re-render
+      renderKey.current += 1;
+      
+      // Force update tambahan
+      setTimeout(() => {
+        forceUpdate();
+        console.log('🎯 Force update executed, renderKey:', renderKey.current);
+      }, 50);
+    }, 0);
+  }, [forceUpdate]);
+
+  // Build query - TETAP SAMA
   const buildQuery = (offset = 0) => {
     console.log('🔧 BUILD QUERY dengan:', { hurufFilter, tahunFilter, sortBy, sortOrder, offset })
     
     let query = supabase.from('books').select('*')
 
-    // Filter huruf - DEBUG DETAIL
     if (hurufFilter && hurufFilter !== '#') {
       console.log('🎯 Menerapkan filter huruf:', hurufFilter, 'pada field:', sortBy)
       if (sortBy === 'pengarang') {
@@ -63,7 +95,6 @@ function Koleksi() {
       }
     }
 
-    // Filter karakter khusus
     if (hurufFilter === '#') {
       console.log('🎯 Menerapkan filter karakter khusus')
       if (sortBy === 'pengarang') {
@@ -75,30 +106,27 @@ function Koleksi() {
       }
     }
 
-    // Filter tahun
     if (tahunFilter) {
       const [startYear, endYear] = tahunFilter.split('-').map(Number)
       console.log('🎯 Menerapkan filter tahun:', startYear, '-', endYear)
       query = query.gte('tahun_terbit', startYear).lte('tahun_terbit', endYear)
     }
 
-    // Sorting
     console.log('🎯 Sorting by:', sortBy, 'order:', sortOrder)
     query = query.order(sortBy, { ascending: sortOrder === 'asc' })
 
-    // Pagination
     console.log('🎯 Pagination offset:', offset, 'limit:', ITEMS_PER_PAGE)
     return query.range(offset, offset + ITEMS_PER_PAGE - 1)
   }
 
-  // Load data - DEBUG VERSION
+  // Load data - ENHANCED VERSION
   const loadBooks = async (offset = 0, append = false) => {
     console.log('🚀 LOAD BOOKS dipanggil dengan:', { offset, append, hurufFilter, tahunFilter })
     
     if (offset === 0 && !append) {
       console.log('🔄 RESET loading state')
       setLoading(true)
-      setVisibleBooks([])
+      setVisibleBooksEnhanced([]) // Pakai enhanced version
       setCurrentOffset(0)
     } else {
       setLoadingMore(true)
@@ -122,10 +150,14 @@ function Koleksi() {
 
       if (append) {
         console.log('📥 Append data ke existing')
-        setVisibleBooks(prev => [...prev, ...data])
+        setVisibleBooks(prev => {
+          const newData = [...prev, ...data]
+          console.log('📊 Total data setelah append:', newData.length)
+          return newData
+        })
       } else {
-        console.log('🆕 Set data baru')
-        setVisibleBooks(data || [])
+        console.log('🆕 Set data baru dengan enhanced handler')
+        setVisibleBooksEnhanced(data || []) // Pakai enhanced version
       }
 
       setCurrentOffset(offset + ITEMS_PER_PAGE)
@@ -168,7 +200,7 @@ function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadMoreBooks])
 
-  // EFFECT UTAMA: Handle perubahan filter
+  // EFFECT UTAMA: Handle perubahan filter - ENHANCED
   useEffect(() => {
     console.log('🔄 FILTER EFFECT triggered')
     console.log('📊 Current state:', { hurufFilter, tahunFilter, sortBy, sortOrder })
@@ -180,17 +212,29 @@ function Koleksi() {
     }
 
     console.log('🎯 Filter berubah, memanggil loadBooks...')
-    loadBooks(0, false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    
+    // Reset dan load dengan delay untuk memastikan state ter-update
+    setLoading(true)
+    setTimeout(() => {
+      loadBooks(0, false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
+    
   }, [hurufFilter, tahunFilter, sortBy, sortOrder])
 
-  // Handlers dengan debug
+  // Enhanced Handlers dengan debug
   const handleHurufFilter = (huruf) => {
     console.log('=========================================')
     console.log('🎯 HANDLE HURUF FILTER:', huruf)
     console.log('📝 Sebelum setHurufFilter:', hurufFilter)
     setHurufFilter(huruf)
     console.log('📝 Setelah setHurufFilter - state akan diupdate')
+    
+    // Force update setelah state change
+    setTimeout(() => {
+      console.log('🔄 Force update setelah filter huruf')
+      forceUpdate()
+    }, 50)
   }
 
   const handleTahunFilter = (tahun) => {
@@ -199,12 +243,18 @@ function Koleksi() {
     console.log('📝 Sebelum setTahunFilter:', tahunFilter)
     setTahunFilter(tahun)
     console.log('📝 Setelah setTahunFilter - state akan diupdate')
+    
+    setTimeout(() => {
+      console.log('🔄 Force update setelah filter tahun')
+      forceUpdate()
+    }, 50)
   }
 
   const handleSortChange = (field) => {
     console.log('=========================================')
     console.log('🎯 HANDLE SORT CHANGE:', field)
     setSortBy(field)
+    setTimeout(() => forceUpdate(), 50)
   }
 
   const handleSortOrder = () => {
@@ -212,6 +262,7 @@ function Koleksi() {
     console.log('=========================================')
     console.log('🎯 HANDLE SORT ORDER:', newOrder)
     setSortOrder(newOrder)
+    setTimeout(() => forceUpdate(), 50)
   }
 
   const clearFilters = () => {
@@ -221,9 +272,27 @@ function Koleksi() {
     setTahunFilter('')
     setSortBy('judul')
     setSortOrder('asc')
+    setTimeout(() => {
+      forceUpdate()
+      console.log('✅ Filters cleared, force update executed')
+    }, 100)
   }
 
-  // Generate tahun ranges
+  // Debug effect untuk monitor state changes
+  useEffect(() => {
+    console.log('📊 VISIBLE BOOKS STATE UPDATED:', {
+      length: visibleBooks.length,
+      firstItem: visibleBooks[0]?.judul,
+      renderKey: renderKey.current,
+      timestamp: new Date().toISOString()
+    })
+  }, [visibleBooks])
+
+  useEffect(() => {
+    console.log('🔄 COMPONENT RE-RENDERED')
+  })
+
+  // Generate tahun ranges - TETAP SAMA
   const generateYearRanges = () => {
     const ranges = []
     let start = 1547
@@ -238,7 +307,7 @@ function Koleksi() {
 
   const yearRanges = generateYearRanges()
 
-  // Simple Components
+  // Simple Components - TAMBAH KEY PROPS
   const BookCard = ({ book, isMobile }) => (
     <div style={{
       backgroundColor: 'white',
@@ -376,7 +445,8 @@ function Koleksi() {
         </p>
       </section>
 
-      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', maxWidth: '1400px', margin: '0 auto', padding: isMobile ? '1rem' : '2rem', gap: isMobile ? '1rem' : '2rem' }}>
+      {/* TAMBAH KEY DI ROOT CONTAINER */}
+      <div key={`main-container-${renderKey.current}`} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', maxWidth: '1400px', margin: '0 auto', padding: isMobile ? '1rem' : '2rem', gap: isMobile ? '1rem' : '2rem' }}>
         
         {/* Filter Sidebar */}
         <div style={{
@@ -394,11 +464,14 @@ function Koleksi() {
             🔍 Filter Koleksi
           </h3>
 
-          {/* Debug Info */}
+          {/* Enhanced Debug Info */}
           <div style={{ backgroundColor: '#e6fffa', border: '1px solid #81e6d9', borderRadius: '8px', padding: '0.75rem', marginBottom: '1.5rem', fontSize: '0.8rem', color: '#234e52' }}>
-            🔧 <strong>DEBUG ACTIVE:</strong> {hurufFilter || 'All'} 
-            {tahunFilter && ` | ${tahunFilter}`}
-            {sortBy !== 'judul' && ` | Sort: ${sortBy}`}
+            🔧 <strong>DEBUG ACTIVE:</strong> 
+            <div>Filter: {hurufFilter || 'All'}</div>
+            <div>Tahun: {tahunFilter || 'All'}</div>
+            <div>Sort: {sortBy} ({sortOrder})</div>
+            <div>Render Key: {renderKey.current}</div>
+            <div>Items: {visibleBooks.length}</div>
           </div>
 
           {/* Sort Options */}
@@ -497,15 +570,15 @@ function Koleksi() {
           {(hurufFilter || tahunFilter) && (
             <button 
               onClick={clearFilters} 
-              style={{ width: '100%', padding: '0.75rem', border: '1px solid #f56565', borderRadius: '8px', backgroundColor: '#f56565', color: 'white', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '0.75rem', border: '1px solid '#f56565', borderRadius: '8px', backgroundColor: '#f56565', color: 'white', cursor: 'pointer' }}
             >
               🔄 Reset Semua Filter
             </button>
           )}
         </div>
 
-        {/* Main Content */}
-        <div style={{ flex: 1 }}>
+        {/* Main Content - TAMBAH KEY DI SINI */}
+        <div key={`content-${renderKey.current}`} style={{ flex: 1 }}>
           <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#2d3748', margin: 0 }}>
@@ -527,14 +600,26 @@ function Koleksi() {
             ) : (
               <>
                 {viewMode === 'list' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
-                    {visibleBooks.map((book) => <BookListItem key={book.id} book={book} isMobile={isMobile} />)}
+                  <div key={`list-${renderKey.current}`} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
+                    {visibleBooks.map((book, index) => (
+                      <BookListItem 
+                        key={`${book.id}-${renderKey.current}-${index}`} 
+                        book={book} 
+                        isMobile={isMobile} 
+                      />
+                    ))}
                   </div>
                 )}
 
                 {viewMode === 'grid' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                    {visibleBooks.map((book) => <BookCard key={book.id} book={book} isMobile={isMobile} />)}
+                  <div key={`grid-${renderKey.current}`} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                    {visibleBooks.map((book, index) => (
+                      <BookCard 
+                        key={`${book.id}-${renderKey.current}-${index}`} 
+                        book={book} 
+                        isMobile={isMobile} 
+                      />
+                    ))}
                   </div>
                 )}
 
@@ -552,7 +637,7 @@ function Koleksi() {
                 {loadingMore && hasMore && (
                   <div style={{ textAlign: 'center', padding: '2rem', color: '#718096', backgroundColor: 'white', borderRadius: '12px', marginTop: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                      <div style={{ width: '20px', height: '20px', border: '2px solid transparent', borderTop: '2px solid #4299e1', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                      <div style={{ width: '20px', height: '20px', border: '2px solid transparent', borderTop: '2px solid '#4299e1', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                       <span>Memuat lebih banyak buku...</span>
                     </div>
                   </div>
