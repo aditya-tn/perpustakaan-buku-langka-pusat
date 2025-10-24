@@ -23,8 +23,9 @@ function Koleksi() {
   const [viewMode, setViewMode] = useState('list')
   const [filtersApplied, setFiltersApplied] = useState(false)
 
-  // Refs untuk track filter sebelumnya
-  const prevFiltersRef = useRef({ huruf: '', tahun: '', sortBy: 'judul', sortOrder: 'asc' })
+  // Refs untuk debounce
+  const filterTimeoutRef = useRef(null)
+  const isInitialLoad = useRef(true)
 
   // Detect mobile screen
   useEffect(() => {
@@ -93,7 +94,7 @@ function Koleksi() {
     return query
   }
 
-  // Load data dengan filter - PASTI RESET KE OFFSET 0
+  // Load data dengan filter
   const loadBooks = async (offset = 0, append = false) => {
     // Jika bukan append (load baru), reset loading state
     if (offset === 0 && !append) {
@@ -104,10 +105,20 @@ function Koleksi() {
     }
 
     try {
+      console.log('🔄 Loading books dengan filter:', { 
+        hurufFilter, 
+        tahunFilter, 
+        sortBy, 
+        sortOrder,
+        offset 
+      })
+
       const query = buildQuery(offset)
       const { data, error } = await query
 
       if (error) throw error
+
+      console.log('✅ Data received:', data?.length || 0, 'books')
 
       if (append) {
         setVisibleBooks(prev => [...prev, ...data])
@@ -127,9 +138,12 @@ function Koleksi() {
     }
   }
 
-  // Initial load
+  // Initial load - HANYA saat pertama kali
   useEffect(() => {
-    loadBooks(0, false)
+    if (isInitialLoad.current) {
+      loadBooks(0, false)
+      isInitialLoad.current = false
+    }
   }, [])
 
   // Load more books
@@ -150,29 +164,28 @@ function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadMoreBooks])
 
-  // DETEKSI PERUBAHAN FILTER DAN RESET PAGINATION
+  // EFFECT UTAMA: Handle perubahan filter dan reload data
   useEffect(() => {
-    const currentFilters = { huruf: hurufFilter, tahun: tahunFilter, sortBy, sortOrder }
-    const prevFilters = prevFiltersRef.current
+    // Skip initial load
+    if (isInitialLoad.current) return
 
-    // Cek apakah filter berubah
-    const filtersChanged = 
-      currentFilters.huruf !== prevFilters.huruf ||
-      currentFilters.tahun !== prevFilters.tahun ||
-      currentFilters.sortBy !== prevFilters.sortBy ||
-      currentFilters.sortOrder !== prevFilters.sortOrder
+    if (filterTimeoutRef.current) {
+      clearTimeout(filterTimeoutRef.current)
+    }
 
-    if (filtersChanged) {
-      console.log('🔄 Filter berubah, reset pagination...')
-      
-      // Reset ke offset 0 dengan data baru
+    // Debounce untuk menghindari terlalu banyak request
+    filterTimeoutRef.current = setTimeout(() => {
+      console.log('🎯 Filter changed, reloading data...')
       loadBooks(0, false)
       
       // Scroll ke atas agar user lihat perubahan
       window.scrollTo({ top: 0, behavior: 'smooth' })
-      
-      // Update previous filters
-      prevFiltersRef.current = currentFilters
+    }, 300)
+
+    return () => {
+      if (filterTimeoutRef.current) {
+        clearTimeout(filterTimeoutRef.current)
+      }
     }
   }, [hurufFilter, tahunFilter, sortBy, sortOrder])
 
@@ -182,8 +195,32 @@ function Koleksi() {
     setTahunFilter('')
     setSortBy('judul')
     setSortOrder('asc')
-    setFiltersApplied(false)
-    // Akan trigger useEffect di atas
+    // useEffect di atas akan otomatis trigger reload
+  }
+
+  // Handler untuk filter huruf yang PASTI bekerja
+  const handleHurufFilter = (huruf) => {
+    console.log('🎯 Setting huruf filter to:', huruf)
+    setHurufFilter(huruf)
+    // Tidak perlu panggil loadBooks di sini, useEffect akan handle
+  }
+
+  // Handler untuk tahun filter
+  const handleTahunFilter = (tahun) => {
+    console.log('🎯 Setting tahun filter to:', tahun)
+    setTahunFilter(tahun)
+  }
+
+  // Handler untuk sort
+  const handleSortChange = (field) => {
+    console.log('🎯 Setting sort to:', field)
+    setSortBy(field)
+  }
+
+  const handleSortOrder = () => {
+    const newOrder = sortOrder === 'asc' ? 'desc' : 'asc'
+    console.log('🎯 Setting sort order to:', newOrder)
+    setSortOrder(newOrder)
   }
 
   // Generate tahun ranges
@@ -477,17 +514,17 @@ function Koleksi() {
             🔍 Filter Koleksi
           </h3>
 
-          {/* Auto-filter notice */}
+          {/* Debug info */}
           <div style={{
-            backgroundColor: '#e6fffa',
-            border: '1px solid #81e6d9',
+            backgroundColor: '#fffaf0',
+            border: '1px solid #fbd38d',
             borderRadius: '8px',
             padding: '0.75rem',
             marginBottom: '1.5rem',
             fontSize: '0.8rem',
-            color: '#234e52'
+            color: '#744210'
           }}>
-            ⚡ Filter diterapkan otomatis ke seluruh database
+            🔧 Debug: Filter aktif - {hurufFilter || 'All'} {tahunFilter && `| ${tahunFilter}`}
           </div>
 
           {/* Sort Options */}
@@ -502,7 +539,7 @@ function Koleksi() {
             </h4>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => handleSortChange(e.target.value)}
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -517,7 +554,7 @@ function Koleksi() {
             </select>
             
             <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              onClick={handleSortOrder}
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -548,7 +585,7 @@ function Koleksi() {
               justifyContent: 'center'
             }}>
               <button
-                onClick={() => setHurufFilter('')}
+                onClick={() => handleHurufFilter('')}
                 style={{
                   padding: '0.5rem 0.75rem',
                   border: '1px solid #e2e8f0',
@@ -564,7 +601,7 @@ function Koleksi() {
               {['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(huruf => (
                 <button
                   key={huruf}
-                  onClick={() => setHurufFilter(huruf)}
+                  onClick={() => handleHurufFilter(huruf)}
                   style={{
                     padding: '0.5rem',
                     border: '1px solid #e2e8f0',
@@ -579,7 +616,7 @@ function Koleksi() {
                 </button>
               ))}
               <button
-                onClick={() => setHurufFilter('#')}
+                onClick={() => handleHurufFilter('#')}
                 style={{
                   padding: '0.5rem',
                   border: '1px solid #e2e8f0',
@@ -608,7 +645,7 @@ function Koleksi() {
             </h4>
             <select
               value={tahunFilter}
-              onChange={(e) => setTahunFilter(e.target.value)}
+              onChange={(e) => handleTahunFilter(e.target.value)}
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -730,6 +767,7 @@ function Koleksi() {
               }}>
                 📊 Menampilkan: {visibleBooks.length} buku
                 {hasMore && ' + scroll untuk lebih banyak'}
+                {loading && ' (Loading...)'}
               </div>
             </div>
           </div>
