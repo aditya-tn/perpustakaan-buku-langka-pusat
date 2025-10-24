@@ -1,4 +1,4 @@
-// pages/index.js - PRODUCTION READY REAL-TIME SEARCH
+// pages/index.js - WITH SEARCH-WITHIN-SEARCH
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -20,6 +20,16 @@ export default function Home() {
   const [searchMethod, setSearchMethod] = useState('')
   const [liveSearchEnabled, setLiveSearchEnabled] = useState(true)
   const [isTyping, setIsTyping] = useState(false)
+
+  // NEW: Search-within-Search States
+  const [withinSearchTerm, setWithinSearchTerm] = useState('')
+  const [activeFilters, setActiveFilters] = useState({
+    tahunAwal: '',
+    tahunAkhir: '',
+    tersediaDigital: false,
+    tersediaFisik: false
+  })
+  const [showWithinSearch, setShowWithinSearch] = useState(false)
 
   // Refs
   const searchTimeoutRef = useRef(null)
@@ -50,28 +60,32 @@ export default function Home() {
     }
   }, [searchHistory, liveSearchEnabled])
 
-  // REAL-TIME SEARCH EFFECT - PROVEN WORKING
+  // REAL-TIME SEARCH EFFECT
   useEffect(() => {
-    // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
     }
 
-    // Skip conditions
     if (!searchTerm.trim()) {
       if (searchTerm.trim().length === 0) {
         setSearchResults([])
         setShowStats(true)
+        // NEW: Reset within-search ketika search utama di-clear
+        setWithinSearchTerm('')
+        setActiveFilters({
+          tahunAwal: '',
+          tahunAkhir: '',
+          tersediaDigital: false,
+          tersediaFisik: false
+        })
       }
       return
     }
 
     if (!liveSearchEnabled) return
 
-    // Set typing indicator
     setIsTyping(true)
 
-    // Set new timeout
     searchTimeoutRef.current = setTimeout(async () => {
       setIsTyping(false)
       await executeSearch(searchTerm)
@@ -83,6 +97,19 @@ export default function Home() {
       }
     }
   }, [searchTerm, liveSearchEnabled])
+
+  // NEW: Effect untuk reset within-search ketika search utama berubah
+  useEffect(() => {
+    if (searchResults.length > 0) {
+      setWithinSearchTerm('')
+      setActiveFilters({
+        tahunAwal: '',
+        tahunAkhir: '',
+        tersediaDigital: false,
+        tersediaFisik: false
+      })
+    }
+  }, [searchResults])
 
   // Auto scroll dan hide stats
   useEffect(() => {
@@ -120,11 +147,67 @@ export default function Home() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
+  // NEW: Filtered Results Computation
+  const getFilteredResults = useCallback(() => {
+    if (!withinSearchTerm.trim() && 
+        !activeFilters.tahunAwal && 
+        !activeFilters.tahunAkhir &&
+        !activeFilters.tersediaDigital &&
+        !activeFilters.tersediaFisik) {
+      return searchResults
+    }
+
+    return searchResults.filter(book => {
+      // Filter: Search within text
+      if (withinSearchTerm.trim()) {
+        const searchLower = withinSearchTerm.toLowerCase()
+        const judulMatch = book.judul?.toLowerCase().includes(searchLower) || false
+        const pengarangMatch = book.pengarang?.toLowerCase().includes(searchLower) || false
+        const penerbitMatch = book.penerbit?.toLowerCase().includes(searchLower) || false
+        const deskripsiMatch = book.deskripsi_fisik?.toLowerCase().includes(searchLower) || false
+        
+        if (!judulMatch && !pengarangMatch && !penerbitMatch && !deskripsiMatch) {
+          return false
+        }
+      }
+
+      // Filter: Tahun Awal
+      if (activeFilters.tahunAwal && book.tahun_terbit) {
+        if (parseInt(book.tahun_terbit) < parseInt(activeFilters.tahunAwal)) {
+          return false
+        }
+      }
+
+      // Filter: Tahun Akhir
+      if (activeFilters.tahunAkhir && book.tahun_terbit) {
+        if (parseInt(book.tahun_terbit) > parseInt(activeFilters.tahunAkhir)) {
+          return false
+        }
+      }
+
+      // Filter: Tersedia Digital
+      if (activeFilters.tersediaDigital && (!book.lihat_opac || book.lihat_opac === 'null')) {
+        return false
+      }
+
+      // Filter: Tersedia Fisik (asumsi semua buku fisik tersedia)
+      if (activeFilters.tersediaFisik) {
+        // Untuk sekarang kita assume semua buku fisik tersedia
+        // Bisa dikembangkan dengan field availability di database
+        return true
+      }
+
+      return true
+    })
+  }, [searchResults, withinSearchTerm, activeFilters])
+
+  // Get current filtered results
+  const filteredResults = getFilteredResults()
+
   // SMART SEARCH EXECUTION
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return
     
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
@@ -152,14 +235,13 @@ export default function Home() {
     }
   }
 
-  // Enhanced Smart Search Algorithm
+  // Smart Search Algorithm
   const performSmartSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return []
     
     const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0)
     
     try {
-      // Priority 1: Exact phrase match
       const exactMatchQuery = supabase
         .from('books')
         .select('*')
@@ -174,7 +256,6 @@ export default function Home() {
         return rankSearchResults(exactMatches, searchWords, searchQuery)
       }
 
-      // Priority 2: Individual word match
       const wordMatchPromises = searchWords.map(word => 
         supabase
           .from('books')
@@ -207,12 +288,10 @@ export default function Home() {
       const lowerPenerbit = book.penerbit?.toLowerCase() || ''
       const lowerQuery = originalQuery.toLowerCase()
       
-      // Exact phrase match - highest priority
       if (lowerJudul.includes(lowerQuery)) score += 100
       if (lowerPengarang.includes(lowerQuery)) score += 80
       if (lowerPenerbit.includes(lowerQuery)) score += 60
       
-      // Field-specific weighting
       searchWords.forEach(word => {
         const lowerWord = word.toLowerCase()
         if (lowerJudul.includes(lowerWord)) score += 30
@@ -220,7 +299,6 @@ export default function Home() {
         if (lowerPenerbit.includes(lowerWord)) score += 10
       })
       
-      // Exact word match bonus
       const judulWords = lowerJudul.split(/\s+/) || []
       const pengarangWords = lowerPengarang.split(/\s+/) || []
       
@@ -230,18 +308,15 @@ export default function Home() {
         if (pengarangWords.includes(lowerWord)) score += 10
       })
       
-      // Length penalty - prefer shorter, more relevant titles
       if (book.judul && book.judul.length < 50) score += 5
       
       return { ...book, _relevanceScore: score }
     })
     
-    // Remove duplicates
     const uniqueResults = scoredResults.filter((book, index, self) => 
       index === self.findIndex(b => b.id === book.id)
     )
     
-    // Sort by relevance
     return uniqueResults.sort((a, b) => {
       if (b._relevanceScore !== a._relevanceScore) {
         return b._relevanceScore - a._relevanceScore
@@ -320,6 +395,13 @@ export default function Home() {
     setSearchResults([])
     setShowStats(true)
     setShowSuggestions(false)
+    setWithinSearchTerm('')
+    setActiveFilters({
+      tahunAwal: '',
+      tahunAkhir: '',
+      tersediaDigital: false,
+      tersediaFisik: false
+    })
     
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
@@ -329,16 +411,36 @@ export default function Home() {
     }
   }
 
+  // NEW: Clear within-search filters
+  const clearWithinSearch = () => {
+    setWithinSearchTerm('')
+    setActiveFilters({
+      tahunAwal: '',
+      tahunAkhir: '',
+      tersediaDigital: false,
+      tersediaFisik: false
+    })
+  }
+
+  // NEW: Update filter
+  const updateFilter = (key, value) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      [key]: value
+    }))
+    setCurrentPage(1) // Reset ke page 1 ketika filter berubah
+  }
+
   const popularSearches = [
     'sejarah indonesia', 'sastra jawa', 'naskah kuno', 'budaya nusantara',
     'colonial history', 'manuskrip', 'sastra melayu', 'sejarah islam'
   ]
 
-  // Pagination
+  // Pagination calculations - NOW USING FILTERED RESULTS
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
-  const currentItems = searchResults.slice(indexOfFirstItem, indexOfLastItem)
-  const totalPages = Math.ceil(searchResults.length / itemsPerPage)
+  const currentItems = filteredResults.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(filteredResults.length / itemsPerPage)
   
   const paginate = (pageNumber) => setCurrentPage(pageNumber)
 
@@ -346,6 +448,13 @@ export default function Home() {
     setItemsPerPage(Number(e.target.value))
     setCurrentPage(1)
   }
+
+  // NEW: Check if any within-search filters are active
+  const isWithinSearchActive = withinSearchTerm.trim() || 
+    activeFilters.tahunAwal || 
+    activeFilters.tahunAkhir ||
+    activeFilters.tersediaDigital ||
+    activeFilters.tersediaFisik
 
   return (
     <Layout isMobile={isMobile}>
@@ -380,7 +489,7 @@ export default function Home() {
             85.000+ warisan budaya di layanan buku langka - Perpustakaan Nasional RI
           </p>
           
-          {/* Enhanced Search Form */}
+          {/* Search Form */}
           <form onSubmit={handleManualSearch} style={{ 
             maxWidth: '600px', 
             margin: '0 auto',
@@ -745,6 +854,207 @@ export default function Home() {
           margin: isMobile ? '2rem auto' : '3rem auto',
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
+          {/* NEW: Search-within-Search Panel */}
+          <div style={{
+            backgroundColor: 'white',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            marginBottom: '2rem',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+              <h3 style={{ 
+                fontSize: '1.25rem', 
+                fontWeight: '700',
+                color: '#2d3748',
+                margin: 0
+              }}>
+                🔎 Filter Hasil Pencarian
+              </h3>
+              
+              {isWithinSearchActive && (
+                <button
+                  onClick={clearWithinSearch}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#f7fafc',
+                    color: '#718096',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  ✕ Hapus Filter
+                </button>
+              )}
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
+              alignItems: 'end'
+            }}>
+              {/* Search within text */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  color: '#4a5568',
+                  marginBottom: '0.5rem'
+                }}>
+                  Cari dalam hasil:
+                </label>
+                <input
+                  type="text"
+                  value={withinSearchTerm}
+                  onChange={(e) => setWithinSearchTerm(e.target.value)}
+                  placeholder="Filter judul, pengarang, penerbit..."
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Tahun Awal */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  color: '#4a5568',
+                  marginBottom: '0.5rem'
+                }}>
+                  Tahun Awal:
+                </label>
+                <input
+                  type="number"
+                  value={activeFilters.tahunAwal}
+                  onChange={(e) => updateFilter('tahunAwal', e.target.value)}
+                  placeholder="1547"
+                  min="1547"
+                  max="1990"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Tahun Akhir */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  color: '#4a5568',
+                  marginBottom: '0.5rem'
+                }}>
+                  Tahun Akhir:
+                </label>
+                <input
+                  type="number"
+                  value={activeFilters.tahunAkhir}
+                  onChange={(e) => updateFilter('tahunAkhir', e.target.value)}
+                  placeholder="1990"
+                  min="1547"
+                  max="1990"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Checkbox Filters */}
+              <div style={{
+                display: 'flex',
+                gap: '1rem',
+                flexWrap: 'wrap'
+              }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.8rem',
+                  color: '#4a5568',
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={activeFilters.tersediaDigital}
+                    onChange={(e) => updateFilter('tersediaDigital', e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Tersedia Digital
+                </label>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.8rem',
+                  color: '#4a5568',
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={activeFilters.tersediaFisik}
+                    onChange={(e) => updateFilter('tersediaFisik', e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Tersedia Fisik
+                </label>
+              </div>
+            </div>
+
+            {/* Filter Status */}
+            {isWithinSearchActive && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                backgroundColor: '#e6fffa',
+                border: '1px solid #81e6d9',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                color: '#234e52'
+              }}>
+                🔍 Filter aktif: 
+                {withinSearchTerm && ` Teks: "${withinSearchTerm}"`}
+                {activeFilters.tahunAwal && ` Tahun ≥ ${activeFilters.tahunAwal}`}
+                {activeFilters.tahunAkhir && ` Tahun ≤ ${activeFilters.tahunAkhir}`}
+                {activeFilters.tersediaDigital && ` Digital`}
+                {activeFilters.tersediaFisik && ` Fisik`}
+                {` • Menampilkan ${filteredResults.length} dari ${searchResults.length} hasil`}
+              </div>
+            )}
+          </div>
+
+          {/* Results Header */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -768,7 +1078,17 @@ export default function Home() {
                 margin: '0.5rem 0 0 0',
                 fontSize: isMobile ? '0.9rem' : '1rem'
               }}>
-                {searchResults.length} buku ditemukan untuk "{searchTerm}"
+                {isWithinSearchActive ? (
+                  <>
+                    <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
+                    ditemukan untuk "<strong>{searchTerm}</strong>"
+                    {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
+                  </>
+                ) : (
+                  <>
+                    {searchResults.length} buku ditemukan untuk "<strong>{searchTerm}</strong>"
+                  </>
+                )}
               </p>
             </div>
             
@@ -804,7 +1124,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Book Grid */}
+          {/* Book Grid - NOW USING FILTERED RESULTS */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
@@ -932,8 +1252,36 @@ export default function Home() {
             ))}
           </div>
 
+          {/* No Filtered Results Message */}
+          {filteredResults.length === 0 && isWithinSearchActive && (
+            <div style={{
+              textAlign: 'center',
+              padding: '3rem 2rem',
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              color: '#718096'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+              <h4 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
+                Tidak ada hasil untuk filter ini
+              </h4>
+              <p>Coba ubah kriteria filter atau <button 
+                onClick={clearWithinSearch}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#4299e1',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                hapus filter
+              </button> untuk melihat semua hasil.</p>
+            </div>
+          )}
+
           {/* Pagination */}
-          {totalPages > 1 && (
+          {totalPages > 1 && filteredResults.length > 0 && (
             <div style={{
               display: 'flex',
               justifyContent: 'center',
