@@ -106,13 +106,13 @@ export default function Header({ isMobile }) {
             alignItems: 'center'
           }}>
             <Link href="/" style={{ 
-              color: isActive('/') ? '#4299e1' : '#2d3748', 
+              color: isActive('/') ? '#4299e1' : '#4a5568', 
               textDecoration: 'none',
-              fontWeight: isActive('/') ? '600' : '500',
+              fontWeight: isActive('/') ? '600' : '400',
               fontSize: '0.95rem',
               padding: '0.5rem 1rem',
               borderRadius: '6px',
-              backgroundColor: isActive('/') ? '#ebf8ff' : '#f7fafc',
+              backgroundColor: isActive('/') ? '#ebf8ff' : 'transparent',
               transition: 'all 0.2s'
             }}>
               Beranda
@@ -194,13 +194,13 @@ export default function Header({ isMobile }) {
                 href="/" 
                 onClick={() => setIsMenuOpen(false)}
                 style={{ 
-                  color: isActive('/') ? '#4299e1' : '#2d3748', 
+                  color: isActive('/') ? '#4299e1' : '#4a5568', 
                   textDecoration: 'none',
-                  fontWeight: isActive('/') ? '600' : '500',
+                  fontWeight: isActive('/') ? '600' : '400',
                   fontSize: '1rem',
                   padding: '1rem',
                   borderRadius: '8px',
-                  backgroundColor: isActive('/') ? '#ebf8ff' : '#f7fafc',
+                  backgroundColor: isActive('/') ? '#ebf8ff' : 'transparent',
                   display: 'block',
                   textAlign: 'center'
                 }}
@@ -217,7 +217,7 @@ export default function Header({ isMobile }) {
                   fontSize: '1rem',
                   padding: '1rem',
                   borderRadius: '8px',
-                  backgroundColor: isActive('/koleksi') ? '#ebf8ff' : 'white',
+                  backgroundColor: isActive('/koleksi') ? '#ebf8ff' : 'transparent',
                   display: 'block',
                   textAlign: 'center'
                 }}
@@ -234,7 +234,7 @@ export default function Header({ isMobile }) {
                   fontSize: '1rem',
                   padding: '1rem',
                   borderRadius: '8px',
-                  backgroundColor: isActive('/layanan') ? '#ebf8ff' : 'white',
+                  backgroundColor: isActive('/layanan') ? '#ebf8ff' : 'transparent',
                   display: 'block',
                   textAlign: 'center'
                 }}
@@ -251,7 +251,7 @@ export default function Header({ isMobile }) {
                   fontSize: '1rem',
                   padding: '1rem',
                   borderRadius: '8px',
-                  backgroundColor: isActive('/profil') ? '#ebf8ff' : 'white',
+                  backgroundColor: isActive('/profil') ? '#ebf8ff' : 'transparent',
                   display: 'block',
                   textAlign: 'center'
                 }}
@@ -268,7 +268,7 @@ export default function Header({ isMobile }) {
                   fontSize: '1rem',
                   padding: '1rem',
                   borderRadius: '8px',
-                  backgroundColor: isActive('/kritik-saran') ? '#ebf8ff' : 'white',
+                  backgroundColor: isActive('/kritik-saran') ? '#ebf8ff' : 'transparent',
                   display: 'block',
                   textAlign: 'center'
                 }}
