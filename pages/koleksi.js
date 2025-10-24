@@ -1,4 +1,4 @@
-// pages/koleksi.js - FIXED BUILD VERSION
+// pages/koleksi.js - FIXED RENDER KEY VERSION
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
@@ -6,12 +6,6 @@ import ErrorBoundary from '../components/ErrorBoundary'
 import { supabase } from '../lib/supabase'
 
 const ITEMS_PER_PAGE = 100
-
-// Force Update Hook
-function useForceUpdate() {
-  const [_, forceUpdate] = useState(0);
-  return useCallback(() => forceUpdate(prev => prev + 1), []);
-}
 
 function Koleksi() {
   const [visibleBooks, setVisibleBooks] = useState([])
@@ -29,10 +23,9 @@ function Koleksi() {
   const [sortOrder, setSortOrder] = useState('asc')
   const [viewMode, setViewMode] = useState('list')
 
-  // Refs & Force Update
+  // Refs - HAPUS forceUpdate dan renderKey yang problematic
   const isInitialLoad = useRef(true)
-  const forceUpdate = useForceUpdate()
-  const renderKey = useRef(0)
+  const dataVersion = useRef(0) // Untuk tracking perubahan data
 
   // Detect mobile screen
   useEffect(() => {
@@ -53,32 +46,7 @@ function Koleksi() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Enhanced setVisibleBooks dengan force render
-  const setVisibleBooksEnhanced = useCallback((newData) => {
-    console.log('🔄 SET VISIBLE BOOKS ENHANCED:', newData?.length || 0)
-    
-    // Method 1: Clear dulu untuk memastikan perubahan terdeteksi
-    setVisibleBooks([]);
-    
-    // Beri waktu untuk React memproses clear state
-    setTimeout(() => {
-      // Clone array untuk reference baru
-      const clonedData = newData ? [...newData] : [];
-      setVisibleBooks(clonedData);
-      console.log('✅ Data baru di-set:', clonedData.length);
-      
-      // Increment render key untuk force re-render
-      renderKey.current += 1;
-      
-      // Force update tambahan
-      setTimeout(() => {
-        forceUpdate();
-        console.log('🎯 Force update executed, renderKey:', renderKey.current);
-      }, 50);
-    }, 0);
-  }, [forceUpdate]);
-
-  // Build query
+  // Build query - SAMA
   const buildQuery = (offset = 0) => {
     console.log('🔧 BUILD QUERY dengan:', { hurufFilter, tahunFilter, sortBy, sortOrder, offset })
     
@@ -119,14 +87,14 @@ function Koleksi() {
     return query.range(offset, offset + ITEMS_PER_PAGE - 1)
   }
 
-  // Load data - ENHANCED VERSION
+  // Load data - VERSION SIMPLE & STABLE
   const loadBooks = async (offset = 0, append = false) => {
     console.log('🚀 LOAD BOOKS dipanggil dengan:', { offset, append, hurufFilter, tahunFilter })
     
     if (offset === 0 && !append) {
       console.log('🔄 RESET loading state')
       setLoading(true)
-      setVisibleBooksEnhanced([]) // Pakai enhanced version
+      setVisibleBooks([])
       setCurrentOffset(0)
     } else {
       setLoadingMore(true)
@@ -156,8 +124,13 @@ function Koleksi() {
           return newData
         })
       } else {
-        console.log('🆕 Set data baru dengan enhanced handler')
-        setVisibleBooksEnhanced(data || []) // Pakai enhanced version
+        console.log('🆕 Set data baru - SIMPLE VERSION')
+        // Gunakan setTimeout untuk memastikan React memproses update
+        setTimeout(() => {
+          setVisibleBooks(data || [])
+          dataVersion.current += 1 // Increment hanya saat data benar-benar berubah
+          console.log('✅ Data di-set, dataVersion:', dataVersion.current)
+        }, 0)
       }
 
       setCurrentOffset(offset + ITEMS_PER_PAGE)
@@ -187,7 +160,7 @@ function Koleksi() {
     if (loadingMore || !hasMore) return
     console.log('⬇️ Load more books...')
     await loadBooks(currentOffset, true)
-  }, [loadingMore, hasMore, currentOffset, loadBooks])
+  }, [loadingMore, hasMore, currentOffset])
 
   // Infinite scroll
   useEffect(() => {
@@ -200,7 +173,7 @@ function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadMoreBooks])
 
-  // EFFECT UTAMA: Handle perubahan filter - ENHANCED
+  // EFFECT UTAMA: Handle perubahan filter - STABLE VERSION
   useEffect(() => {
     console.log('🔄 FILTER EFFECT triggered')
     console.log('📊 Current state:', { hurufFilter, tahunFilter, sortBy, sortOrder })
@@ -213,28 +186,19 @@ function Koleksi() {
 
     console.log('🎯 Filter berubah, memanggil loadBooks...')
     
-    // Reset dan load dengan delay untuk memastikan state ter-update
+    // Reset dan load
     setLoading(true)
-    setTimeout(() => {
-      loadBooks(0, false)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }, 100)
+    loadBooks(0, false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     
-  }, [hurufFilter, tahunFilter, sortBy, sortOrder, loadBooks])
+  }, [hurufFilter, tahunFilter, sortBy, sortOrder])
 
-  // Enhanced Handlers dengan debug
+  // Handlers - SIMPLE VERSION tanpa force update
   const handleHurufFilter = (huruf) => {
     console.log('=========================================')
     console.log('🎯 HANDLE HURUF FILTER:', huruf)
     console.log('📝 Sebelum setHurufFilter:', hurufFilter)
     setHurufFilter(huruf)
-    console.log('📝 Setelah setHurufFilter - state akan diupdate')
-    
-    // Force update setelah state change
-    setTimeout(() => {
-      console.log('🔄 Force update setelah filter huruf')
-      forceUpdate()
-    }, 50)
   }
 
   const handleTahunFilter = (tahun) => {
@@ -242,19 +206,12 @@ function Koleksi() {
     console.log('🎯 HANDLE TAHUN FILTER:', tahun)
     console.log('📝 Sebelum setTahunFilter:', tahunFilter)
     setTahunFilter(tahun)
-    console.log('📝 Setelah setTahunFilter - state akan diupdate')
-    
-    setTimeout(() => {
-      console.log('🔄 Force update setelah filter tahun')
-      forceUpdate()
-    }, 50)
   }
 
   const handleSortChange = (field) => {
     console.log('=========================================')
     console.log('🎯 HANDLE SORT CHANGE:', field)
     setSortBy(field)
-    setTimeout(() => forceUpdate(), 50)
   }
 
   const handleSortOrder = () => {
@@ -262,7 +219,6 @@ function Koleksi() {
     console.log('=========================================')
     console.log('🎯 HANDLE SORT ORDER:', newOrder)
     setSortOrder(newOrder)
-    setTimeout(() => forceUpdate(), 50)
   }
 
   const clearFilters = () => {
@@ -272,10 +228,6 @@ function Koleksi() {
     setTahunFilter('')
     setSortBy('judul')
     setSortOrder('asc')
-    setTimeout(() => {
-      forceUpdate()
-      console.log('✅ Filters cleared, force update executed')
-    }, 100)
   }
 
   // Debug effect untuk monitor state changes
@@ -283,14 +235,10 @@ function Koleksi() {
     console.log('📊 VISIBLE BOOKS STATE UPDATED:', {
       length: visibleBooks.length,
       firstItem: visibleBooks[0]?.judul,
-      renderKey: renderKey.current,
+      dataVersion: dataVersion.current,
       timestamp: new Date().toISOString()
     })
   }, [visibleBooks])
-
-  useEffect(() => {
-    console.log('🔄 COMPONENT RE-RENDERED')
-  })
 
   // Generate tahun ranges
   const generateYearRanges = () => {
@@ -307,7 +255,7 @@ function Koleksi() {
 
   const yearRanges = generateYearRanges()
 
-  // Simple Components
+  // Simple Components - GUNAKAN dataVersion UNTUK KEY
   const BookCard = ({ book, isMobile }) => (
     <div style={{
       backgroundColor: 'white',
@@ -498,9 +446,9 @@ function Koleksi() {
         </p>
       </section>
 
-      {/* MAIN CONTAINER dengan key */}
+      {/* MAIN CONTAINER - GUNAKAN dataVersion YANG STABIL */}
       <div 
-        key={`main-container-${renderKey.current}`} 
+        key={`main-${dataVersion.current}`}
         style={{ 
           display: 'flex', 
           flexDirection: isMobile ? 'column' : 'row', 
@@ -532,7 +480,7 @@ function Koleksi() {
             🔍 Filter Koleksi
           </h3>
 
-          {/* Enhanced Debug Info */}
+          {/* Debug Info */}
           <div style={{ 
             backgroundColor: '#e6fffa', 
             border: '1px solid #81e6d9', 
@@ -542,11 +490,11 @@ function Koleksi() {
             fontSize: '0.8rem', 
             color: '#234e52' 
           }}>
-            🔧 <strong>DEBUG ACTIVE:</strong> 
+            🔧 <strong>DEBUG INFO:</strong> 
             <div>Filter: {hurufFilter || 'All'}</div>
             <div>Tahun: {tahunFilter || 'All'}</div>
             <div>Sort: {sortBy} ({sortOrder})</div>
-            <div>Render Key: {renderKey.current}</div>
+            <div>Data Version: {dataVersion.current}</div>
             <div>Items: {visibleBooks.length}</div>
           </div>
 
@@ -747,8 +695,8 @@ function Koleksi() {
           )}
         </div>
 
-        {/* Main Content dengan key */}
-        <div key={`content-${renderKey.current}`} style={{ flex: 1 }}>
+        {/* Main Content */}
+        <div style={{ flex: 1 }}>
           <div style={{ 
             backgroundColor: 'white', 
             padding: '1.5rem', 
@@ -799,18 +747,15 @@ function Koleksi() {
             ) : (
               <>
                 {viewMode === 'list' && (
-                  <div 
-                    key={`list-${renderKey.current}`} 
-                    style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      gap: '0.75rem', 
-                      marginBottom: '2rem' 
-                    }}
-                  >
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '0.75rem', 
+                    marginBottom: '2rem' 
+                  }}>
                     {visibleBooks.map((book, index) => (
                       <BookListItem 
-                        key={`${book.id}-${renderKey.current}-${index}`} 
+                        key={`${book.id}-${dataVersion.current}-${index}`}
                         book={book} 
                         isMobile={isMobile} 
                       />
@@ -819,18 +764,15 @@ function Koleksi() {
                 )}
 
                 {viewMode === 'grid' && (
-                  <div 
-                    key={`grid-${renderKey.current}`} 
-                    style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))', 
-                      gap: '1.5rem', 
-                      marginBottom: '2rem' 
-                    }}
-                  >
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))', 
+                    gap: '1.5rem', 
+                    marginBottom: '2rem' 
+                  }}>
                     {visibleBooks.map((book, index) => (
                       <BookCard 
-                        key={`${book.id}-${renderKey.current}-${index}`} 
+                        key={`${book.id}-${dataVersion.current}-${index}`}
                         book={book} 
                         isMobile={isMobile} 
                       />
