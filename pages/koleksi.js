@@ -15,7 +15,7 @@ function Koleksi() {
   const [isMobile, setIsMobile] = useState(false)
   const [showBackToTop, setShowBackToTop] = useState(false)
   
-  // Filter states
+  // Filter states - GUNAKAN STATE SAJA, TIDAK PERLU REF
   const [hurufFilter, setHurufFilter] = useState('')
   const [tahunFilter, setTahunFilter] = useState('')
   const [sortBy, setSortBy] = useState('judul')
@@ -23,10 +23,9 @@ function Koleksi() {
   const [viewMode, setViewMode] = useState('list')
   const [filtersApplied, setFiltersApplied] = useState(false)
 
-  // Refs untuk track state
+  // Refs untuk debounce
   const filterTimeoutRef = useRef(null)
   const isInitialLoad = useRef(true)
-  const currentFiltersRef = useRef({ hurufFilter: '', tahunFilter: '', sortBy: 'judul', sortOrder: 'asc' })
 
   // Detect mobile screen
   useEffect(() => {
@@ -49,28 +48,30 @@ function Koleksi() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Build query berdasarkan filter - PASTI KONSISTEN
-  const buildQuery = (offset = 0) => {
+  // Build query berdasarkan filter - GUNAKAN PARAMETER
+  const buildQuery = (offset = 0, filters = {}) => {
+    const { hurufFilter: hf, tahunFilter: tf, sortBy: sb, sortOrder: so } = filters
+    
     let query = supabase
       .from('books')
       .select('*')
 
-    // Filter berdasarkan huruf - PASTI SAMA untuk semua load
-    if (currentFiltersRef.current.hurufFilter && currentFiltersRef.current.hurufFilter !== '#') {
-      if (currentFiltersRef.current.sortBy === 'pengarang') {
-        query = query.ilike('pengarang', `${currentFiltersRef.current.hurufFilter}%`)
-      } else if (currentFiltersRef.current.sortBy === 'penerbit') {
-        query = query.ilike('penerbit', `${currentFiltersRef.current.hurufFilter}%`)
+    // Filter berdasarkan huruf
+    if (hf && hf !== '#') {
+      if (sb === 'pengarang') {
+        query = query.ilike('pengarang', `${hf}%`)
+      } else if (sb === 'penerbit') {
+        query = query.ilike('penerbit', `${hf}%`)
       } else {
-        query = query.ilike('judul', `${currentFiltersRef.current.hurufFilter}%`)
+        query = query.ilike('judul', `${hf}%`)
       }
     }
 
     // Filter untuk karakter khusus (#)
-    if (currentFiltersRef.current.hurufFilter === '#') {
-      if (currentFiltersRef.current.sortBy === 'pengarang') {
+    if (hf === '#') {
+      if (sb === 'pengarang') {
         query = query.or('pengarang.not.ilike.[A-Za-z]%,pengarang.is.null')
-      } else if (currentFiltersRef.current.sortBy === 'penerbit') {
+      } else if (sb === 'penerbit') {
         query = query.or('penerbit.not.ilike.[A-Za-z]%,penerbit.is.null')
       } else {
         query = query.or('judul.not.ilike.[A-Za-z]%,judul.is.null')
@@ -78,14 +79,14 @@ function Koleksi() {
     }
 
     // Filter berdasarkan tahun
-    if (currentFiltersRef.current.tahunFilter) {
-      const [startYear, endYear] = currentFiltersRef.current.tahunFilter.split('-').map(Number)
+    if (tf) {
+      const [startYear, endYear] = tf.split('-').map(Number)
       query = query.gte('tahun_terbit', startYear).lte('tahun_terbit', endYear)
     }
 
-    // Sorting - PASTI SAMA untuk semua load
-    query = query.order(currentFiltersRef.current.sortBy, { 
-      ascending: currentFiltersRef.current.sortOrder === 'asc',
+    // Sorting
+    query = query.order(sb, { 
+      ascending: so === 'asc',
       nullsFirst: false
     })
 
@@ -95,8 +96,16 @@ function Koleksi() {
     return query
   }
 
-  // Load data dengan filter
-  const loadBooks = async (offset = 0, append = false) => {
+  // Load data dengan filter - PASS FILTERS SEBAGAI PARAMETER
+  const loadBooks = async (offset = 0, append = false, filters = null) => {
+    // Gunakan filter dari parameter atau state current
+    const currentFilters = filters || {
+      hurufFilter,
+      tahunFilter,
+      sortBy,
+      sortOrder
+    }
+
     // Jika bukan append (load baru), reset loading state
     if (offset === 0 && !append) {
       setLoading(true)
@@ -108,12 +117,12 @@ function Koleksi() {
 
     try {
       console.log('🔄 Loading books dengan filter:', { 
-        ...currentFiltersRef.current,
+        ...currentFilters,
         offset,
         append 
       })
 
-      const query = buildQuery(offset)
+      const query = buildQuery(offset, currentFilters)
       const { data, error } = await query
 
       if (error) throw error
@@ -128,7 +137,7 @@ function Koleksi() {
 
       setCurrentOffset(offset + ITEMS_PER_PAGE)
       setHasMore((data?.length || 0) === ITEMS_PER_PAGE)
-      setFiltersApplied(!!currentFiltersRef.current.hurufFilter || !!currentFiltersRef.current.tahunFilter)
+      setFiltersApplied(!!currentFilters.hurufFilter || !!currentFilters.tahunFilter)
 
     } catch (error) {
       console.error('Error loading books:', error)
@@ -146,11 +155,20 @@ function Koleksi() {
     }
   }, [])
 
-  // Load more books - GUNAKAN REF UNTUK KONSISTENSI
+  // Load more books - GUNAKAN STATE CURRENT
   const loadMoreBooks = useCallback(async () => {
     if (loadingMore || !hasMore) return
-    await loadBooks(currentOffset, true)
-  }, [loadingMore, hasMore, currentOffset])
+    
+    // Untuk load more, selalu gunakan state current
+    const currentFilters = {
+      hurufFilter,
+      tahunFilter,
+      sortBy,
+      sortOrder
+    }
+    
+    await loadBooks(currentOffset, true, currentFilters)
+  }, [loadingMore, hasMore, currentOffset, hurufFilter, tahunFilter, sortBy, sortOrder])
 
   // Infinite scroll
   useEffect(() => {
@@ -173,18 +191,22 @@ function Koleksi() {
       clearTimeout(filterTimeoutRef.current)
     }
 
-    // Update current filters ref SEBELUM load data
-    currentFiltersRef.current = {
-      hurufFilter,
-      tahunFilter,
-      sortBy,
-      sortOrder
-    }
-
     // Debounce untuk menghindari terlalu banyak request
     filterTimeoutRef.current = setTimeout(() => {
-      console.log('🎯 Filter changed, reloading data dengan:', currentFiltersRef.current)
-      loadBooks(0, false)
+      console.log('🎯 Filter changed, reloading data dengan:', {
+        hurufFilter,
+        tahunFilter,
+        sortBy,
+        sortOrder
+      })
+      
+      // PASS CURRENT STATE SEBAGAI PARAMETER
+      loadBooks(0, false, {
+        hurufFilter,
+        tahunFilter,
+        sortBy,
+        sortOrder
+      })
       
       // Scroll ke atas agar user lihat perubahan
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -206,7 +228,7 @@ function Koleksi() {
     // useEffect di atas akan otomatis trigger reload
   }
 
-  // Handler untuk filter huruf
+  // Handler untuk filter huruf - LANGSUNG SET STATE
   const handleHurufFilter = (huruf) => {
     console.log('🎯 Setting huruf filter to:', huruf)
     setHurufFilter(huruf)
