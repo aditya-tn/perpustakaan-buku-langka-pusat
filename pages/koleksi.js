@@ -8,7 +8,6 @@ const ITEMS_PER_PAGE = 100
 
 function Koleksi() {
   const [visibleBooks, setVisibleBooks] = useState([])
-  const [allLoadedBooks, setAllLoadedBooks] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -24,7 +23,7 @@ function Koleksi() {
   const [viewMode, setViewMode] = useState('list')
   const [filtersApplied, setFiltersApplied] = useState(false)
 
-  // Refs untuk debounce
+  // Refs
   const filterTimeoutRef = useRef(null)
 
   // Detect mobile screen
@@ -40,75 +39,104 @@ function Koleksi() {
     const handleScroll = () => {
       setShowBackToTop(window.scrollY > 1000)
     }
-
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Back to top function
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Initial load
-  useEffect(() => {
-    loadInitialBooks()
-  }, [])
+  // Build query berdasarkan filter
+  const buildQuery = (offset = 0) => {
+    let query = supabase
+      .from('books')
+      .select('*')
 
-  // Load first batch of books
-  const loadInitialBooks = async () => {
+    // Filter berdasarkan huruf
+    if (hurufFilter && hurufFilter !== '#') {
+      if (sortBy === 'pengarang') {
+        query = query.ilike('pengarang', `${hurufFilter}%`)
+      } else if (sortBy === 'penerbit') {
+        query = query.ilike('penerbit', `${hurufFilter}%`)
+      } else {
+        query = query.ilike('judul', `${hurufFilter}%`)
+      }
+    }
+
+    // Filter untuk karakter khusus (#)
+    if (hurufFilter === '#') {
+      if (sortBy === 'pengarang') {
+        query = query.or('pengarang.not.ilike.[A-Za-z]%,pengarang.is.null')
+      } else if (sortBy === 'penerbit') {
+        query = query.or('penerbit.not.ilike.[A-Za-z]%,penerbit.is.null')
+      } else {
+        query = query.or('judul.not.ilike.[A-Za-z]%,judul.is.null')
+      }
+    }
+
+    // Filter berdasarkan tahun
+    if (tahunFilter) {
+      const [startYear, endYear] = tahunFilter.split('-').map(Number)
+      query = query.gte('tahun_terbit', startYear).lte('tahun_terbit', endYear)
+    }
+
+    // Sorting
+    query = query.order(sortBy, { 
+      ascending: sortOrder === 'asc',
+      nullsFirst: false
+    })
+
+    // Pagination
+    query = query.range(offset, offset + ITEMS_PER_PAGE - 1)
+
+    return query
+  }
+
+  // Load data dengan filter
+  const loadBooks = async (offset = 0, append = false) => {
     try {
-      setLoading(true)
-      
-      const { data, error } = await supabase
-        .from('books')
-        .select('*')
-        .order('judul', { ascending: true })
-        .range(0, ITEMS_PER_PAGE - 1)
+      if (offset === 0) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+
+      const query = buildQuery(offset)
+      const { data, error, count } = await query
 
       if (error) throw error
-      
-      setAllLoadedBooks(data || [])
-      setVisibleBooks(data || [])
-      setCurrentOffset(ITEMS_PER_PAGE)
+
+      if (append) {
+        setVisibleBooks(prev => [...prev, ...data])
+      } else {
+        setVisibleBooks(data || [])
+      }
+
+      setCurrentOffset(offset + ITEMS_PER_PAGE)
       setHasMore((data?.length || 0) === ITEMS_PER_PAGE)
+      setFiltersApplied(!!hurufFilter || !!tahunFilter)
+
     } catch (error) {
       console.error('Error loading books:', error)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
-  // Load more books on scroll
+  // Initial load
+  useEffect(() => {
+    loadBooks(0, false)
+  }, [])
+
+  // Load more books
   const loadMoreBooks = useCallback(async () => {
     if (loadingMore || !hasMore) return
-    
-    try {
-      setLoadingMore(true)
-      
-      const { data, error } = await supabase
-        .from('books')
-        .select('*')
-        .order(sortBy, { ascending: sortOrder === 'asc' })
-        .range(currentOffset, currentOffset + ITEMS_PER_PAGE - 1)
+    await loadBooks(currentOffset, true)
+  }, [loadingMore, hasMore, currentOffset])
 
-      if (error) throw error
-      
-      const newBooks = data || []
-      const updatedBooks = [...allLoadedBooks, ...newBooks]
-      
-      setAllLoadedBooks(updatedBooks)
-      setVisibleBooks(updatedBooks)
-      setCurrentOffset(prev => prev + ITEMS_PER_PAGE)
-      setHasMore(newBooks.length === ITEMS_PER_PAGE)
-    } catch (error) {
-      console.error('Error loading more books:', error)
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [loadingMore, hasMore, currentOffset, sortBy, sortOrder, allLoadedBooks])
-
-  // Infinite scroll detection
+  // Infinite scroll
   useEffect(() => {
     const handleScroll = () => {
       if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500) {
@@ -120,92 +148,14 @@ function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadMoreBooks])
 
-  // Apply filters function
-  const applyFilters = useCallback(() => {
-    if (!allLoadedBooks.length) return
-
-    let result = [...allLoadedBooks]
-
-    // Apply huruf filter
-    if (hurufFilter) {
-      result = result.filter(book => {
-        let fieldToCheck = ''
-        
-        if (sortBy === 'pengarang') {
-          fieldToCheck = book.pengarang || ''
-        } else if (sortBy === 'penerbit') {
-          fieldToCheck = book.penerbit || ''
-        } else {
-          fieldToCheck = book.judul || ''
-        }
-        
-        const trimmedField = fieldToCheck.trim()
-        if (!trimmedField) return hurufFilter === '#'
-        
-        let firstChar = ''
-        for (let i = 0; i < trimmedField.length; i++) {
-          const char = trimmedField[i].toUpperCase()
-          if (/[A-Z]/.test(char)) {
-            firstChar = char
-            break
-          }
-        }
-        
-        if (!firstChar) {
-          const firstCharAny = trimmedField.charAt(0)
-          if (/[0-9]/.test(firstCharAny) || !/[a-zA-Z0-9]/.test(firstCharAny)) {
-            return hurufFilter === '#'
-          }
-          return false
-        }
-        
-        return hurufFilter === '#' ? false : firstChar === hurufFilter
-      })
-    }
-
-    // Apply tahun filter
-    if (tahunFilter) {
-      const [startYear, endYear] = tahunFilter.split('-').map(Number)
-      result = result.filter(book => {
-        const bookYear = parseInt(book.tahun_terbit) || 0
-        return bookYear >= startYear && bookYear <= endYear
-      })
-    }
-
-    // Apply sorting
-    result.sort((a, b) => {
-      let aValue = a[sortBy] || ''
-      let bValue = b[sortBy] || ''
-      
-      if (!aValue && !bValue) return 0
-      if (!aValue) return sortOrder === 'asc' ? 1 : -1
-      if (!bValue) return sortOrder === 'asc' ? -1 : 1
-      
-      aValue = aValue.toString().toLowerCase().trim()
-      bValue = bValue.toString().toLowerCase().trim()
-
-      if (sortOrder === 'asc') {
-        return aValue.localeCompare(bValue, 'id', { numeric: true })
-      } else {
-        return bValue.localeCompare(aValue, 'id', { numeric: true })
-      }
-    })
-
-    setVisibleBooks(result)
-    setFiltersApplied(true)
-    setHasMore(false)
-  }, [allLoadedBooks, hurufFilter, tahunFilter, sortBy, sortOrder])
-
-  // DEBOUNCE FILTERS - Auto apply setelah 600ms
+  // DEBOUNCE FILTERS - Load ulang data dari server ketika filter berubah
   useEffect(() => {
     if (filterTimeoutRef.current) {
       clearTimeout(filterTimeoutRef.current)
     }
 
     filterTimeoutRef.current = setTimeout(() => {
-      if (hurufFilter || tahunFilter) {
-        applyFilters()
-      }
+      loadBooks(0, false)
     }, 600)
 
     return () => {
@@ -213,7 +163,7 @@ function Koleksi() {
         clearTimeout(filterTimeoutRef.current)
       }
     }
-  }, [hurufFilter, tahunFilter, applyFilters])
+  }, [hurufFilter, tahunFilter, sortBy, sortOrder])
 
   // Reset filters
   const clearFilters = () => {
@@ -222,8 +172,7 @@ function Koleksi() {
     setSortBy('judul')
     setSortOrder('asc')
     setFiltersApplied(false)
-    setVisibleBooks(allLoadedBooks)
-    setHasMore(true)
+    // Reset akan trigger useEffect di atas
   }
 
   // Generate tahun ranges
@@ -517,6 +466,19 @@ function Koleksi() {
             🔍 Filter Koleksi
           </h3>
 
+          {/* Auto-filter notice */}
+          <div style={{
+            backgroundColor: '#e6fffa',
+            border: '1px solid #81e6d9',
+            borderRadius: '8px',
+            padding: '0.75rem',
+            marginBottom: '1.5rem',
+            fontSize: '0.8rem',
+            color: '#234e52'
+          }}>
+            ⚡ Filter diterapkan otomatis ke seluruh database
+          </div>
+
           {/* Sort Options */}
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{
@@ -605,6 +567,21 @@ function Koleksi() {
                   {huruf}
                 </button>
               ))}
+              <button
+                onClick={() => setHurufFilter('#')}
+                style={{
+                  padding: '0.5rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: hurufFilter === '#' ? '#4299e1' : 'white',
+                  color: hurufFilter === '#' ? 'white' : '#4a5568',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem'
+                }}
+                title="Angka dan Karakter Khusus"
+              >
+                #
+              </button>
             </div>
           </div>
 
@@ -722,6 +699,16 @@ function Koleksi() {
                 margin: 0
               }}>
                 Koleksi Buku Langka
+                {filtersApplied && (
+                  <span style={{
+                    fontSize: '0.9rem',
+                    fontWeight: '400',
+                    color: '#718096',
+                    marginLeft: '0.5rem'
+                  }}>
+                    (Hasil Filter)
+                  </span>
+                )}
               </h3>
               <div style={{ 
                 fontSize: '0.9rem', 
@@ -730,8 +717,8 @@ function Koleksi() {
                 padding: '0.5rem 1rem',
                 borderRadius: '6px'
               }}>
-                📊 Total: {visibleBooks.length} buku
-                {filtersApplied && ' (difilter)'}
+                📊 Menampilkan: {visibleBooks.length} buku
+                {hasMore && ' + scroll untuk lebih banyak'}
               </div>
             </div>
           </div>
@@ -839,7 +826,7 @@ function Koleksi() {
                 )}
 
                 {/* End of Results */}
-                {!hasMore && visibleBooks.length > 0 && !filtersApplied && (
+                {!hasMore && visibleBooks.length > 0 && (
                   <div style={{
                     textAlign: 'center',
                     padding: '2rem',
@@ -848,7 +835,7 @@ function Koleksi() {
                     backgroundColor: 'white',
                     borderRadius: '12px'
                   }}>
-                    <p>🎉 Semua {visibleBooks.length} buku telah dimuat</p>
+                    <p>🎉 Semua hasil telah dimuat ({visibleBooks.length} buku)</p>
                   </div>
                 )}
               </>
