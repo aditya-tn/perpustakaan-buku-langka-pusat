@@ -1,1370 +1,372 @@
-// pages/index.js - WITH AUTO-SCROLL & CLEANER FILTERS
-import { useState, useEffect, useCallback, useRef } from 'react'
-import Head from 'next/head'
-import { supabase } from '../lib/supabase'
-import Layout from '../components/Layout'
+import { useState, useCallback, useEffect } from 'react';
 
-export default function Home() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(20)
-  const [showStats, setShowStats] = useState(true)
-  const [isMobile, setIsMobile] = useState(false)
-  
-  // Search Intelligence States
-  const [suggestions, setSuggestions] = useState([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [searchHistory, setSearchHistory] = useState([])
-  const [searchMethod, setSearchMethod] = useState('')
-  const [liveSearchEnabled, setLiveSearchEnabled] = useState(true)
-  const [isTyping, setIsTyping] = useState(false)
-
-  // Search-within-Search States
-  const [withinSearchTerm, setWithinSearchTerm] = useState('')
+const SearchComponent = () => {
+  // State untuk pencarian dan filter
+  const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [activeFilters, setActiveFilters] = useState({
-    // SIMPLIFIED: Hanya slider saja, hapus manual inputs
     tahunRange: [1547, 1990]
-  })
+  });
 
-  // Refs
-  const searchTimeoutRef = useRef(null)
-  const abortControllerRef = useRef(null)
-  const searchInputRef = useRef(null) // NEW: Ref untuk search input
-
-  // Year range constants
-  const MIN_YEAR = 1547
-  const MAX_YEAR = 1990
-
-  // NEW: Auto-scroll effect ketika search input focused
-  const handleSearchFocus = () => {
-    setShowSuggestions(true)
-    
-    // Auto scroll ke search section untuk desktop
-    if (!isMobile && window.innerHeight > 700) {
-      setTimeout(() => {
-        const searchSection = document.getElementById('search-section')
-        if (searchSection) {
-          searchSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
-          })
-        }
-      }, 100)
-    }
-  }
-
-  // Detect mobile screen
+  // Debounced search
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
-  // Load preferences
-  useEffect(() => {
-    const savedHistory = localStorage.getItem('searchHistory')
-    const savedLiveSearch = localStorage.getItem('liveSearchEnabled')
-    
-    if (savedHistory) setSearchHistory(JSON.parse(savedHistory))
-    if (savedLiveSearch !== null) setLiveSearchEnabled(JSON.parse(savedLiveSearch))
-  }, [])
-
-  // Save preferences
-  useEffect(() => {
-    localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
-    if (searchHistory.length > 0) {
-      localStorage.setItem('searchHistory', JSON.stringify(searchHistory))
-    }
-  }, [searchHistory, liveSearchEnabled])
-
-  // REAL-TIME SEARCH EFFECT
-  useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-
-    if (!searchTerm.trim()) {
-      if (searchTerm.trim().length === 0) {
-        setSearchResults([])
-        setShowStats(true)
-        // Reset within-search
-        setWithinSearchTerm('')
-        setActiveFilters({
-          tahunRange: [MIN_YEAR, MAX_YEAR]
-        })
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.trim() || activeFilters.tahunRange[0] > 1547 || activeFilters.tahunRange[1] < 1990) {
+        performSearch();
       }
-      return
-    }
+    }, 300);
 
-    if (!liveSearchEnabled) return
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, activeFilters]);
 
-    setIsTyping(true)
-
-    searchTimeoutRef.current = setTimeout(async () => {
-      setIsTyping(false)
-      await executeSearch(searchTerm)
-    }, 800)
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
-    }
-  }, [searchTerm, liveSearchEnabled])
-
-  // Reset within-search ketika search utama berubah
-  useEffect(() => {
-    if (searchResults.length > 0) {
-      setWithinSearchTerm('')
-      setActiveFilters({
-        tahunRange: [MIN_YEAR, MAX_YEAR]
-      })
-    }
-  }, [searchResults])
-
-  // NEW: Auto-scroll ke results ketika search completed (desktop)
-  useEffect(() => {
-    if (searchResults.length > 0 && !isMobile) {
-      setTimeout(() => {
-        const resultsSection = document.getElementById('results-section')
-        if (resultsSection) {
-          resultsSection.scrollIntoView({ 
-            behavior: 'smooth',
-            block: 'start'
-          })
-        }
-      }, 300)
-    }
-  }, [searchResults, isMobile])
-
-  // Auto scroll ke atas ketika ganti page
-  useEffect(() => {
-    if (searchResults.length > 0) {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
-  }, [currentPage, searchResults.length])
-
-  useEffect(() => {
-    setShowStats(searchResults.length === 0)
-  }, [searchResults])
-
-  // Suggestions effect
-  useEffect(() => {
-    if (searchTerm.length < 2) {
-      setSuggestions([])
-      return
-    }
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        const { data } = await supabase
-          .from('books')
-          .select('judul, pengarang, penerbit, id')
-          .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%`)
-          .limit(5)
-
-        setSuggestions(data || [])
-      } catch (error) {
-        console.error('Suggestions error:', error)
-        setSuggestions([])
-      }
-    }, 300)
-
-    return () => clearTimeout(timeoutId)
-  }, [searchTerm])
-
-  // Filtered Results Computation
-  const getFilteredResults = useCallback(() => {
-    if (!withinSearchTerm.trim() && 
-        activeFilters.tahunRange[0] === MIN_YEAR && 
-        activeFilters.tahunRange[1] === MAX_YEAR) {
-      return searchResults
-    }
-
-    return searchResults.filter(book => {
-      // Filter: Search within text
-      if (withinSearchTerm.trim()) {
-        const searchLower = withinSearchTerm.toLowerCase()
-        const judulMatch = book.judul?.toLowerCase().includes(searchLower) || false
-        const pengarangMatch = book.pengarang?.toLowerCase().includes(searchLower) || false
-        const penerbitMatch = book.penerbit?.toLowerCase().includes(searchLower) || false
-        const deskripsiMatch = book.deskripsi_fisik?.toLowerCase().includes(searchLower) || false
-        
-        if (!judulMatch && !pengarangMatch && !penerbitMatch && !deskripsiMatch) {
-          return false
-        }
-      }
-
-      // Filter dengan Year Range Slider
-      if (book.tahun_terbit) {
-        const bookYear = parseInt(book.tahun_terbit)
-        const [minYear, maxYear] = activeFilters.tahunRange
-        
-        if (bookYear < minYear || bookYear > maxYear) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }, [searchResults, withinSearchTerm, activeFilters.tahunRange])
-
-  // Get current filtered results
-  const filteredResults = getFilteredResults()
-
-  // SMART SEARCH EXECUTION
-  const executeSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) return
+  // Handler untuk range slider
+  const handleTahunRangeChange = useCallback((index) => (e) => {
+    const value = parseInt(e.target.value);
     
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    
-    abortControllerRef.current = new AbortController()
-    
-    setLoading(true)
-    setCurrentPage(1)
-
-    try {
-      const results = await performSmartSearch(searchQuery)
-      setSearchResults(results)
+    setActiveFilters(prev => {
+      const newRange = [...prev.tahunRange];
+      newRange[index] = value;
       
-      if (results.length > 0) {
-        saveToSearchHistory(searchQuery, results.length)
+      // Pastikan min tidak lebih besar dari max
+      if (index === 0 && newRange[0] > newRange[1]) {
+        newRange[1] = newRange[0];
+      } else if (index === 1 && newRange[1] < newRange[0]) {
+        newRange[0] = newRange[1];
       }
       
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Search error:', err)
-        setSearchResults([])
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+      return { ...prev, tahunRange: newRange };
+    });
+  }, []);
 
-  // Smart Search Algorithm
-  const performSmartSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) return []
+  // Calculate slider track style
+  const calculateTrackStyle = () => {
+    const min = 1547;
+    const max = 1990;
+    const minPercent = ((activeFilters.tahunRange[0] - min) / (max - min)) * 100;
+    const maxPercent = ((activeFilters.tahunRange[1] - min) / (max - min)) * 100;
     
-    const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0)
-    
+    return {
+      background: `linear-gradient(to right, 
+        #ddd ${minPercent}%, 
+        #3b82f6 ${minPercent}%, 
+        #3b82f6 ${maxPercent}%, 
+        #ddd ${maxPercent}%)`
+    };
+  };
+
+  // Perform search function - SESUAI STRUCTURE DATABASE ANDA
+  const performSearch = async () => {
+    setLoading(true);
     try {
-      const exactMatchQuery = supabase
-        .from('books')
+      // Simulasi data - GANTI DENGAN SUPABASE QUERY ANDA
+      const mockData = [
+        {
+          id: 1,
+          judul: "Sejarah Kuno Indonesia",
+          pengarang: "Prof. Dr. Sastra Nusantara",
+          penerbit: "Penerbit Sejarah",
+          tempat_terbit: "Jakarta",
+          tahun_terbit: 1920,
+          deskripsi_fisik: "xii + 345 halaman; ilustrasi; 24 cm",
+          nomor_panggil: "959.8 SAS s",
+          link_pesan: "#"
+        },
+        {
+          id: 2,
+          judul: "Naskah Kuno Majapahit",
+          pengarang: "Dr. Arkeologi Indonesia",
+          penerbit: "Balai Pustaka",
+          tempat_terbit: "Yogyakarta", 
+          tahun_terbit: 1895,
+          deskripsi_fisik: "viii + 230 halaman; 22 cm",
+          nomor_panggil: "959.82 ARK n",
+          link_pesan: "#"
+        }
+      ];
+
+      // Filter data berdasarkan tahun range
+      const filteredData = mockData.filter(book => 
+        book.tahun_terbit >= activeFilters.tahunRange[0] && 
+        book.tahun_terbit <= activeFilters.tahunRange[1]
+      );
+
+      // Filter berdasarkan search query
+      const finalResults = searchQuery.trim() ? 
+        filteredData.filter(book => 
+          book.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          book.pengarang.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          book.penerbit.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          book.tempat_terbit.toLowerCase().includes(searchQuery.toLowerCase())
+        ) : 
+        filteredData;
+
+      setResults(finalResults);
+
+      // UNCOMMENT UNTUK SUPABASE QUERY:
+      /*
+      const { data, error } = await supabase
+        .from('nama_tabel_anda') // GANTI DENGAN NAMA TABEL
         .select('*')
+        .gte('tahun_terbit', activeFilters.tahunRange[0])
+        .lte('tahun_terbit', activeFilters.tahunRange[1])
         .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`)
-
-      const { data: exactMatches, error: exactError } = await exactMatchQuery
+        .limit(100);
       
-      if (exactError) throw exactError
-
-      if (exactMatches && exactMatches.length >= 5) {
-        setSearchMethod('Exact Match')
-        return rankSearchResults(exactMatches, searchWords, searchQuery)
-      }
-
-      const wordMatchPromises = searchWords.map(word => 
-        supabase
-          .from('books')
-          .select('*')
-          .or(`judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`)
-      )
-
-      const wordResults = await Promise.all(wordMatchPromises)
-      
-      const allResults = [...(exactMatches || [])]
-      wordResults.forEach(({ data }) => {
-        if (data) allResults.push(...data)
-      })
-
-      setSearchMethod('Smart Ranking')
-      return rankSearchResults(allResults, searchWords, searchQuery)
+      if (!error) setResults(data || []);
+      */
 
     } catch (error) {
-      console.error('Smart search error:', error)
-      return performBasicSearch(searchQuery)
+      console.error('Search failed:', error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  // Relevance Scoring
-  const rankSearchResults = (results, searchWords, originalQuery) => {
-    const scoredResults = results.map(book => {
-      let score = 0
-      const lowerJudul = book.judul?.toLowerCase() || ''
-      const lowerPengarang = book.pengarang?.toLowerCase() || ''
-      const lowerPenerbit = book.penerbit?.toLowerCase() || ''
-      const lowerQuery = originalQuery.toLowerCase()
-      
-      if (lowerJudul.includes(lowerQuery)) score += 100
-      if (lowerPengarang.includes(lowerQuery)) score += 80
-      if (lowerPenerbit.includes(lowerQuery)) score += 60
-      
-      searchWords.forEach(word => {
-        const lowerWord = word.toLowerCase()
-        if (lowerJudul.includes(lowerWord)) score += 30
-        if (lowerPengarang.includes(lowerWord)) score += 20
-        if (lowerPenerbit.includes(lowerWord)) score += 10
-      })
-      
-      const judulWords = lowerJudul.split(/\s+/) || []
-      const pengarangWords = lowerPengarang.split(/\s+/) || []
-      
-      searchWords.forEach(word => {
-        const lowerWord = word.toLowerCase()
-        if (judulWords.includes(lowerWord)) score += 15
-        if (pengarangWords.includes(lowerWord)) score += 10
-      })
-      
-      if (book.judul && book.judul.length < 50) score += 5
-      
-      return { ...book, _relevanceScore: score }
-    })
-    
-    const uniqueResults = scoredResults.filter((book, index, self) => 
-      index === self.findIndex(b => b.id === book.id)
-    )
-    
-    return uniqueResults.sort((a, b) => {
-      if (b._relevanceScore !== a._relevanceScore) {
-        return b._relevanceScore - a._relevanceScore
-      }
-      return (a.judul || '').localeCompare(b.judul || '')
-    })
-  }
-
-  // Basic search fallback
-  const performBasicSearch = async (searchQuery) => {
-    setSearchMethod('Basic Search')
-    
-    const { data, error } = await supabase
-      .from('books')
-      .select('*')
-      .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`)
-
-    if (error) throw error
-    return data || []
-  }
-
-  // Save to search history
-  const saveToSearchHistory = (term, resultsCount) => {
-    const newSearch = {
-      term,
-      resultsCount,
-      timestamp: new Date().toISOString(),
-      id: Date.now()
-    }
-    
-    setSearchHistory(prev => {
-      const filtered = prev.filter(item => item.term !== term)
-      return [newSearch, ...filtered.slice(0, 9)]
-    })
-  }
-
-  // Manual search handler
-  const handleManualSearch = async (e) => {
-    if (e) e.preventDefault()
-    
-    if (!searchTerm.trim()) return
-
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-
-    await executeSearch(searchTerm)
-    setShowSuggestions(false)
-  }
-
-  // Handle suggestion click
-  const handleSuggestionClick = (suggestion) => {
-    setSearchTerm(suggestion.judul)
-    setShowSuggestions(false)
-  }
-
-  // Handle search history click
-  const handleHistoryClick = (historyItem) => {
-    setSearchTerm(historyItem.term)
-  }
-
-  // Clear search history
-  const clearSearchHistory = () => {
-    setSearchHistory([])
-    localStorage.removeItem('searchHistory')
-  }
-
-  // Toggle live search
-  const toggleLiveSearch = () => {
-    setLiveSearchEnabled(prev => !prev)
-  }
-
-  // Clear current search
-  const clearSearch = () => {
-    setSearchTerm('')
-    setSearchResults([])
-    setShowStats(true)
-    setShowSuggestions(false)
-    setWithinSearchTerm('')
-    setActiveFilters({
-      tahunRange: [MIN_YEAR, MAX_YEAR]
-    })
-    
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-  }
-
-  // Clear within-search filters
-  const clearWithinSearch = () => {
-    setWithinSearchTerm('')
-    setActiveFilters({
-      tahunRange: [MIN_YEAR, MAX_YEAR]
-    })
-  }
-
-  // Update year range dari slider
-  const updateYearRange = (newRange) => {
-    setActiveFilters(prev => ({
-      ...prev,
-      tahunRange: newRange
-    }))
-    setCurrentPage(1)
-  }
-
-  const popularSearches = [
-    'sejarah indonesia', 'sastra jawa', 'naskah kuno', 'budaya nusantara',
-    'colonial history', 'manuskrip', 'sastra melayu', 'sejarah islam'
-  ]
-
-  // Pagination calculations
-  const indexOfLastItem = currentPage * itemsPerPage
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage
-  const currentItems = filteredResults.slice(indexOfFirstItem, indexOfLastItem)
-  const totalPages = Math.ceil(filteredResults.length / itemsPerPage)
-  
-  const paginate = (pageNumber) => setCurrentPage(pageNumber)
-
-  const handleItemsPerPageChange = (e) => {
-    setItemsPerPage(Number(e.target.value))
-    setCurrentPage(1)
-  }
-
-  // Check if any within-search filters are active
-  const isWithinSearchActive = withinSearchTerm.trim() || 
-    activeFilters.tahunRange[0] !== MIN_YEAR || 
-    activeFilters.tahunRange[1] !== MAX_YEAR
+  // Reset filters
+  const resetFilters = () => {
+    setActiveFilters({ tahunRange: [1547, 1990] });
+    setSearchQuery('');
+  };
 
   return (
-    <Layout isMobile={isMobile}>
-      <Head>
-        <title>Koleksi Buku Langka - Perpustakaan Nasional RI</title>
-        <meta name="description" content="Temukan khazanah literatur langka Indonesia dari koleksi Perpustakaan Nasional RI" />
-      </Head>
-
-      {/* Hero Section dengan ID untuk scroll */}
-      <section id="search-section" style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        padding: isMobile ? '2.5rem 1rem' : '4rem 2rem',
-        textAlign: 'center',
-        minHeight: isMobile ? 'auto' : '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center'
-      }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: isMobile ? '2rem' : '3rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            lineHeight: '1.2'
-          }}>
-            Memori Literasi Nusantara
-          </h2>
-          <p style={{
-            fontSize: isMobile ? '1rem' : '1.25rem',
-            marginBottom: isMobile ? '2rem' : '2.5rem',
-            opacity: 0.9,
-            fontWeight: '300',
-            lineHeight: '1.5'
-          }}>
-            85.000+ warisan budaya di layanan buku langka - Perpustakaan Nasional RI
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Search Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Koleksi Buku Langka
+          </h1>
+          <p className="text-gray-600">
+            Telusuri 85,000+ koleksi buku langka dari tahun 1547 - 1990
           </p>
-          
-          {/* Search Form */}
-          <form onSubmit={handleManualSearch} style={{ 
-            maxWidth: '600px', 
-            margin: '0 auto',
-            position: 'relative'
-          }}>
-            {/* Search Controls */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.5rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={toggleLiveSearch}
-                  style={{
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: liveSearchEnabled ? '#48bb78' : '#e2e8f0',
-                    color: liveSearchEnabled ? 'white' : '#4a5568',
-                    border: 'none',
-                    borderRadius: '15px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem'
-                  }}
-                >
-                  <span style={{ fontSize: '0.8rem' }}>
-                    {liveSearchEnabled ? '🔴' : '⚪'}
-                  </span>
-                  Live Search
-                </button>
-
-                {(loading || isTyping) && (
-                  <div style={{
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    borderRadius: '15px',
-                    fontSize: '0.7rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: isTyping ? '#f6e05e' : '#4299e1',
-                      animation: 'pulse 1.5s infinite'
-                    }} />
-                    {isTyping ? 'Mengetik...' : 'Mencari...'}
-                  </div>
-                )}
-              </div>
-
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  style={{
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '15px',
-                    fontSize: '0.7rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ✕ Hapus
-                </button>
-              )}
-            </div>
-
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: isMobile ? '0.5rem' : '0',
-              borderRadius: isMobile ? '8px' : '12px',
-              overflow: 'hidden',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-              position: 'relative'
-            }}>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setShowSuggestions(true)
-                  }}
-                  onFocus={handleSearchFocus} // NEW: Auto-scroll trigger
-                  placeholder={
-                    liveSearchEnabled 
-                      ? "Ketik untuk mencari secara real-time..." 
-                      : "Cari judul, pengarang, atau tahun terbit..."
-                  }
-                  style={{
-                    width: '100%',
-                    padding: isMobile ? '1rem 1.25rem' : '1.25rem 1.5rem',
-                    border: 'none',
-                    fontSize: isMobile ? '1rem' : '1.1rem',
-                    outline: 'none'
-                  }}
-                />
-                
-                {/* Suggestions Dropdown */}
-                {showSuggestions && (suggestions.length > 0 || searchHistory.length > 0 || searchTerm.length >= 2) && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    zIndex: 1000,
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    marginTop: '4px'
-                  }}>
-                    {/* Recent Searches */}
-                    {searchHistory.length > 0 && searchTerm.length < 2 && (
-                      <>
-                        <div style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
-                          color: '#718096',
-                          borderBottom: '1px solid #f7fafc',
-                          backgroundColor: '#f7fafc',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          <span>🔍 Pencarian Terakhir</span>
-                          <button
-                            onClick={clearSearchHistory}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#718096',
-                              cursor: 'pointer',
-                              fontSize: '0.7rem'
-                            }}
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                        {searchHistory.slice(0, 3).map((item) => (
-                          <div
-                            key={item.id}
-                            onClick={() => handleHistoryClick(item)}
-                            style={{
-                              padding: '0.75rem 1rem',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f7fafc',
-                              transition: 'background-color 0.2s',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center'
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                          >
-                            <span>{item.term}</span>
-                            <span style={{ 
-                              fontSize: '0.7rem', 
-                              color: '#718096',
-                              backgroundColor: '#e2e8f0',
-                              padding: '0.2rem 0.5rem',
-                              borderRadius: '12px'
-                            }}>
-                              {item.resultsCount} hasil
-                            </span>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Search Suggestions */}
-                    {suggestions.length > 0 && (
-                      <>
-                        <div style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
-                          color: '#718096',
-                          borderBottom: '1px solid #f7fafc',
-                          backgroundColor: '#f7fafc'
-                        }}>
-                          💡 Saran Pencarian
-                        </div>
-                        {suggestions.map((item, index) => (
-                          <div
-                            key={`${item.id}-${index}`}
-                            onClick={() => handleSuggestionClick(item)}
-                            style={{
-                              padding: '0.75rem 1rem',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f7fafc',
-                              transition: 'background-color 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                          >
-                            <div style={{ fontWeight: '600', color: '#2d3748', marginBottom: '0.25rem' }}>
-                              {item.judul}
-                            </div>
-                            {item.pengarang && (
-                              <div style={{ fontSize: '0.8rem', color: '#718096' }}>
-                                oleh {item.pengarang}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Popular Searches */}
-                    {searchTerm.length < 2 && (
-                      <>
-                        <div style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
-                          color: '#718096',
-                          borderBottom: '1px solid #f7fafc',
-                          backgroundColor: '#f7fafc'
-                        }}>
-                          🔥 Pencarian Populer
-                        </div>
-                        {popularSearches.map((term, index) => (
-                          <div
-                            key={index}
-                            onClick={() => setSearchTerm(term)}
-                            style={{
-                              padding: '0.75rem 1rem',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f7fafc',
-                              transition: 'background-color 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                          >
-                            {term}
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {/* Manual Search Button */}
-              {!liveSearchEnabled && (
-                <button 
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#f56565',
-                    color: 'white',
-                    padding: isMobile ? '1rem 1.5rem' : '0 2.5rem',
-                    border: 'none',
-                    fontSize: isMobile ? '1rem' : '1.1rem',
-                    fontWeight: '600',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    minWidth: isMobile ? 'auto' : '120px',
-                    opacity: loading ? 0.7 : 1
-                  }}
-                >
-                  {loading ? '🔍' : 'Cari'}
-                </button>
-              )}
-            </div>
-
-            {/* Live Search Status */}
-            {liveSearchEnabled && searchTerm && (
-              <div style={{
-                marginTop: '0.5rem',
-                fontSize: '0.7rem',
-                color: 'rgba(255,255,255,0.8)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                justifyContent: 'center'
-              }}>
-                <span style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: isTyping ? '#f6e05e' : loading ? '#4299e1' : '#48bb78',
-                  animation: (isTyping || loading) ? 'pulse 1.5s infinite' : 'none'
-                }} />
-                {isTyping ? 'Mengetik...' : loading ? 'Mencari...' : 'Live search aktif'}
-              </div>
-            )}
-          </form>
-
-          {/* Search Info */}
-          {searchResults.length > 0 && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.5rem 1rem',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              borderRadius: '20px',
-              fontSize: '0.8rem',
-              display: 'inline-block'
-            }}>
-              🧠 {searchMethod} • {searchResults.length} hasil relevan
-              {liveSearchEnabled && ' • 🔴 Live'}
-            </div>
-          )}
         </div>
-      </section>
 
-      {/* Stats Section - Hanya muncul ketika belum ada search results */}
-      {showStats && searchResults.length === 0 && (
-        <section style={{
-          backgroundColor: 'white',
-          padding: isMobile ? '2rem 1rem' : '3rem 2rem'
-        }}>
-          <div style={{ 
-            maxWidth: '1200px', 
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-            gap: '2rem',
-            textAlign: 'center'
-          }}>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Koleksi Buku</div>
+        {/* Search Box */}
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari judul, pengarang, penerbit, atau tempat terbit..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Tahun Sejarah</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Bahasa</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Akses Digital</div>
-            </div>
+            <button
+              onClick={resetFilters}
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Reset
+            </button>
           </div>
-        </section>
-      )}
 
-      {/* Search Results Section dengan ID untuk scroll */}
-      {searchResults.length > 0 && (
-        <section id="results-section" style={{ 
-          maxWidth: '1400px', 
-          margin: isMobile ? '2rem auto' : '3rem auto',
-          padding: isMobile ? '0 1rem' : '0 2rem'
-        }}>
-          {/* Improved Search-within-Search Panel - CLEANER VERSION */}
-          <div style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '12px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-            marginBottom: '2rem',
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-              gap: '1rem'
-            }}>
-              <h3 style={{ 
-                fontSize: '1.25rem', 
-                fontWeight: '700',
-                color: '#2d3748',
-                margin: 0
-              }}>
-                🔎 Filter Hasil Pencarian
-              </h3>
-              
-              {isWithinSearchActive && (
-                <button
-                  onClick={clearWithinSearch}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#f7fafc',
-                    color: '#718096',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: '500'
-                  }}
-                >
-                  ✕ Hapus Filter
-                </button>
-              )}
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr',
-              gap: '2rem',
-              alignItems: 'start'
-            }}>
-              {/* Left Column: Text Search */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '0.5rem'
-                }}>
-                  Cari dalam hasil:
-                </label>
+          {/* Range Slider Filter */}
+          <div className="border-t pt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-4">
+              Rentang Tahun Terbit:
+            </label>
+            
+            <div className="slider-container space-y-4">
+              {/* Slider Track dengan Dual Thumbs */}
+              <div className="slider-track relative h-2 bg-gray-200 rounded-full">
+                {/* Range Fill */}
+                <div 
+                  className="slider-range absolute h-2 bg-blue-500 rounded-full"
+                  style={calculateTrackStyle()}
+                />
+                
+                {/* Input Min */}
                 <input
-                  type="text"
-                  value={withinSearchTerm}
-                  onChange={(e) => setWithinSearchTerm(e.target.value)}
-                  placeholder="Filter judul, pengarang, penerbit..."
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
+                  type="range"
+                  min="1547"
+                  max="1990"
+                  value={activeFilters.tahunRange[0]}
+                  onChange={handleTahunRangeChange(0)}
+                  className="absolute w-full h-2 opacity-0 cursor-pointer z-20"
+                />
+                
+                {/* Input Max */}
+                <input
+                  type="range"
+                  min="1547"
+                  max="1990"
+                  value={activeFilters.tahunRange[1]}
+                  onChange={handleTahunRangeChange(1)}
+                  className="absolute w-full h-2 opacity-0 cursor-pointer z-20"
+                />
+                
+                {/* Custom Thumbs */}
+                <div
+                  className="absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-lg transform -translate-y-1 z-10 cursor-pointer"
+                  style={{ left: `${((activeFilters.tahunRange[0] - 1547) / (1990 - 1547)) * 100}%` }}
+                />
+                <div
+                  className="absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-lg transform -translate-y-1 z-10 cursor-pointer"
+                  style={{ left: `${((activeFilters.tahunRange[1] - 1547) / (1990 - 1547)) * 100}%` }}
                 />
               </div>
-
-              {/* Right Column: Year Slider - SIMPLIFIED */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '1rem'
-                }}>
-                  Rentang Tahun Terbit:
-                </label>
+              
+              {/* Tampilan Range */}
+              <div className="range-display flex items-center justify-between text-sm text-gray-600">
+                <span className="px-3 py-1 bg-gray-100 rounded-full border font-medium">
+                  {activeFilters.tahunRange[0]}
+                </span>
                 
-                {/* Year Range Display */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.9rem',
-                  color: '#4a5568'
-                }}>
-                  <span>{activeFilters.tahunRange[0]}</span>
-                  <span style={{ 
-                    backgroundColor: '#4299e1',
-                    color: 'white',
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '12px',
-                    fontSize: '0.8rem',
-                    fontWeight: '600'
-                  }}>
-                    {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
-                  </span>
-                  <span>{activeFilters.tahunRange[1]}</span>
-                </div>
-
-                {/* Custom Slider - SIMPLIFIED */}
-                <div style={{ position: 'relative', marginBottom: '1rem' }}>
-                  <div style={{
-                    height: '6px',
-                    backgroundColor: '#e2e8f0',
-                    borderRadius: '3px',
-                    position: 'relative'
-                  }}>
-                    {/* Active Range */}
-                    <div style={{
-                      position: 'absolute',
-                      height: '100%',
-                      backgroundColor: '#4299e1',
-                      borderRadius: '3px',
-                      left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-                      right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
-                    }} />
-                    
-                    {/* Min Handle */}
-                    <input
-                      type="range"
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      value={activeFilters.tahunRange[0]}
-                      onChange={(e) => updateYearRange([
-                        parseInt(e.target.value),
-                        activeFilters.tahunRange[1]
-                      ])}
-                      style={{
-                        position: 'absolute',
-                        width: '100%',
-                        top: '-6px',
-                        height: '18px',
-                        appearance: 'none',
-                        background: 'transparent',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                    
-                    {/* Max Handle */}
-                    <input
-                      type="range"
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      value={activeFilters.tahunRange[1]}
-                      onChange={(e) => updateYearRange([
-                        activeFilters.tahunRange[0],
-                        parseInt(e.target.value)
-                      ])}
-                      style={{
-                        position: 'absolute',
-                        width: '100%',
-                        top: '-6px',
-                        height: '18px',
-                        appearance: 'none',
-                        background: 'transparent',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                  </div>
-                </div>
+                <span className="range-badge px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
+                </span>
+                
+                <span className="px-3 py-1 bg-gray-100 rounded-full border font-medium">
+                  {activeFilters.tahunRange[1]}
+                </span>
               </div>
             </div>
-
-            {/* Filter Status */}
-            {isWithinSearchActive && (
-              <div style={{
-                marginTop: '1rem',
-                padding: '0.75rem',
-                backgroundColor: '#e6fffa',
-                border: '1px solid #81e6d9',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                color: '#234e52'
-              }}>
-                🔍 Filter aktif: 
-                {withinSearchTerm && ` Teks: "${withinSearchTerm}"`}
-                {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-                  ` Tahun: ${activeFilters.tahunRange[0]} - ${activeFilters.tahunRange[1]}`}
-                {` • Menampilkan ${filteredResults.length} dari ${searchResults.length} hasil`}
-              </div>
-            )}
           </div>
+        </div>
 
-          {/* Results Header */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: isMobile ? 'flex-start' : 'center',
-            marginBottom: '2rem',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            flexDirection: isMobile ? 'column' : 'row'
-          }}>
-            <div>
-              <h3 style={{ 
-                fontSize: isMobile ? '1.5rem' : '1.75rem', 
-                fontWeight: '700',
-                color: '#2d3748',
-                margin: 0
-              }}>
-                Hasil Pencarian
-              </h3>
-              <p style={{ 
-                color: '#718096',
-                margin: '0.5rem 0 0 0',
-                fontSize: isMobile ? '0.9rem' : '1rem'
-              }}>
-                {isWithinSearchActive ? (
-                  <>
-                    <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
-                    ditemukan untuk "<strong>{searchTerm}</strong>"
-                    {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
-                    {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-                      ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
-                  </>
-                ) : (
-                  <>
-                    {searchResults.length} buku ditemukan untuk "<strong>{searchTerm}</strong>"
-                  </>
-                )}
-              </p>
-            </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '1rem',
-              flexWrap: 'wrap'
-            }}>
-              <span style={{ 
-                fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                color: '#4a5568', 
-                fontWeight: '500' 
-              }}>
-                Tampilkan:
-              </span>
-              <select 
-                value={itemsPerPage}
-                onChange={handleItemsPerPageChange}
-                style={{
-                  padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  backgroundColor: 'white',
-                  fontSize: isMobile ? '0.8rem' : '0.9rem',
-                  outline: 'none'
-                }}
-              >
-                <option value={20}>20 per halaman</option>
-                <option value={50}>50 per halaman</option>
-                <option value={100}>100 per halaman</option>
-              </select>
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-8">
+            <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-full">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              Mencari koleksi...
             </div>
           </div>
+        )}
 
-          {/* Book Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: isMobile ? '1rem' : '1.5rem',
-            marginBottom: '3rem'
-          }}>
-            {currentItems.map((book) => (
-              <div key={book.id} style={{
-                backgroundColor: 'white',
-                padding: isMobile ? '1.25rem' : '1.5rem',
-                borderRadius: '12px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                border: '1px solid #f0f0f0',
-                transition: 'all 0.2s ease',
-                position: 'relative'
-              }}>
-                {/* Relevance Indicator */}
-                {book._relevanceScore > 50 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '-8px',
-                    right: '-8px',
-                    backgroundColor: '#48bb78',
-                    color: 'white',
-                    fontSize: '0.7rem',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: '12px',
-                    fontWeight: '600'
-                  }}>
-                    🔥 Relevan
-                  </div>
-                )}
-                
-                <h4 style={{ 
-                  fontWeight: '600',
-                  color: '#2d3748',
-                  marginBottom: '0.75rem',
-                  fontSize: isMobile ? '1rem' : '1.1rem',
-                  lineHeight: '1.4'
-                }}>
-                  {book.judul}
-                </h4>
-                
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568', 
-                    marginBottom: '0.25rem' 
-                  }}>
-                    <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
-                  </div>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568', 
-                    marginBottom: '0.25rem' 
-                  }}>
-                    <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
-                  </div>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568' 
-                  }}>
-                    <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
-                  </div>
-                </div>
+        {/* Results Count */}
+        {!loading && results.length > 0 && (
+          <div className="mb-4 text-sm text-gray-600">
+            Ditemukan <strong>{results.length}</strong> hasil
+            {searchQuery && ` untuk "${searchQuery}"`}
+            {activeFilters.tahunRange[0] > 1547 || activeFilters.tahunRange[1] < 1990 ? 
+              ` (Tahun ${activeFilters.tahunRange[0]} - ${activeFilters.tahunRange[1]})` : ''}
+          </div>
+        )}
 
-                {book.deskripsi_fisik && (
-                  <p style={{ 
-                    fontSize: isMobile ? '0.75rem' : '0.85rem', 
-                    color: '#718096', 
-                    marginTop: '0.75rem',
-                    lineHeight: '1.5',
-                    fontStyle: 'italic'
-                  }}>
-                    {book.deskripsi_fisik}
-                  </p>
-                )}
+        {/* No Results */}
+        {!loading && searchQuery && results.length === 0 && (
+          <div className="text-center py-12 bg-white rounded-lg border">
+            <div className="text-gray-500 mb-2">📚</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada hasil ditemukan</h3>
+            <p className="text-gray-600">
+              Coba kata kunci lain atau sesuaikan filter tahun
+            </p>
+          </div>
+        )}
 
-                {/* Action Buttons */}
-                <div style={{ 
-                  marginTop: '1.25rem', 
-                  display: 'flex', 
-                  gap: '0.75rem',
-                  flexWrap: 'wrap'
-                }}>
-                  {book.lihat_opac && book.lihat_opac !== 'null' && (
+        {/* Results Grid - SESUAI KOLOM DATABASE ANDA */}
+        {!loading && results.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {results.map((book) => (
+              <div key={book.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  <h3 className="font-semibold text-lg text-gray-900 mb-2 line-clamp-2">
+                    {book.judul}
+                  </h3>
+                  
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <p><strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}</p>
+                    <p><strong>Penerbit:</strong> {book.penerbit || '-'}</p>
+                    <p><strong>Tempat Terbit:</strong> {book.tempat_terbit || '-'}</p>
+                    <p><strong>Tahun:</strong> {book.tahun_terbit}</p>
+                    <p><strong>Deskripsi Fisik:</strong> {book.deskripsi_fisik || '-'}</p>
+                    <p><strong>No. Panggil:</strong> <code>{book.nomor_panggil}</code></p>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Tersedia
+                    </span>
                     <a 
-                      href={book.lihat_opac}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        backgroundColor: '#4299e1',
-                        color: 'white',
-                        padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        fontSize: isMobile ? '0.75rem' : '0.85rem',
-                        fontWeight: '500'
-                      }}
+                      href={book.link_pesan} 
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                     >
-                      📖 Lihat OPAC
+                      Pesan Koleksi →
                     </a>
-                  )}
-
-                  {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
-                    <a 
-                      href={book.link_pesan_koleksi}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        backgroundColor: '#48bb78',
-                        color: 'white',
-                        padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        fontSize: isMobile ? '0.75rem' : '0.85rem',
-                        fontWeight: '500'
-                      }}
-                    >
-                      📥 Pesan Koleksi
-                    </a>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+        )}
 
-          {/* No Filtered Results Message */}
-          {filteredResults.length === 0 && isWithinSearchActive && (
-            <div style={{
-              textAlign: 'center',
-              padding: '3rem 2rem',
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              color: '#718096'
-            }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-              <h4 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
-                Tidak ada hasil untuk filter ini
-              </h4>
-              <p>Coba ubah kriteria filter atau <button 
-                onClick={clearWithinSearch}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#4299e1',
-                  cursor: 'pointer',
-                  textDecoration: 'underline'
-                }}
-              >
-                hapus filter
-              </button> untuk melihat semua hasil.</p>
-            </div>
-          )}
+        {/* Empty State - Awal */}
+        {!loading && !searchQuery && results.length === 0 && (
+          <div className="text-center py-16 bg-white rounded-lg border">
+            <div className="text-6xl mb-4">📖</div>
+            <h3 className="text-xl font-medium text-gray-900 mb-2">
+              Jelajahi Koleksi Buku Langka
+            </h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+              Gunakan kolom pencarian di atas untuk menemukan buku langka 
+              dari koleksi 85,000+ item, atau sesuaikan rentang tahun menggunakan slider.
+            </p>
+          </div>
+        )}
 
-          {/* Pagination */}
-          {totalPages > 1 && filteredResults.length > 0 && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '0.5rem',
-              marginTop: '3rem',
-              flexWrap: 'wrap'
-            }}>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNumber = i + 1
-                if (totalPages > 5 && currentPage > 3) {
-                  pageNumber = currentPage - 2 + i
-                }
-                if (pageNumber > totalPages) return null
+      </div>
 
-                return (
-                  <button
-                    key={pageNumber}
-                    onClick={() => paginate(pageNumber)}
-                    style={{
-                      padding: '0.75rem 1rem',
-                      border: '1px solid #e2e8f0',
-                      backgroundColor: currentPage === pageNumber ? '#4299e1' : 'white',
-                      color: currentPage === pageNumber ? 'white' : '#4a5568',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: '500'
-                    }}
-                  >
-                    {pageNumber}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </section>
-      )}
-
+      {/* Custom Styles */}
       <style jsx>{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
+        .slider-track {
+          position: relative;
+          height: 6px;
+          background: #e5e7eb;
+          border-radius: 9999px;
         }
 
-        /* Custom Slider Styles */
-        input[type="range"] {
+        .slider-range {
+          position: absolute;
+          height: 100%;
+          border-radius: 9999px;
+          pointer-events: none;
+        }
+
+        .slider-track input[type="range"] {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background: transparent;
+          pointer-events: none;
           -webkit-appearance: none;
         }
 
-        input[type="range"]::-webkit-slider-thumb {
+        .slider-track input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
-          appearance: none;
           width: 20px;
           height: 20px;
+          background: #3b82f6;
+          border: 2px solid #ffffff;
           border-radius: 50%;
-          background: #4299e1;
           cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          pointer-events: auto;
+          pointer-events: all;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
-        input[type="range"]::-moz-range-thumb {
+        .slider-track input[type="range"]::-moz-range-thumb {
           width: 20px;
           height: 20px;
+          background: #3b82f6;
+          border: 2px solid #ffffff;
           border-radius: 50%;
-          background: #4299e1;
           cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          pointer-events: auto;
+          pointer-events: all;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
       `}</style>
-    </Layout>
-  )
-}
+    </div>
+  );
+};
+
+export default SearchComponent;
