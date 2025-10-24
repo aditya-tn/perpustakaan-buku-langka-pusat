@@ -1,4 +1,4 @@
-// pages/koleksi.js - FINAL VERSION
+// pages/koleksi.js - FIXED VERSION
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
@@ -22,6 +22,7 @@ export default function Koleksi() {
   const [sortOrder, setSortOrder] = useState('asc')
   const [viewMode, setViewMode] = useState('list')
   const [filtersApplied, setFiltersApplied] = useState(false)
+  const [applyingFilters, setApplyingFilters] = useState(false)
 
   // Detect mobile screen
   useEffect(() => {
@@ -100,60 +101,82 @@ export default function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadingMore, hasMore])
 
-  // Apply filters when search button is clicked
-  const applyFilters = () => {
+  // Improved filter function with better logic
+  const applyFilters = async () => {
     if (!allLoadedBooks.length) return
 
-    let result = [...allLoadedBooks]
-
-    // Apply huruf filter berdasarkan sortBy yang dipilih
-    if (hurufFilter) {
-      result = result.filter(book => {
-        let fieldToCheck = ''
-        
-        if (sortBy === 'pengarang') {
-          fieldToCheck = book.pengarang || ''
-        } else if (sortBy === 'penerbit') {
-          fieldToCheck = book.penerbit || ''
-        } else {
-          fieldToCheck = book.judul || ''
-        }
-        
-        const firstChar = fieldToCheck.charAt(0)?.toUpperCase() || ''
-        return firstChar === hurufFilter
-      })
-    }
-
-    // Apply tahun filter (rentang tahun)
-    if (tahunFilter) {
-      const [startYear, endYear] = tahunFilter.split('-').map(Number)
-      result = result.filter(book => {
-        const bookYear = parseInt(book.tahun_terbit) || 0
-        return bookYear >= startYear && bookYear <= endYear
-      })
-    }
-
-    // Apply client-side sorting
-    result.sort((a, b) => {
-      let aValue = a[sortBy] || ''
-      let bValue = b[sortBy] || ''
+    try {
+      setApplyingFilters(true)
       
-      if (!aValue && !bValue) return 0
-      if (!aValue) return sortOrder === 'asc' ? 1 : -1
-      if (!bValue) return sortOrder === 'asc' ? -1 : 1
-      
-      aValue = aValue.toString().toLowerCase().trim()
-      bValue = bValue.toString().toLowerCase().trim()
+      // Small delay untuk animasi loading
+      await new Promise(resolve => setTimeout(resolve, 500))
 
-      if (sortOrder === 'asc') {
-        return aValue.localeCompare(bValue, 'id', { numeric: true })
-      } else {
-        return bValue.localeCompare(aValue, 'id', { numeric: true })
+      let result = [...allLoadedBooks]
+
+      // Apply huruf filter dengan logic yang lebih baik
+      if (hurufFilter) {
+        result = result.filter(book => {
+          let fieldToCheck = ''
+          
+          if (sortBy === 'pengarang') {
+            fieldToCheck = book.pengarang || ''
+          } else if (sortBy === 'penerbit') {
+            fieldToCheck = book.penerbit || ''
+          } else {
+            fieldToCheck = book.judul || ''
+          }
+          
+          // Clean the field and get first character
+          const cleanedField = fieldToCheck.trim()
+          if (!cleanedField) return false
+          
+          const firstChar = cleanedField.charAt(0).toUpperCase()
+          
+          // Handle special characters and numbers
+          if (!/^[A-Z]$/.test(firstChar)) {
+            // Jika karakter pertama bukan huruf, masukkan ke kategori khusus
+            return hurufFilter === '#' 
+          }
+          
+          return firstChar === hurufFilter
+        })
       }
-    })
 
-    setVisibleBooks(result)
-    setFiltersApplied(true)
+      // Apply tahun filter (rentang tahun)
+      if (tahunFilter) {
+        const [startYear, endYear] = tahunFilter.split('-').map(Number)
+        result = result.filter(book => {
+          const bookYear = parseInt(book.tahun_terbit) || 0
+          return bookYear >= startYear && bookYear <= endYear
+        })
+      }
+
+      // Apply client-side sorting
+      result.sort((a, b) => {
+        let aValue = a[sortBy] || ''
+        let bValue = b[sortBy] || ''
+        
+        if (!aValue && !bValue) return 0
+        if (!aValue) return sortOrder === 'asc' ? 1 : -1
+        if (!bValue) return sortOrder === 'asc' ? -1 : 1
+        
+        aValue = aValue.toString().toLowerCase().trim()
+        bValue = bValue.toString().toLowerCase().trim()
+
+        if (sortOrder === 'asc') {
+          return aValue.localeCompare(bValue, 'id', { numeric: true })
+        } else {
+          return bValue.localeCompare(aValue, 'id', { numeric: true })
+        }
+      })
+
+      setVisibleBooks(result)
+      setFiltersApplied(true)
+    } catch (error) {
+      console.error('Error applying filters:', error)
+    } finally {
+      setApplyingFilters(false)
+    }
   }
 
   const clearFilters = () => {
@@ -302,7 +325,7 @@ export default function Koleksi() {
             </button>
           </div>
 
-          {/* Filter by Huruf A-Z */}
+          {/* Filter by Huruf A-Z - IMPROVED */}
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{
               fontSize: '0.9rem',
@@ -312,7 +335,7 @@ export default function Koleksi() {
               textTransform: 'uppercase',
               letterSpacing: '0.5px'
             }}>
-              FILTER HURUF {sortBy === 'judul' ? 'JUDUL' : sortBy === 'pengarang' ? 'PENGARANG' : 'PENERBIT'}
+              FILTER BERDASARKAN ABJAD
             </h4>
             <div style={{
               display: 'flex',
@@ -358,6 +381,25 @@ export default function Koleksi() {
                   {huruf}
                 </button>
               ))}
+              {/* Tambahkan tombol untuk karakter khusus */}
+              <button
+                onClick={() => setHurufFilter('#')}
+                style={{
+                  padding: '0.5rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: hurufFilter === '#' ? '#4299e1' : 'white',
+                  color: hurufFilter === '#' ? 'white' : '#4a5568',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s',
+                  minWidth: '30px'
+                }}
+                title="Angka dan Karakter Khusus"
+              >
+                #
+              </button>
             </div>
           </div>
 
@@ -399,17 +441,18 @@ export default function Koleksi() {
             </select>
           </div>
 
-          {/* Search Button */}
+          {/* Search Button dengan Loading Animation */}
           <button
             onClick={applyFilters}
+            disabled={applyingFilters}
             style={{
               width: '100%',
               padding: '0.75rem 1rem',
               border: '1px solid #4299e1',
               borderRadius: '8px',
-              backgroundColor: '#4299e1',
+              backgroundColor: applyingFilters ? '#cbd5e0' : '#4299e1',
               color: 'white',
-              cursor: 'pointer',
+              cursor: applyingFilters ? 'not-allowed' : 'pointer',
               fontSize: '0.9rem',
               fontWeight: '600',
               display: 'flex',
@@ -417,10 +460,26 @@ export default function Koleksi() {
               justifyContent: 'center',
               gap: '0.5rem',
               marginBottom: '1rem',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              position: 'relative',
+              overflow: 'hidden'
             }}
           >
-            🔍 Terapkan Filter
+            {applyingFilters ? (
+              <>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid transparent',
+                  borderTop: '2px solid white',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Menerapkan Filter...
+              </>
+            ) : (
+              '🔍 Terapkan Filter'
+            )}
           </button>
 
           {/* View Mode Toggle */}
@@ -486,14 +545,15 @@ export default function Koleksi() {
           {(filtersApplied || hurufFilter || tahunFilter || sortBy !== 'judul' || sortOrder !== 'asc') && (
             <button
               onClick={clearFilters}
+              disabled={applyingFilters}
               style={{
                 width: '100%',
                 padding: '0.75rem 1rem',
                 border: '1px solid #f56565',
                 borderRadius: '8px',
-                backgroundColor: '#f56565',
+                backgroundColor: applyingFilters ? '#cbd5e0' : '#f56565',
                 color: 'white',
-                cursor: 'pointer',
+                cursor: applyingFilters ? 'not-allowed' : 'pointer',
                 fontSize: '0.9rem',
                 fontWeight: '600',
                 display: 'flex',
@@ -545,8 +605,40 @@ export default function Koleksi() {
               </div>
             ) : (
               <>
+                {/* Applying Filters Indicator */}
+                {applyingFilters && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '2rem',
+                    color: '#718096',
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                    marginBottom: '1rem'
+                  }}>
+                    <div style={{ 
+                      fontSize: '2rem', 
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      <div style={{
+                        width: '24px',
+                        height: '24px',
+                        border: '3px solid transparent',
+                        borderTop: '3px solid #4299e1',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                    </div>
+                    <p>Menerapkan filter...</p>
+                  </div>
+                )}
+
                 {/* List View */}
-                {viewMode === 'list' && (
+                {!applyingFilters && viewMode === 'list' && (
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -560,7 +652,7 @@ export default function Koleksi() {
                 )}
 
                 {/* Grid View */}
-                {viewMode === 'grid' && (
+                {!applyingFilters && viewMode === 'grid' && (
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
@@ -574,7 +666,7 @@ export default function Koleksi() {
                 )}
 
                 {/* No Results */}
-                {visibleBooks.length === 0 && !loading && (
+                {!applyingFilters && visibleBooks.length === 0 && !loading && (
                   <div style={{
                     textAlign: 'center',
                     padding: '4rem 2rem',
@@ -605,7 +697,7 @@ export default function Koleksi() {
                 )}
 
                 {/* Loading More Indicator */}
-                {loadingMore && (
+                {!applyingFilters && loadingMore && (
                   <div style={{
                     textAlign: 'center',
                     padding: '2rem',
@@ -621,7 +713,7 @@ export default function Koleksi() {
                 )}
 
                 {/* End of Results */}
-                {!hasMore && visibleBooks.length > 0 && (
+                {!applyingFilters && !hasMore && visibleBooks.length > 0 && (
                   <div style={{
                     textAlign: 'center',
                     padding: '2rem',
@@ -640,9 +732,18 @@ export default function Koleksi() {
           </div>
         </div>
       </div>
+
+      {/* CSS Animation */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </Layout>
   )
 }
+
 
 // Book Card Component (Grid View)
 function BookCard({ book, isMobile }) {
