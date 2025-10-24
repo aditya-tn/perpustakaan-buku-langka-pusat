@@ -1,15 +1,18 @@
-// pages/koleksi.js
-import { useState, useEffect } from 'react'
+// pages/koleksi.js - HYBRID PAGINATION VERSION
+import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 
+const ITEMS_PER_PAGE = 100 // Optimal untuk performance
+
 export default function Koleksi() {
-  const [books, setBooks] = useState([])
-  const [filteredBooks, setFilteredBooks] = useState([])
+  const [visibleBooks, setVisibleBooks] = useState([])
+  const [allLoadedBooks, setAllLoadedBooks] = useState([])
   const [loading, setLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(20)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [currentOffset, setCurrentOffset] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
   
   // Filter states
@@ -17,7 +20,7 @@ export default function Koleksi() {
   const [tahunFilter, setTahunFilter] = useState('')
   const [sortBy, setSortBy] = useState('judul')
   const [sortOrder, setSortOrder] = useState('asc')
-  const [viewMode, setViewMode] = useState('list') // DEFAULT: LIST VIEW
+  const [viewMode, setViewMode] = useState('list')
 
   // Detect mobile screen
   useEffect(() => {
@@ -27,46 +30,28 @@ export default function Koleksi() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Load all books - FIX: Load semua data tanpa limit
+  // Initial load
   useEffect(() => {
-    loadAllBooks()
+    loadInitialBooks()
   }, [])
 
-  const loadAllBooks = async () => {
+  // Load first batch of books
+  const loadInitialBooks = async () => {
     try {
       setLoading(true)
       
-      // Load semua data dengan pagination manual jika perlu
-      let allBooks = []
-      let page = 0
-      const pageSize = 1000
-      let hasMore = true
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .order(sortBy, { ascending: sortOrder === 'asc' })
+        .range(0, ITEMS_PER_PAGE - 1)
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('books')
-          .select('*')
-          .range(page * pageSize, (page + 1) * pageSize - 1)
-          .order('judul', { ascending: true })
-
-        if (error) throw error
-        
-        if (data && data.length > 0) {
-          allBooks = [...allBooks, ...data]
-          page++
-          
-          // Jika dapat kurang dari pageSize, berarti sudah akhir
-          if (data.length < pageSize) {
-            hasMore = false
-          }
-        } else {
-          hasMore = false
-        }
-      }
+      if (error) throw error
       
-      console.log(`Loaded ${allBooks.length} books total`)
-      setBooks(allBooks)
-      setFilteredBooks(allBooks)
+      setAllLoadedBooks(data || [])
+      setVisibleBooks(data || [])
+      setCurrentOffset(ITEMS_PER_PAGE)
+      setHasMore((data?.length || 0) === ITEMS_PER_PAGE)
     } catch (error) {
       console.error('Error loading books:', error)
     } finally {
@@ -74,9 +59,51 @@ export default function Koleksi() {
     }
   }
 
-  // Apply filters and sorting - FIX: Improved sorting logic
+  // Load more books on scroll
+  const loadMoreBooks = async () => {
+    if (loadingMore || !hasMore) return
+    
+    try {
+      setLoadingMore(true)
+      
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .order(sortBy, { ascending: sortOrder === 'asc' })
+        .range(currentOffset, currentOffset + ITEMS_PER_PAGE - 1)
+
+      if (error) throw error
+      
+      const newBooks = data || []
+      setAllLoadedBooks(prev => [...prev, ...newBooks])
+      setVisibleBooks(prev => [...prev, ...newBooks])
+      setCurrentOffset(prev => prev + ITEMS_PER_PAGE)
+      setHasMore(newBooks.length === ITEMS_PER_PAGE)
+    } catch (error) {
+      console.error('Error loading more books:', error)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  // Infinite scroll detection
   useEffect(() => {
-    let result = [...books]
+    const handleScroll = () => {
+      if (window.innerHeight + document.documentElement.scrollTop 
+          < document.documentElement.offsetHeight - 500) return
+      
+      loadMoreBooks()
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [loadingMore, hasMore])
+
+  // Client-side search and filtering
+  useEffect(() => {
+    if (!allLoadedBooks.length) return
+
+    let result = [...allLoadedBooks]
 
     // Apply search filter
     if (searchTerm.trim()) {
@@ -95,17 +122,15 @@ export default function Koleksi() {
       )
     }
 
-    // Apply sorting - FIX: Improved sorting logic
+    // Apply client-side sorting
     result.sort((a, b) => {
       let aValue = a[sortBy] || ''
       let bValue = b[sortBy] || ''
       
-      // Handle empty values
       if (!aValue && !bValue) return 0
       if (!aValue) return sortOrder === 'asc' ? 1 : -1
       if (!bValue) return sortOrder === 'asc' ? -1 : 1
       
-      // Convert to string for consistent comparison
       aValue = aValue.toString().toLowerCase().trim()
       bValue = bValue.toString().toLowerCase().trim()
 
@@ -116,25 +141,8 @@ export default function Koleksi() {
       }
     })
 
-    setFilteredBooks(result)
-    setCurrentPage(1)
-  }, [books, searchTerm, tahunFilter, sortBy, sortOrder])
-
-  // Pagination calculations
-  const indexOfLastItem = currentPage * itemsPerPage
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage
-  const currentItems = filteredBooks.slice(indexOfFirstItem, indexOfLastItem)
-  const totalPages = Math.ceil(filteredBooks.length / itemsPerPage)
-
-  const paginate = (pageNumber) => {
-    setCurrentPage(pageNumber)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleItemsPerPageChange = (e) => {
-    setItemsPerPage(Number(e.target.value))
-    setCurrentPage(1)
-  }
+    setVisibleBooks(result)
+  }, [allLoadedBooks, searchTerm, tahunFilter, sortBy, sortOrder])
 
   const clearFilters = () => {
     setSearchTerm('')
@@ -143,13 +151,13 @@ export default function Koleksi() {
     setSortOrder('asc')
   }
 
-  // Get unique years for filter dropdown
-  const uniqueYears = [...new Set(books
+  // Get unique years from loaded data
+  const uniqueYears = [...new Set(allLoadedBooks
     .map(book => book.tahun_terbit)
-    .filter(year => year && year.toString().match(/^\d{4}$/)) // Only 4-digit years
+    .filter(year => year && year.toString().match(/^\d{4}$/))
     .map(year => parseInt(year))
-    .filter(year => year > 1500 && year < 2100) // Reasonable year range
-    .sort((a, b) => b - a) // Descending order
+    .filter(year => year > 1500 && year < 2100)
+    .sort((a, b) => b - a)
   )]
 
   return (
@@ -181,7 +189,7 @@ export default function Koleksi() {
           margin: '0 auto',
           lineHeight: '1.5'
         }}>
-          Jelajahi {books.length.toLocaleString()} khazanah literatur langka Indonesia
+          Jelajahi khazanah literatur langka Indonesia
         </p>
       </section>
 
@@ -189,7 +197,10 @@ export default function Koleksi() {
       <section style={{
         backgroundColor: 'white',
         padding: isMobile ? '1.5rem 1rem' : '2rem',
-        borderBottom: '1px solid #e2e8f0'
+        borderBottom: '1px solid #e2e8f0',
+        position: 'sticky',
+        top: '80px',
+        zIndex: 100
       }}>
         <div style={{
           maxWidth: '1400px',
@@ -241,12 +252,12 @@ export default function Koleksi() {
               }}
             >
               <option value="">Semua Tahun</option>
-              {uniqueYears.slice(0, 100).map(year => (
+              {uniqueYears.slice(0, 50).map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
 
-            {/* Sort By - FIX: Improved options */}
+            {/* Sort By */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -279,12 +290,11 @@ export default function Koleksi() {
                 minWidth: '50px',
                 fontWeight: '600'
               }}
-              title={sortOrder === 'asc' ? 'A-Z / Terlama' : 'Z-A / Terbaru'}
             >
               {sortOrder === 'asc' ? 'A→Z' : 'Z→A'}
             </button>
 
-            {/* View Mode - FIX: Default list view */}
+            {/* View Mode */}
             <div style={{
               display: 'flex',
               border: '1px solid #e2e8f0',
@@ -302,7 +312,6 @@ export default function Koleksi() {
                   fontSize: '0.9rem',
                   fontWeight: viewMode === 'list' ? '600' : '400'
                 }}
-                title="Tampilan List"
               >
                 ☰ List
               </button>
@@ -317,7 +326,6 @@ export default function Koleksi() {
                   fontSize: '0.9rem',
                   fontWeight: viewMode === 'grid' ? '600' : '400'
                 }}
-                title="Tampilan Grid"
               >
                 ▦ Grid
               </button>
@@ -341,34 +349,6 @@ export default function Koleksi() {
                 🔄 Reset
               </button>
             )}
-          </div>
-
-          {/* Items Per Page */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            flex: isMobile ? 'none' : 0.5
-          }}>
-            <span style={{ fontSize: '0.9rem', color: '#4a5568', whiteSpace: 'nowrap' }}>
-              Per halaman:
-            </span>
-            <select 
-              value={itemsPerPage}
-              onChange={handleItemsPerPageChange}
-              style={{
-                padding: '0.5rem',
-                border: '1px solid #e2e8f0',
-                borderRadius: '6px',
-                backgroundColor: 'white',
-                fontSize: '0.9rem'
-              }}
-            >
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={200}>200</option>
-            </select>
           </div>
         </div>
       </section>
@@ -403,18 +383,19 @@ export default function Koleksi() {
               fontSize: '0.9rem'
             }}>
               {loading ? (
-                <span>Memuat {books.length.toLocaleString()} buku...</span>
+                'Memuat...'
               ) : (
                 <span>
-                  <strong>{filteredBooks.length.toLocaleString()}</strong> buku 
+                  <strong>{visibleBooks.length}</strong> buku 
                   {searchTerm && ` untuk "${searchTerm}"`}
                   {tahunFilter && ` tahun ${tahunFilter}`}
+                  {hasMore && ' • Scroll untuk load lebih banyak'}
                 </span>
               )}
             </p>
           </div>
           
-          {!loading && filteredBooks.length > 0 && (
+          {!loading && (
             <div style={{
               fontSize: '0.9rem',
               color: '#718096',
@@ -423,14 +404,13 @@ export default function Koleksi() {
               borderRadius: '6px',
               border: '1px solid #e2e8f0'
             }}>
-              Menampilkan <strong>{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredBooks.length)}</strong> 
-              {totalPages > 1 && ` • Halaman ${currentPage} dari ${totalPages}`}
+              Loaded: <strong>{allLoadedBooks.length}</strong> buku
             </div>
           )}
         </div>
       </section>
 
-      {/* Books Grid/List */}
+      {/* Books List/Grid */}
       <section style={{ 
         maxWidth: '1400px', 
         margin: '2rem auto',
@@ -444,34 +424,19 @@ export default function Koleksi() {
             color: '#718096'
           }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
-            <p>Memuat {books.length.toLocaleString()} koleksi buku langka...</p>
-            <div style={{ 
-              width: '200px', 
-              height: '4px', 
-              backgroundColor: '#e2e8f0',
-              borderRadius: '2px',
-              margin: '2rem auto',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                height: '100%',
-                backgroundColor: '#4299e1',
-                width: '60%',
-                animation: 'loading 2s ease-in-out infinite'
-              }}></div>
-            </div>
+            <p>Memuat koleksi buku langka...</p>
           </div>
         ) : (
           <>
-            {/* DEFAULT: List View */}
+            {/* List View */}
             {viewMode === 'list' && (
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.75rem',
-                marginBottom: '3rem'
+                marginBottom: '2rem'
               }}>
-                {currentItems.map((book) => (
+                {visibleBooks.map((book) => (
                   <BookListItem key={book.id} book={book} isMobile={isMobile} />
                 ))}
               </div>
@@ -483,16 +448,16 @@ export default function Koleksi() {
                 display: 'grid',
                 gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
                 gap: '1.5rem',
-                marginBottom: '3rem'
+                marginBottom: '2rem'
               }}>
-                {currentItems.map((book) => (
+                {visibleBooks.map((book) => (
                   <BookCard key={book.id} book={book} isMobile={isMobile} />
                 ))}
               </div>
             )}
 
             {/* No Results */}
-            {filteredBooks.length === 0 && !loading && (
+            {visibleBooks.length === 0 && !loading && (
               <div style={{
                 textAlign: 'center',
                 padding: '4rem 2rem',
@@ -514,37 +479,43 @@ export default function Koleksi() {
                     fontWeight: '500'
                   }}
                 >
-                  Tampilkan Semua {books.length.toLocaleString()} Buku
+                  Tampilkan Semua Buku
                 </button>
               </div>
             )}
 
-            {/* Pagination */}
-            {totalPages > 1 && filteredBooks.length > 0 && (
-              <Pagination 
-                currentPage={currentPage}
-                totalPages={totalPages}
-                paginate={paginate}
-                isMobile={isMobile}
-              />
+            {/* Loading More Indicator */}
+            {loadingMore && (
+              <div style={{
+                textAlign: 'center',
+                padding: '2rem',
+                color: '#718096'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
+                <p>Memuat lebih banyak buku...</p>
+              </div>
+            )}
+
+            {/* End of Results */}
+            {!hasMore && visibleBooks.length > 0 && (
+              <div style={{
+                textAlign: 'center',
+                padding: '2rem',
+                color: '#718096',
+                borderTop: '1px solid #e2e8f0',
+                marginTop: '2rem'
+              }}>
+                <p>🎉 Semua buku telah dimuat</p>
+              </div>
             )}
           </>
         )}
       </section>
-
-      {/* Loading Animation */}
-      <style jsx>{`
-        @keyframes loading {
-          0% { transform: translateX(-100%); }
-          50% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-      `}</style>
     </Layout>
   )
 }
 
-// Book Card Component (Grid View) - SAMA
+// Book Card Component (Grid View)
 function BookCard({ book, isMobile }) {
   return (
     <div style={{
@@ -660,7 +631,7 @@ function BookCard({ book, isMobile }) {
   )
 }
 
-// Book List Item Component (List View) - SAMA
+// Book List Item Component (List View)
 function BookListItem({ book, isMobile }) {
   return (
     <div style={{
@@ -760,142 +731,6 @@ function BookListItem({ book, isMobile }) {
           </a>
         )}
       </div>
-    </div>
-  )
-}
-
-// Pagination Component - SAMA
-function Pagination({ currentPage, totalPages, paginate, isMobile }) {
-  const getPageNumbers = () => {
-    const pages = []
-    const maxVisible = isMobile ? 3 : 5
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i)
-    } else if (currentPage <= Math.ceil(maxVisible / 2)) {
-      for (let i = 1; i <= maxVisible; i++) pages.push(i)
-      pages.push('...')
-      pages.push(totalPages)
-    } else if (currentPage >= totalPages - Math.floor(maxVisible / 2)) {
-      pages.push(1)
-      pages.push('...')
-      for (let i = totalPages - maxVisible + 2; i <= totalPages; i++) pages.push(i)
-    } else {
-      pages.push(1)
-      pages.push('...')
-      for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i)
-      pages.push('...')
-      pages.push(totalPages)
-    }
-    
-    return pages
-  }
-
-  return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: '0.5rem',
-      marginTop: '3rem',
-      flexWrap: 'wrap'
-    }}>
-      <button
-        onClick={() => paginate(1)}
-        disabled={currentPage === 1}
-        style={{
-          padding: isMobile ? '0.5rem 0.75rem' : '0.75rem 1rem',
-          border: '1px solid #e2e8f0',
-          backgroundColor: currentPage === 1 ? '#f7fafc' : 'white',
-          color: currentPage === 1 ? '#a0aec0' : '#4a5568',
-          borderRadius: '8px',
-          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-          fontWeight: '500',
-          fontSize: isMobile ? '0.8rem' : '1rem'
-        }}
-      >
-        ⏮️
-      </button>
-      
-      <button
-        onClick={() => paginate(currentPage - 1)}
-        disabled={currentPage === 1}
-        style={{
-          padding: isMobile ? '0.5rem 0.75rem' : '0.75rem 1rem',
-          border: '1px solid #e2e8f0',
-          backgroundColor: currentPage === 1 ? '#f7fafc' : 'white',
-          color: currentPage === 1 ? '#a0aec0' : '#4a5568',
-          borderRadius: '8px',
-          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-          fontWeight: '500',
-          fontSize: isMobile ? '0.8rem' : '1rem'
-        }}
-      >
-        ◀️
-      </button>
-
-      {getPageNumbers().map((pageNumber, index) => (
-        pageNumber === '...' ? (
-          <span key={index} style={{
-            padding: isMobile ? '0.5rem 0.75rem' : '0.75rem 1rem',
-            color: '#718096'
-          }}>
-            ...
-          </span>
-        ) : (
-          <button
-            key={index}
-            onClick={() => paginate(pageNumber)}
-            style={{
-              padding: isMobile ? '0.5rem 0.75rem' : '0.75rem 1rem',
-              border: '1px solid #e2e8f0',
-              backgroundColor: currentPage === pageNumber ? '#4299e1' : 'white',
-              color: currentPage === pageNumber ? 'white' : '#4a5568',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              minWidth: isMobile ? '2.5rem' : '3rem',
-              fontSize: isMobile ? '0.8rem' : '1rem'
-            }}
-          >
-            {pageNumber}
-          </button>
-        )
-      ))}
-
-      <button
-        onClick={() => paginate(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        style={{
-          padding: isMobile ? '0.5rem 0.75rem' : '0.75rem 1rem',
-          border: '1px solid #e2e8f0',
-          backgroundColor: currentPage === totalPages ? '#f7fafc' : 'white',
-          color: currentPage === totalPages ? '#a0aec0' : '#4a5568',
-          borderRadius: '8px',
-          cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-          fontWeight: '500',
-          fontSize: isMobile ? '0.8rem' : '1rem'
-        }}
-      >
-        ▶️
-      </button>
-      
-      <button
-        onClick={() => paginate(totalPages)}
-        disabled={currentPage === totalPages}
-        style={{
-          padding: isMobile ? '0.5rem 0.75rem' : '0.75rem 1rem',
-          border: '1px solid #e2e8f0',
-          backgroundColor: currentPage === totalPages ? '#f7fafc' : 'white',
-          color: currentPage === totalPages ? '#a0aec0' : '#4a5568',
-          borderRadius: '8px',
-          cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-          fontWeight: '500',
-          fontSize: isMobile ? '0.8rem' : '1rem'
-        }}
-      >
-        ⏭️
-      </button>
     </div>
   )
 }
