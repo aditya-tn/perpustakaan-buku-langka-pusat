@@ -1,4 +1,4 @@
-// pages/index.js - WITH SEARCH-WITHIN-SEARCH
+// pages/index.js - WITH YEAR SLIDER & CLEANED FILTERS
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -21,19 +21,23 @@ export default function Home() {
   const [liveSearchEnabled, setLiveSearchEnabled] = useState(true)
   const [isTyping, setIsTyping] = useState(false)
 
-  // NEW: Search-within-Search States
+  // NEW: Search-within-Search dengan Year Slider
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
-    tahunAwal: '',
-    tahunAkhir: '',
-    tersediaDigital: false,
-    tersediaFisik: false
+    // NEW: Year range dengan slider
+    tahunRange: [1547, 1990], // [min, max]
+    tahunAwal: '', // Backup untuk input manual
+    tahunAkhir: '' // Backup untuk input manual
   })
   const [showWithinSearch, setShowWithinSearch] = useState(false)
 
   // Refs
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
+
+  // NEW: Year range constants
+  const MIN_YEAR = 1547
+  const MAX_YEAR = 1990
 
   // Detect mobile screen
   useEffect(() => {
@@ -70,13 +74,12 @@ export default function Home() {
       if (searchTerm.trim().length === 0) {
         setSearchResults([])
         setShowStats(true)
-        // NEW: Reset within-search ketika search utama di-clear
+        // Reset within-search
         setWithinSearchTerm('')
         setActiveFilters({
+          tahunRange: [MIN_YEAR, MAX_YEAR],
           tahunAwal: '',
-          tahunAkhir: '',
-          tersediaDigital: false,
-          tersediaFisik: false
+          tahunAkhir: ''
         })
       }
       return
@@ -98,15 +101,14 @@ export default function Home() {
     }
   }, [searchTerm, liveSearchEnabled])
 
-  // NEW: Effect untuk reset within-search ketika search utama berubah
+  // Reset within-search ketika search utama berubah
   useEffect(() => {
     if (searchResults.length > 0) {
       setWithinSearchTerm('')
       setActiveFilters({
+        tahunRange: [MIN_YEAR, MAX_YEAR],
         tahunAwal: '',
-        tahunAkhir: '',
-        tersediaDigital: false,
-        tersediaFisik: false
+        tahunAkhir: ''
       })
     }
   }, [searchResults])
@@ -147,13 +149,11 @@ export default function Home() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  // NEW: Filtered Results Computation
+  // NEW: Improved Filtered Results dengan Year Slider
   const getFilteredResults = useCallback(() => {
     if (!withinSearchTerm.trim() && 
-        !activeFilters.tahunAwal && 
-        !activeFilters.tahunAkhir &&
-        !activeFilters.tersediaDigital &&
-        !activeFilters.tersediaFisik) {
+        activeFilters.tahunRange[0] === MIN_YEAR && 
+        activeFilters.tahunRange[1] === MAX_YEAR) {
       return searchResults
     }
 
@@ -171,35 +171,19 @@ export default function Home() {
         }
       }
 
-      // Filter: Tahun Awal
-      if (activeFilters.tahunAwal && book.tahun_terbit) {
-        if (parseInt(book.tahun_terbit) < parseInt(activeFilters.tahunAwal)) {
+      // NEW: Filter dengan Year Range Slider
+      if (book.tahun_terbit) {
+        const bookYear = parseInt(book.tahun_terbit)
+        const [minYear, maxYear] = activeFilters.tahunRange
+        
+        if (bookYear < minYear || bookYear > maxYear) {
           return false
         }
-      }
-
-      // Filter: Tahun Akhir
-      if (activeFilters.tahunAkhir && book.tahun_terbit) {
-        if (parseInt(book.tahun_terbit) > parseInt(activeFilters.tahunAkhir)) {
-          return false
-        }
-      }
-
-      // Filter: Tersedia Digital
-      if (activeFilters.tersediaDigital && (!book.lihat_opac || book.lihat_opac === 'null')) {
-        return false
-      }
-
-      // Filter: Tersedia Fisik (asumsi semua buku fisik tersedia)
-      if (activeFilters.tersediaFisik) {
-        // Untuk sekarang kita assume semua buku fisik tersedia
-        // Bisa dikembangkan dengan field availability di database
-        return true
       }
 
       return true
     })
-  }, [searchResults, withinSearchTerm, activeFilters])
+  }, [searchResults, withinSearchTerm, activeFilters.tahunRange])
 
   // Get current filtered results
   const filteredResults = getFilteredResults()
@@ -235,7 +219,7 @@ export default function Home() {
     }
   }
 
-  // Smart Search Algorithm
+  // Smart Search Algorithm (sama seperti sebelumnya)
   const performSmartSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return []
     
@@ -279,7 +263,7 @@ export default function Home() {
     }
   }
 
-  // Relevance Scoring
+  // Relevance Scoring (sama seperti sebelumnya)
   const rankSearchResults = (results, searchWords, originalQuery) => {
     const scoredResults = results.map(book => {
       let score = 0
@@ -397,10 +381,9 @@ export default function Home() {
     setShowSuggestions(false)
     setWithinSearchTerm('')
     setActiveFilters({
+      tahunRange: [MIN_YEAR, MAX_YEAR],
       tahunAwal: '',
-      tahunAkhir: '',
-      tersediaDigital: false,
-      tersediaFisik: false
+      tahunAkhir: ''
     })
     
     if (searchTimeoutRef.current) {
@@ -415,20 +398,38 @@ export default function Home() {
   const clearWithinSearch = () => {
     setWithinSearchTerm('')
     setActiveFilters({
+      tahunRange: [MIN_YEAR, MAX_YEAR],
       tahunAwal: '',
-      tahunAkhir: '',
-      tersediaDigital: false,
-      tersediaFisik: false
+      tahunAkhir: ''
     })
   }
 
-  // NEW: Update filter
-  const updateFilter = (key, value) => {
+  // NEW: Update year range dari slider
+  const updateYearRange = (newRange) => {
     setActiveFilters(prev => ({
       ...prev,
-      [key]: value
+      tahunRange: newRange
     }))
-    setCurrentPage(1) // Reset ke page 1 ketika filter berubah
+    setCurrentPage(1)
+  }
+
+  // NEW: Update year dari input manual (fallback)
+  const updateManualYear = (type, value) => {
+    setActiveFilters(prev => {
+      const newFilters = { ...prev }
+      newFilters[type] = value
+      
+      // Update range jika kedua input terisi
+      if (newFilters.tahunAwal && newFilters.tahunAkhir) {
+        newFilters.tahunRange = [
+          parseInt(newFilters.tahunAwal),
+          parseInt(newFilters.tahunAkhir)
+        ]
+      }
+      
+      return newFilters
+    })
+    setCurrentPage(1)
   }
 
   const popularSearches = [
@@ -451,10 +452,8 @@ export default function Home() {
 
   // NEW: Check if any within-search filters are active
   const isWithinSearchActive = withinSearchTerm.trim() || 
-    activeFilters.tahunAwal || 
-    activeFilters.tahunAkhir ||
-    activeFilters.tersediaDigital ||
-    activeFilters.tersediaFisik
+    activeFilters.tahunRange[0] !== MIN_YEAR || 
+    activeFilters.tahunRange[1] !== MAX_YEAR
 
   return (
     <Layout isMobile={isMobile}>
@@ -854,7 +853,7 @@ export default function Home() {
           margin: isMobile ? '2rem auto' : '3rem auto',
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
-          {/* NEW: Search-within-Search Panel */}
+          {/* NEW: Improved Search-within-Search Panel dengan Year Slider */}
           <div style={{
             backgroundColor: 'white',
             padding: '1.5rem',
@@ -901,11 +900,11 @@ export default function Home() {
 
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '1rem',
-              alignItems: 'end'
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr',
+              gap: '2rem',
+              alignItems: 'start'
             }}>
-              {/* Search within text */}
+              {/* Left Column: Text Search */}
               <div>
                 <label style={{
                   display: 'block',
@@ -932,103 +931,153 @@ export default function Home() {
                 />
               </div>
 
-              {/* Tahun Awal */}
+              {/* Right Column: Year Slider */}
               <div>
                 <label style={{
                   display: 'block',
                   fontSize: '0.8rem',
                   fontWeight: '600',
                   color: '#4a5568',
-                  marginBottom: '0.5rem'
+                  marginBottom: '1rem'
                 }}>
-                  Tahun Awal:
+                  Rentang Tahun Terbit:
                 </label>
-                <input
-                  type="number"
-                  value={activeFilters.tahunAwal}
-                  onChange={(e) => updateFilter('tahunAwal', e.target.value)}
-                  placeholder="1547"
-                  min="1547"
-                  max="1990"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              {/* Tahun Akhir */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '0.5rem'
-                }}>
-                  Tahun Akhir:
-                </label>
-                <input
-                  type="number"
-                  value={activeFilters.tahunAkhir}
-                  onChange={(e) => updateFilter('tahunAkhir', e.target.value)}
-                  placeholder="1990"
-                  min="1547"
-                  max="1990"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              {/* Checkbox Filters */}
-              <div style={{
-                display: 'flex',
-                gap: '1rem',
-                flexWrap: 'wrap'
-              }}>
-                <label style={{
+                
+                {/* Year Range Display */}
+                <div style={{
                   display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  fontSize: '0.8rem',
-                  color: '#4a5568',
-                  cursor: 'pointer'
+                  marginBottom: '0.5rem',
+                  fontSize: '0.9rem',
+                  color: '#4a5568'
                 }}>
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.tersediaDigital}
-                    onChange={(e) => updateFilter('tersediaDigital', e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  Tersedia Digital
-                </label>
+                  <span>{activeFilters.tahunRange[0]}</span>
+                  <span style={{ 
+                    backgroundColor: '#4299e1',
+                    color: 'white',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '12px',
+                    fontSize: '0.8rem',
+                    fontWeight: '600'
+                  }}>
+                    {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
+                  </span>
+                  <span>{activeFilters.tahunRange[1]}</span>
+                </div>
 
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
+                {/* Custom Slider */}
+                <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                  <div style={{
+                    height: '6px',
+                    backgroundColor: '#e2e8f0',
+                    borderRadius: '3px',
+                    position: 'relative'
+                  }}>
+                    {/* Active Range */}
+                    <div style={{
+                      position: 'absolute',
+                      height: '100%',
+                      backgroundColor: '#4299e1',
+                      borderRadius: '3px',
+                      left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+                      right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
+                    }} />
+                    
+                    {/* Min Handle */}
+                    <input
+                      type="range"
+                      min={MIN_YEAR}
+                      max={MAX_YEAR}
+                      value={activeFilters.tahunRange[0]}
+                      onChange={(e) => updateYearRange([
+                        parseInt(e.target.value),
+                        activeFilters.tahunRange[1]
+                      ])}
+                      style={{
+                        position: 'absolute',
+                        width: '100%',
+                        top: '-6px',
+                        height: '18px',
+                        appearance: 'none',
+                        background: 'transparent',
+                        pointerEvents: 'none',
+                        zIndex: 2
+                      }}
+                    />
+                    
+                    {/* Max Handle */}
+                    <input
+                      type="range"
+                      min={MIN_YEAR}
+                      max={MAX_YEAR}
+                      value={activeFilters.tahunRange[1]}
+                      onChange={(e) => updateYearRange([
+                        activeFilters.tahunRange[0],
+                        parseInt(e.target.value)
+                      ])}
+                      style={{
+                        position: 'absolute',
+                        width: '100%',
+                        top: '-6px',
+                        height: '18px',
+                        appearance: 'none',
+                        background: 'transparent',
+                        pointerEvents: 'none',
+                        zIndex: 2
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Manual Input Fallback */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
                   gap: '0.5rem',
-                  fontSize: '0.8rem',
-                  color: '#4a5568',
-                  cursor: 'pointer'
+                  fontSize: '0.8rem'
                 }}>
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.tersediaFisik}
-                    onChange={(e) => updateFilter('tersediaFisik', e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  Tersedia Fisik
-                </label>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.25rem', color: '#718096' }}>
+                      Tahun Awal:
+                    </label>
+                    <input
+                      type="number"
+                      value={activeFilters.tahunAwal}
+                      onChange={(e) => updateManualYear('tahunAwal', e.target.value)}
+                      placeholder={MIN_YEAR.toString()}
+                      min={MIN_YEAR}
+                      max={MAX_YEAR}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.25rem', color: '#718096' }}>
+                      Tahun Akhir:
+                    </label>
+                    <input
+                      type="number"
+                      value={activeFilters.tahunAkhir}
+                      onChange={(e) => updateManualYear('tahunAkhir', e.target.value)}
+                      placeholder={MAX_YEAR.toString()}
+                      min={MIN_YEAR}
+                      max={MAX_YEAR}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem'
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1045,10 +1094,8 @@ export default function Home() {
               }}>
                 🔍 Filter aktif: 
                 {withinSearchTerm && ` Teks: "${withinSearchTerm}"`}
-                {activeFilters.tahunAwal && ` Tahun ≥ ${activeFilters.tahunAwal}`}
-                {activeFilters.tahunAkhir && ` Tahun ≤ ${activeFilters.tahunAkhir}`}
-                {activeFilters.tersediaDigital && ` Digital`}
-                {activeFilters.tersediaFisik && ` Fisik`}
+                {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+                  ` Tahun: ${activeFilters.tahunRange[0]} - ${activeFilters.tahunRange[1]}`}
                 {` • Menampilkan ${filteredResults.length} dari ${searchResults.length} hasil`}
               </div>
             )}
@@ -1083,6 +1130,8 @@ export default function Home() {
                     <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
                     ditemukan untuk "<strong>{searchTerm}</strong>"
                     {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
+                    {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+                      ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
                   </>
                 ) : (
                   <>
@@ -1124,7 +1173,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Book Grid - NOW USING FILTERED RESULTS */}
+          {/* Book Grid */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
@@ -1325,6 +1374,35 @@ export default function Home() {
           0% { opacity: 1; }
           50% { opacity: 0.5; }
           100% { opacity: 1; }
+        }
+
+        /* Custom Slider Styles */
+        input[type="range"] {
+          -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #4299e1;
+          cursor: pointer;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          pointer-events: auto;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #4299e1;
+          cursor: pointer;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          pointer-events: auto;
         }
       `}</style>
     </Layout>
