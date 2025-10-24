@@ -1,4 +1,4 @@
-// pages/koleksi.js - SUPER STRICT FILTER VERSION
+// pages/koleksi.js - FIXED REGEX VERSION
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
@@ -101,7 +101,7 @@ export default function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadingMore, hasMore])
 
-  // Apply filters with SUPER STRICT logic
+  // Apply filters with CORRECTED REGEX
   const applyFilters = async () => {
     if (!allLoadedBooks.length) return
 
@@ -113,7 +113,7 @@ export default function Koleksi() {
 
       let result = [...allLoadedBooks]
 
-      // Apply huruf filter dengan LOGIC SUPER STRICT
+      // Apply huruf filter dengan REGEX YANG BENAR
       if (hurufFilter) {
         result = result.filter(book => {
           let fieldToCheck = ''
@@ -126,10 +126,10 @@ export default function Koleksi() {
             fieldToCheck = book.judul || ''
           }
           
-          // SUPER STRICT CLEANING
+          // CORRECTED CLEANING - hanya hapus karakter khusus, jangan hapus spasi
           const cleanedField = fieldToCheck
-            .trim()                                  // Hilangkan spasi
-            .replace(/^[^a-zA-Z0-9]+/, '')          // Hilangkan SEMUA karakter non-alphanumeric di awal
+            .trim()                                  // Hilangkan spasi di awal/akhir
+            .replace(/^[^a-zA-Z0-9\s]+/, '')        // Hanya hapus karakter khusus di awal, JANGAN hapus spasi
             .trim()                                  // Trim lagi
           
           if (!cleanedField) return false
@@ -334,7 +334,7 @@ export default function Koleksi() {
             </button>
           </div>
 
-          {/* Filter by Huruf A-Z - SUPER STRICT */}
+          {/* Filter by Huruf A-Z - WITH CORRECTED LOGIC */}
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{
               fontSize: '0.9rem',
