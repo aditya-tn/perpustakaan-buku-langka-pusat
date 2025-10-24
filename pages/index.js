@@ -1,4 +1,4 @@
-// pages/index.js - WITH YEAR SLIDER & CLEANED FILTERS
+// pages/index.js - WITH AUTO-SCROLL & CLEANER FILTERS
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -21,23 +21,39 @@ export default function Home() {
   const [liveSearchEnabled, setLiveSearchEnabled] = useState(true)
   const [isTyping, setIsTyping] = useState(false)
 
-  // NEW: Search-within-Search dengan Year Slider
+  // Search-within-Search States
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
-    // NEW: Year range dengan slider
-    tahunRange: [1547, 1990], // [min, max]
-    tahunAwal: '', // Backup untuk input manual
-    tahunAkhir: '' // Backup untuk input manual
+    // SIMPLIFIED: Hanya slider saja, hapus manual inputs
+    tahunRange: [1547, 1990]
   })
-  const [showWithinSearch, setShowWithinSearch] = useState(false)
 
   // Refs
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
+  const searchInputRef = useRef(null) // NEW: Ref untuk search input
 
-  // NEW: Year range constants
+  // Year range constants
   const MIN_YEAR = 1547
   const MAX_YEAR = 1990
+
+  // NEW: Auto-scroll effect ketika search input focused
+  const handleSearchFocus = () => {
+    setShowSuggestions(true)
+    
+    // Auto scroll ke search section untuk desktop
+    if (!isMobile && window.innerHeight > 700) {
+      setTimeout(() => {
+        const searchSection = document.getElementById('search-section')
+        if (searchSection) {
+          searchSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          })
+        }
+      }, 100)
+    }
+  }
 
   // Detect mobile screen
   useEffect(() => {
@@ -77,9 +93,7 @@ export default function Home() {
         // Reset within-search
         setWithinSearchTerm('')
         setActiveFilters({
-          tahunRange: [MIN_YEAR, MAX_YEAR],
-          tahunAwal: '',
-          tahunAkhir: ''
+          tahunRange: [MIN_YEAR, MAX_YEAR]
         })
       }
       return
@@ -106,14 +120,27 @@ export default function Home() {
     if (searchResults.length > 0) {
       setWithinSearchTerm('')
       setActiveFilters({
-        tahunRange: [MIN_YEAR, MAX_YEAR],
-        tahunAwal: '',
-        tahunAkhir: ''
+        tahunRange: [MIN_YEAR, MAX_YEAR]
       })
     }
   }, [searchResults])
 
-  // Auto scroll dan hide stats
+  // NEW: Auto-scroll ke results ketika search completed (desktop)
+  useEffect(() => {
+    if (searchResults.length > 0 && !isMobile) {
+      setTimeout(() => {
+        const resultsSection = document.getElementById('results-section')
+        if (resultsSection) {
+          resultsSection.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start'
+          })
+        }
+      }, 300)
+    }
+  }, [searchResults, isMobile])
+
+  // Auto scroll ke atas ketika ganti page
   useEffect(() => {
     if (searchResults.length > 0) {
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -149,7 +176,7 @@ export default function Home() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  // NEW: Improved Filtered Results dengan Year Slider
+  // Filtered Results Computation
   const getFilteredResults = useCallback(() => {
     if (!withinSearchTerm.trim() && 
         activeFilters.tahunRange[0] === MIN_YEAR && 
@@ -171,7 +198,7 @@ export default function Home() {
         }
       }
 
-      // NEW: Filter dengan Year Range Slider
+      // Filter dengan Year Range Slider
       if (book.tahun_terbit) {
         const bookYear = parseInt(book.tahun_terbit)
         const [minYear, maxYear] = activeFilters.tahunRange
@@ -219,7 +246,7 @@ export default function Home() {
     }
   }
 
-  // Smart Search Algorithm (sama seperti sebelumnya)
+  // Smart Search Algorithm
   const performSmartSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return []
     
@@ -263,7 +290,7 @@ export default function Home() {
     }
   }
 
-  // Relevance Scoring (sama seperti sebelumnya)
+  // Relevance Scoring
   const rankSearchResults = (results, searchWords, originalQuery) => {
     const scoredResults = results.map(book => {
       let score = 0
@@ -381,9 +408,7 @@ export default function Home() {
     setShowSuggestions(false)
     setWithinSearchTerm('')
     setActiveFilters({
-      tahunRange: [MIN_YEAR, MAX_YEAR],
-      tahunAwal: '',
-      tahunAkhir: ''
+      tahunRange: [MIN_YEAR, MAX_YEAR]
     })
     
     if (searchTimeoutRef.current) {
@@ -394,17 +419,15 @@ export default function Home() {
     }
   }
 
-  // NEW: Clear within-search filters
+  // Clear within-search filters
   const clearWithinSearch = () => {
     setWithinSearchTerm('')
     setActiveFilters({
-      tahunRange: [MIN_YEAR, MAX_YEAR],
-      tahunAwal: '',
-      tahunAkhir: ''
+      tahunRange: [MIN_YEAR, MAX_YEAR]
     })
   }
 
-  // NEW: Update year range dari slider
+  // Update year range dari slider
   const updateYearRange = (newRange) => {
     setActiveFilters(prev => ({
       ...prev,
@@ -413,31 +436,12 @@ export default function Home() {
     setCurrentPage(1)
   }
 
-  // NEW: Update year dari input manual (fallback)
-  const updateManualYear = (type, value) => {
-    setActiveFilters(prev => {
-      const newFilters = { ...prev }
-      newFilters[type] = value
-      
-      // Update range jika kedua input terisi
-      if (newFilters.tahunAwal && newFilters.tahunAkhir) {
-        newFilters.tahunRange = [
-          parseInt(newFilters.tahunAwal),
-          parseInt(newFilters.tahunAkhir)
-        ]
-      }
-      
-      return newFilters
-    })
-    setCurrentPage(1)
-  }
-
   const popularSearches = [
     'sejarah indonesia', 'sastra jawa', 'naskah kuno', 'budaya nusantara',
     'colonial history', 'manuskrip', 'sastra melayu', 'sejarah islam'
   ]
 
-  // Pagination calculations - NOW USING FILTERED RESULTS
+  // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredResults.slice(indexOfFirstItem, indexOfLastItem)
@@ -450,7 +454,7 @@ export default function Home() {
     setCurrentPage(1)
   }
 
-  // NEW: Check if any within-search filters are active
+  // Check if any within-search filters are active
   const isWithinSearchActive = withinSearchTerm.trim() || 
     activeFilters.tahunRange[0] !== MIN_YEAR || 
     activeFilters.tahunRange[1] !== MAX_YEAR
@@ -462,12 +466,16 @@ export default function Home() {
         <meta name="description" content="Temukan khazanah literatur langka Indonesia dari koleksi Perpustakaan Nasional RI" />
       </Head>
 
-      {/* Hero Section */}
-      <section style={{
+      {/* Hero Section dengan ID untuk scroll */}
+      <section id="search-section" style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
         padding: isMobile ? '2.5rem 1rem' : '4rem 2rem',
-        textAlign: 'center'
+        textAlign: 'center',
+        minHeight: isMobile ? 'auto' : '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center'
       }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <h2 style={{
@@ -579,13 +587,14 @@ export default function Home() {
             }}>
               <div style={{ flex: 1, position: 'relative' }}>
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value)
                     setShowSuggestions(true)
                   }}
-                  onFocus={() => setShowSuggestions(true)}
+                  onFocus={handleSearchFocus} // NEW: Auto-scroll trigger
                   placeholder={
                     liveSearchEnabled 
                       ? "Ketik untuk mencari secara real-time..." 
@@ -812,8 +821,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      {showStats && (
+      {/* Stats Section - Hanya muncul ketika belum ada search results */}
+      {showStats && searchResults.length === 0 && (
         <section style={{
           backgroundColor: 'white',
           padding: isMobile ? '2rem 1rem' : '3rem 2rem'
@@ -846,14 +855,14 @@ export default function Home() {
         </section>
       )}
 
-      {/* Search Results Section */}
+      {/* Search Results Section dengan ID untuk scroll */}
       {searchResults.length > 0 && (
-        <section style={{ 
+        <section id="results-section" style={{ 
           maxWidth: '1400px', 
           margin: isMobile ? '2rem auto' : '3rem auto',
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
-          {/* NEW: Improved Search-within-Search Panel dengan Year Slider */}
+          {/* Improved Search-within-Search Panel - CLEANER VERSION */}
           <div style={{
             backgroundColor: 'white',
             padding: '1.5rem',
@@ -931,7 +940,7 @@ export default function Home() {
                 />
               </div>
 
-              {/* Right Column: Year Slider */}
+              {/* Right Column: Year Slider - SIMPLIFIED */}
               <div>
                 <label style={{
                   display: 'block',
@@ -966,7 +975,7 @@ export default function Home() {
                   <span>{activeFilters.tahunRange[1]}</span>
                 </div>
 
-                {/* Custom Slider */}
+                {/* Custom Slider - SIMPLIFIED */}
                 <div style={{ position: 'relative', marginBottom: '1rem' }}>
                   <div style={{
                     height: '6px',
@@ -1025,55 +1034,6 @@ export default function Home() {
                         background: 'transparent',
                         pointerEvents: 'none',
                         zIndex: 2
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Manual Input Fallback */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '0.5rem',
-                  fontSize: '0.8rem'
-                }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.25rem', color: '#718096' }}>
-                      Tahun Awal:
-                    </label>
-                    <input
-                      type="number"
-                      value={activeFilters.tahunAwal}
-                      onChange={(e) => updateManualYear('tahunAwal', e.target.value)}
-                      placeholder={MIN_YEAR.toString()}
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '4px',
-                        fontSize: '0.8rem'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.25rem', color: '#718096' }}>
-                      Tahun Akhir:
-                    </label>
-                    <input
-                      type="number"
-                      value={activeFilters.tahunAkhir}
-                      onChange={(e) => updateManualYear('tahunAkhir', e.target.value)}
-                      placeholder={MAX_YEAR.toString()}
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '4px',
-                        fontSize: '0.8rem'
                       }}
                     />
                   </div>
