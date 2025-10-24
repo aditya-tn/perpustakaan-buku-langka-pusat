@@ -23,9 +23,10 @@ function Koleksi() {
   const [viewMode, setViewMode] = useState('list')
   const [filtersApplied, setFiltersApplied] = useState(false)
 
-  // Refs untuk debounce
+  // Refs untuk track state
   const filterTimeoutRef = useRef(null)
   const isInitialLoad = useRef(true)
+  const currentFiltersRef = useRef({ hurufFilter: '', tahunFilter: '', sortBy: 'judul', sortOrder: 'asc' })
 
   // Detect mobile screen
   useEffect(() => {
@@ -48,28 +49,28 @@ function Koleksi() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Build query berdasarkan filter
+  // Build query berdasarkan filter - PASTI KONSISTEN
   const buildQuery = (offset = 0) => {
     let query = supabase
       .from('books')
       .select('*')
 
-    // Filter berdasarkan huruf
-    if (hurufFilter && hurufFilter !== '#') {
-      if (sortBy === 'pengarang') {
-        query = query.ilike('pengarang', `${hurufFilter}%`)
-      } else if (sortBy === 'penerbit') {
-        query = query.ilike('penerbit', `${hurufFilter}%`)
+    // Filter berdasarkan huruf - PASTI SAMA untuk semua load
+    if (currentFiltersRef.current.hurufFilter && currentFiltersRef.current.hurufFilter !== '#') {
+      if (currentFiltersRef.current.sortBy === 'pengarang') {
+        query = query.ilike('pengarang', `${currentFiltersRef.current.hurufFilter}%`)
+      } else if (currentFiltersRef.current.sortBy === 'penerbit') {
+        query = query.ilike('penerbit', `${currentFiltersRef.current.hurufFilter}%`)
       } else {
-        query = query.ilike('judul', `${hurufFilter}%`)
+        query = query.ilike('judul', `${currentFiltersRef.current.hurufFilter}%`)
       }
     }
 
     // Filter untuk karakter khusus (#)
-    if (hurufFilter === '#') {
-      if (sortBy === 'pengarang') {
+    if (currentFiltersRef.current.hurufFilter === '#') {
+      if (currentFiltersRef.current.sortBy === 'pengarang') {
         query = query.or('pengarang.not.ilike.[A-Za-z]%,pengarang.is.null')
-      } else if (sortBy === 'penerbit') {
+      } else if (currentFiltersRef.current.sortBy === 'penerbit') {
         query = query.or('penerbit.not.ilike.[A-Za-z]%,penerbit.is.null')
       } else {
         query = query.or('judul.not.ilike.[A-Za-z]%,judul.is.null')
@@ -77,14 +78,14 @@ function Koleksi() {
     }
 
     // Filter berdasarkan tahun
-    if (tahunFilter) {
-      const [startYear, endYear] = tahunFilter.split('-').map(Number)
+    if (currentFiltersRef.current.tahunFilter) {
+      const [startYear, endYear] = currentFiltersRef.current.tahunFilter.split('-').map(Number)
       query = query.gte('tahun_terbit', startYear).lte('tahun_terbit', endYear)
     }
 
-    // Sorting
-    query = query.order(sortBy, { 
-      ascending: sortOrder === 'asc',
+    // Sorting - PASTI SAMA untuk semua load
+    query = query.order(currentFiltersRef.current.sortBy, { 
+      ascending: currentFiltersRef.current.sortOrder === 'asc',
       nullsFirst: false
     })
 
@@ -100,17 +101,16 @@ function Koleksi() {
     if (offset === 0 && !append) {
       setLoading(true)
       setVisibleBooks([]) // Clear dulu data sebelumnya
+      setCurrentOffset(0) // Reset offset
     } else {
       setLoadingMore(true)
     }
 
     try {
       console.log('🔄 Loading books dengan filter:', { 
-        hurufFilter, 
-        tahunFilter, 
-        sortBy, 
-        sortOrder,
-        offset 
+        ...currentFiltersRef.current,
+        offset,
+        append 
       })
 
       const query = buildQuery(offset)
@@ -128,7 +128,7 @@ function Koleksi() {
 
       setCurrentOffset(offset + ITEMS_PER_PAGE)
       setHasMore((data?.length || 0) === ITEMS_PER_PAGE)
-      setFiltersApplied(!!hurufFilter || !!tahunFilter)
+      setFiltersApplied(!!currentFiltersRef.current.hurufFilter || !!currentFiltersRef.current.tahunFilter)
 
     } catch (error) {
       console.error('Error loading books:', error)
@@ -146,7 +146,7 @@ function Koleksi() {
     }
   }, [])
 
-  // Load more books
+  // Load more books - GUNAKAN REF UNTUK KONSISTENSI
   const loadMoreBooks = useCallback(async () => {
     if (loadingMore || !hasMore) return
     await loadBooks(currentOffset, true)
@@ -173,9 +173,17 @@ function Koleksi() {
       clearTimeout(filterTimeoutRef.current)
     }
 
+    // Update current filters ref SEBELUM load data
+    currentFiltersRef.current = {
+      hurufFilter,
+      tahunFilter,
+      sortBy,
+      sortOrder
+    }
+
     // Debounce untuk menghindari terlalu banyak request
     filterTimeoutRef.current = setTimeout(() => {
-      console.log('🎯 Filter changed, reloading data...')
+      console.log('🎯 Filter changed, reloading data dengan:', currentFiltersRef.current)
       loadBooks(0, false)
       
       // Scroll ke atas agar user lihat perubahan
@@ -198,11 +206,10 @@ function Koleksi() {
     // useEffect di atas akan otomatis trigger reload
   }
 
-  // Handler untuk filter huruf yang PASTI bekerja
+  // Handler untuk filter huruf
   const handleHurufFilter = (huruf) => {
     console.log('🎯 Setting huruf filter to:', huruf)
     setHurufFilter(huruf)
-    // Tidak perlu panggil loadBooks di sini, useEffect akan handle
   }
 
   // Handler untuk tahun filter
@@ -524,7 +531,9 @@ function Koleksi() {
             fontSize: '0.8rem',
             color: '#744210'
           }}>
-            🔧 Debug: Filter aktif - {hurufFilter || 'All'} {tahunFilter && `| ${tahunFilter}`}
+            🔧 Filter aktif: <strong>{hurufFilter || 'All'}</strong> 
+            {tahunFilter && ` | ${tahunFilter}`}
+            {sortBy !== 'judul' && ` | Sort: ${sortBy}`}
           </div>
 
           {/* Sort Options */}
@@ -871,6 +880,9 @@ function Koleksi() {
                       }} />
                       <span>Memuat lebih banyak buku...</span>
                     </div>
+                    <p style={{ fontSize: '0.8rem', color: '#a0aec0' }}>
+                      Filter: {hurufFilter || 'All'} | Loaded: {visibleBooks.length}
+                    </p>
                   </div>
                 )}
 
@@ -885,6 +897,9 @@ function Koleksi() {
                     borderRadius: '12px'
                   }}>
                     <p>🎉 Semua hasil telah dimuat ({visibleBooks.length} buku)</p>
+                    <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                      Filter: {hurufFilter || 'All'} {tahunFilter && `| ${tahunFilter}`}
+                    </p>
                   </div>
                 )}
               </>
