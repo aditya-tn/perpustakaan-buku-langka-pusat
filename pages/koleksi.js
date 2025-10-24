@@ -1,12 +1,103 @@
-// pages/koleksi.js - FINAL ROBUST VERSION
-import { useState, useEffect, useCallback } from 'react'
+// pages/koleksi.js - ENHANCED VERSION
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 
 const ITEMS_PER_PAGE = 100
 
-export default function Koleksi() {
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Koleksi Error Boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#f7fafc',
+          padding: '2rem'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '3rem 2rem',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            textAlign: 'center',
+            maxWidth: '500px',
+            width: '100%'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
+            <h2 style={{ 
+              color: '#e53e3e', 
+              marginBottom: '1rem',
+              fontSize: '1.5rem'
+            }}>
+              Terjadi Kesalahan
+            </h2>
+            <p style={{ 
+              color: '#718096', 
+              marginBottom: '2rem',
+              lineHeight: '1.6'
+            }}>
+              Maaf, terjadi masalah saat memuat koleksi buku. Silakan refresh halaman atau coba lagi nanti.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#4299e1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.9rem'
+                }}
+              >
+                🔄 Refresh Halaman
+              </button>
+              <button
+                onClick={() => this.setState({ hasError: false, error: null })}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#e2e8f0',
+                  color: '#4a5568',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.9rem'
+                }}
+              >
+                🔙 Coba Lagi
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function KoleksiComponent() {
   const [visibleBooks, setVisibleBooks] = useState([])
   const [allLoadedBooks, setAllLoadedBooks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -14,6 +105,7 @@ export default function Koleksi() {
   const [hasMore, setHasMore] = useState(true)
   const [currentOffset, setCurrentOffset] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
+  const [showBackToTop, setShowBackToTop] = useState(false)
   
   // Filter states
   const [hurufFilter, setHurufFilter] = useState('')
@@ -24,6 +116,10 @@ export default function Koleksi() {
   const [filtersApplied, setFiltersApplied] = useState(false)
   const [applyingFilters, setApplyingFilters] = useState(false)
 
+  // Refs untuk debounce
+  const filterTimeoutRef = useRef(null)
+  const scrollTimeoutRef = useRef(null)
+
   // Detect mobile screen
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -31,6 +127,40 @@ export default function Koleksi() {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  // Back to top visibility
+  useEffect(() => {
+    const checkScroll = () => {
+      const show = window.scrollY > 1000
+      setShowBackToTop(show)
+    }
+
+    // Throttle scroll event
+    const handleScroll = () => {
+      if (scrollTimeoutRef.current) return
+      
+      scrollTimeoutRef.current = setTimeout(() => {
+        checkScroll()
+        scrollTimeoutRef.current = null
+      }, 100)
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  // Back to top function
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }
 
   // Initial load
   useEffect(() => {
@@ -56,14 +186,15 @@ export default function Koleksi() {
       setHasMore((data?.length || 0) === ITEMS_PER_PAGE)
     } catch (error) {
       console.error('Error loading books:', error)
+      throw error // Biar error boundary catch
     } finally {
       setLoading(false)
     }
   }
 
-  // Load more books on scroll
-  const loadMoreBooks = async () => {
-    if (loadingMore || !hasMore) return
+  // Load more books on scroll - OPTIMIZED
+  const loadMoreBooks = useCallback(async () => {
+    if (loadingMore || !hasMore || applyingFilters) return
     
     try {
       setLoadingMore(true)
@@ -71,14 +202,16 @@ export default function Koleksi() {
       const { data, error } = await supabase
         .from('books')
         .select('*')
-        .order('judul', { ascending: true })
+        .order(sortBy, { ascending: sortOrder === 'asc' })
         .range(currentOffset, currentOffset + ITEMS_PER_PAGE - 1)
 
       if (error) throw error
       
       const newBooks = data || []
-      setAllLoadedBooks(prev => [...prev, ...newBooks])
-      setVisibleBooks(prev => [...prev, ...newBooks])
+      const updatedBooks = [...allLoadedBooks, ...newBooks]
+      
+      setAllLoadedBooks(updatedBooks)
+      setVisibleBooks(updatedBooks) // Update visible books juga
       setCurrentOffset(prev => prev + ITEMS_PER_PAGE)
       setHasMore(newBooks.length === ITEMS_PER_PAGE)
     } catch (error) {
@@ -86,34 +219,43 @@ export default function Koleksi() {
     } finally {
       setLoadingMore(false)
     }
-  }
+  }, [loadingMore, hasMore, currentOffset, sortBy, sortOrder, allLoadedBooks, applyingFilters])
 
-  // Infinite scroll detection
+  // Infinite scroll detection - OPTIMIZED
   useEffect(() => {
+    let ticking = false
+    
     const handleScroll = () => {
-      if (window.innerHeight + document.documentElement.scrollTop 
-          < document.documentElement.offsetHeight - 500) return
+      if (ticking || applyingFilters) return
       
-      loadMoreBooks()
+      ticking = true
+      requestAnimationFrame(() => {
+        const scrollTop = window.scrollY || document.documentElement.scrollTop
+        const windowHeight = window.innerHeight
+        const documentHeight = document.documentElement.scrollHeight
+        
+        // Load more ketika 300px dari bottom
+        if (scrollTop + windowHeight >= documentHeight - 300) {
+          loadMoreBooks()
+        }
+        ticking = false
+      })
     }
 
-    window.addEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [loadingMore, hasMore])
+  }, [loadMoreBooks, applyingFilters])
 
-  // Apply filters with ROBUST LOGIC
-  const applyFilters = async () => {
+  // Apply filters dengan DEBOUNCE - OPTIMIZED
+  const applyFilters = useCallback(async () => {
     if (!allLoadedBooks.length) return
 
     try {
       setApplyingFilters(true)
       
-      // Small delay untuk animasi loading
-      await new Promise(resolve => setTimeout(resolve, 500))
-
       let result = [...allLoadedBooks]
 
-      // Apply huruf filter dengan ROBUST LOGIC
+      // Apply huruf filter
       if (hurufFilter) {
         result = result.filter(book => {
           let fieldToCheck = ''
@@ -129,7 +271,6 @@ export default function Koleksi() {
           const trimmedField = fieldToCheck.trim()
           if (!trimmedField) return hurufFilter === '#'
           
-          // Cari karakter alphabet pertama (lewati semua karakter khusus dan angka)
           let firstChar = ''
           for (let i = 0; i < trimmedField.length; i++) {
             const char = trimmedField[i].toUpperCase()
@@ -139,24 +280,19 @@ export default function Koleksi() {
             }
           }
           
-          // Jika tidak ada karakter alphabet, cek apakah ada angka atau karakter khusus
           if (!firstChar) {
             const firstCharAny = trimmedField.charAt(0)
-            // Jika karakter pertama adalah angka atau karakter khusus, masukkan ke kategori #
             if (/[0-9]/.test(firstCharAny) || !/[a-zA-Z0-9]/.test(firstCharAny)) {
               return hurufFilter === '#'
             }
             return false
           }
           
-          console.log(`🔍 DEBUG: "${fieldToCheck}" -> "${firstChar}" vs "${hurufFilter}"`)
-          
-          // Jika mencari huruf tertentu, bandingkan dengan firstChar
           return hurufFilter === '#' ? false : firstChar === hurufFilter
         })
       }
 
-      // Apply tahun filter (rentang tahun)
+      // Apply tahun filter
       if (tahunFilter) {
         const [startYear, endYear] = tahunFilter.split('-').map(Number)
         result = result.filter(book => {
@@ -165,7 +301,7 @@ export default function Koleksi() {
         })
       }
 
-      // Apply client-side sorting
+      // Apply sorting
       result.sort((a, b) => {
         let aValue = a[sortBy] || ''
         let bValue = b[sortBy] || ''
@@ -184,17 +320,37 @@ export default function Koleksi() {
         }
       })
 
-      console.log(`✅ Filter results: ${result.length} books found for huruf "${hurufFilter}"`)
-      
       setVisibleBooks(result)
       setFiltersApplied(true)
+      setCurrentOffset(result.length) // Reset pagination untuk filtered results
+      setHasMore(false) // Untuk filtered results, nonaktifkan infinite scroll
     } catch (error) {
       console.error('Error applying filters:', error)
     } finally {
       setApplyingFilters(false)
     }
-  }
+  }, [allLoadedBooks, hurufFilter, tahunFilter, sortBy, sortOrder])
 
+  // DEBOUNCE FILTERS - Auto apply setelah 600ms
+  useEffect(() => {
+    if (filterTimeoutRef.current) {
+      clearTimeout(filterTimeoutRef.current)
+    }
+
+    filterTimeoutRef.current = setTimeout(() => {
+      if (hurufFilter || tahunFilter) {
+        applyFilters()
+      }
+    }, 600)
+
+    return () => {
+      if (filterTimeoutRef.current) {
+        clearTimeout(filterTimeoutRef.current)
+      }
+    }
+  }, [hurufFilter, tahunFilter, applyFilters])
+
+  // Reset filters dan reload data asli
   const clearFilters = () => {
     setHurufFilter('')
     setTahunFilter('')
@@ -202,9 +358,10 @@ export default function Koleksi() {
     setSortOrder('asc')
     setFiltersApplied(false)
     setVisibleBooks(allLoadedBooks)
+    setHasMore(true) // Aktifkan kembali infinite scroll
   }
 
-  // Generate tahun ranges dari 1547 sampai 1990 (30-year intervals)
+  // Generate tahun ranges
   const generateYearRanges = () => {
     const ranges = []
     let start = 1547
@@ -286,6 +443,19 @@ export default function Koleksi() {
           }}>
             🔍 Filter Koleksi
           </h3>
+
+          {/* Auto-apply notice */}
+          <div style={{
+            backgroundColor: '#e6fffa',
+            border: '1px solid #81e6d9',
+            borderRadius: '8px',
+            padding: '0.75rem',
+            marginBottom: '1.5rem',
+            fontSize: '0.8rem',
+            color: '#234e52'
+          }}>
+            ⚡ Filter akan diterapkan otomatis
+          </div>
 
           {/* Sort Options */}
           <div style={{ marginBottom: '2rem' }}>
@@ -456,45 +626,6 @@ export default function Koleksi() {
             </select>
           </div>
 
-          {/* Search Button */}
-          <button
-            onClick={applyFilters}
-            disabled={applyingFilters}
-            style={{
-              width: '100%',
-              padding: '0.75rem 1rem',
-              border: '1px solid #4299e1',
-              borderRadius: '8px',
-              backgroundColor: applyingFilters ? '#cbd5e0' : '#4299e1',
-              color: 'white',
-              cursor: applyingFilters ? 'not-allowed' : 'pointer',
-              fontSize: '0.9rem',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              marginBottom: '1rem',
-              transition: 'all 0.2s'
-            }}
-          >
-            {applyingFilters ? (
-              <>
-                <div style={{
-                  width: '16px',
-                  height: '16px',
-                  border: '2px solid transparent',
-                  borderTop: '2px solid white',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }} />
-                Menerapkan Filter...
-              </>
-            ) : (
-              '🔍 Terapkan Filter'
-            )}
-          </button>
-
           {/* View Mode Toggle */}
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{
@@ -592,14 +723,27 @@ export default function Koleksi() {
             border: '1px solid #e2e8f0',
             marginBottom: '1.5rem'
           }}>
-            <h3 style={{ 
-              fontSize: '1.25rem', 
-              fontWeight: '700',
-              color: '#2d3748',
-              margin: 0
-            }}>
-              Koleksi Buku Langka
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <h3 style={{ 
+                fontSize: '1.25rem', 
+                fontWeight: '700',
+                color: '#2d3748',
+                margin: 0
+              }}>
+                Koleksi Buku Langka
+              </h3>
+              <div style={{ 
+                fontSize: '0.9rem', 
+                color: '#718096',
+                backgroundColor: '#f7fafc',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                fontWeight: '500'
+              }}>
+                📊 Total: {visibleBooks.length} buku
+                {filtersApplied && ' (difilter)'}
+              </div>
+            </div>
           </div>
 
           {/* Books List/Grid */}
@@ -709,7 +853,7 @@ export default function Koleksi() {
                 )}
 
                 {/* Loading More Indicator */}
-                {!applyingFilters && loadingMore && (
+                {!applyingFilters && loadingMore && hasMore && (
                   <div style={{
                     textAlign: 'center',
                     padding: '2rem',
@@ -719,13 +863,31 @@ export default function Koleksi() {
                     boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
                     marginTop: '1rem'
                   }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
-                    <p>Memuat lebih banyak buku...</p>
+                    <div style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      marginBottom: '0.5rem'
+                    }}>
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        border: '2px solid transparent',
+                        borderTop: '2px solid #4299e1',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                      <span>Memuat lebih banyak buku...</span>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', color: '#a0aec0' }}>
+                      {Math.round((currentOffset / 85000) * 100)}% dari total koleksi
+                    </p>
                   </div>
                 )}
 
                 {/* End of Results */}
-                {!applyingFilters && !hasMore && visibleBooks.length > 0 && (
+                {!applyingFilters && !hasMore && visibleBooks.length > 0 && !filtersApplied && (
                   <div style={{
                     textAlign: 'center',
                     padding: '2rem',
@@ -736,7 +898,7 @@ export default function Koleksi() {
                     borderRadius: '12px',
                     boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
                   }}>
-                    <p>🎉 Semua buku telah dimuat</p>
+                    <p>🎉 Semua {visibleBooks.length} buku telah dimuat</p>
                   </div>
                 )}
               </>
@@ -744,6 +906,35 @@ export default function Koleksi() {
           </div>
         </div>
       </div>
+
+      {/* Back to Top Button */}
+      {showBackToTop && (
+        <button
+          onClick={scrollToTop}
+          style={{
+            position: 'fixed',
+            bottom: isMobile ? '80px' : '30px',
+            right: isMobile ? '20px' : '30px',
+            width: isMobile ? '50px' : '60px',
+            height: isMobile ? '50px' : '60px',
+            backgroundColor: '#4299e1',
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(66, 153, 225, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '1.2rem' : '1.5rem',
+            zIndex: 1000,
+            transition: 'all 0.3s ease'
+          }}
+          title="Kembali ke atas"
+        >
+          ↑
+        </button>
+      )}
 
       {/* CSS Animation */}
       <style jsx>{`
@@ -973,5 +1164,14 @@ function BookListItem({ book, isMobile }) {
         )}
       </div>
     </div>
+  )
+}
+
+// Export dengan Error Boundary
+export default function Koleksi(props) {
+  return (
+    <ErrorBoundary>
+      <KoleksiComponent {...props} />
+    </ErrorBoundary>
   )
 }
