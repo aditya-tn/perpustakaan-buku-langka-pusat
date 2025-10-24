@@ -1,4 +1,4 @@
-// pages/koleksi.js - ROBUST FILTER VERSION
+// pages/koleksi.js - FINAL ROBUST VERSION
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
@@ -113,7 +113,7 @@ export default function Koleksi() {
 
       let result = [...allLoadedBooks]
 
-      // Apply huruf filter dengan ROBUST LOGIC (LOOP)
+      // Apply huruf filter dengan ROBUST LOGIC
       if (hurufFilter) {
         result = result.filter(book => {
           let fieldToCheck = ''
@@ -129,7 +129,7 @@ export default function Koleksi() {
           const trimmedField = fieldToCheck.trim()
           if (!trimmedField) return hurufFilter === '#'
           
-          // ROBUST LOGIC - cari karakter alphabet pertama (lewati semua karakter khusus)
+          // Cari karakter alphabet pertama (lewati semua karakter khusus dan angka)
           let firstChar = ''
           for (let i = 0; i < trimmedField.length; i++) {
             const char = trimmedField[i].toUpperCase()
@@ -139,10 +139,19 @@ export default function Koleksi() {
             }
           }
           
-          if (!firstChar) return hurufFilter === '#'
+          // Jika tidak ada karakter alphabet, cek apakah ada angka atau karakter khusus
+          if (!firstChar) {
+            const firstCharAny = trimmedField.charAt(0)
+            // Jika karakter pertama adalah angka atau karakter khusus, masukkan ke kategori #
+            if (/[0-9]/.test(firstCharAny) || !/[a-zA-Z0-9]/.test(firstCharAny)) {
+              return hurufFilter === '#'
+            }
+            return false
+          }
           
           console.log(`🔍 DEBUG: "${fieldToCheck}" -> "${firstChar}" vs "${hurufFilter}"`)
           
+          // Jika mencari huruf tertentu, bandingkan dengan firstChar
           return hurufFilter === '#' ? false : firstChar === hurufFilter
         })
       }
@@ -332,7 +341,7 @@ export default function Koleksi() {
             </button>
           </div>
 
-          {/* Filter by Huruf A-Z - WITH ROBUST LOGIC */}
+          {/* Filter by Huruf A-Z */}
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{
               fontSize: '0.9rem',
@@ -388,7 +397,6 @@ export default function Koleksi() {
                   {huruf}
                 </button>
               ))}
-              {/* Tambahkan tombol untuk karakter khusus */}
               <button
                 onClick={() => setHurufFilter('#')}
                 style={{
@@ -410,7 +418,7 @@ export default function Koleksi() {
             </div>
           </div>
 
-          {/* Filter by Tahun (custom ranges 1547-1990) */}
+          {/* Filter by Tahun */}
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{
               fontSize: '0.9rem',
@@ -448,7 +456,7 @@ export default function Koleksi() {
             </select>
           </div>
 
-          {/* Search Button dengan Loading Animation */}
+          {/* Search Button */}
           <button
             onClick={applyFilters}
             disabled={applyingFilters}
@@ -467,9 +475,7 @@ export default function Koleksi() {
               justifyContent: 'center',
               gap: '0.5rem',
               marginBottom: '1rem',
-              transition: 'all 0.2s',
-              position: 'relative',
-              overflow: 'hidden'
+              transition: 'all 0.2s'
             }}
           >
             {applyingFilters ? (
@@ -577,7 +583,7 @@ export default function Koleksi() {
 
         {/* Main Content Area */}
         <div style={{ flex: 1 }}>
-          {/* Results Info - SIMPLIFIED */}
+          {/* Results Info */}
           <div style={{
             backgroundColor: 'white',
             padding: '1.5rem',
@@ -624,7 +630,6 @@ export default function Koleksi() {
                     marginBottom: '1rem'
                   }}>
                     <div style={{ 
-                      fontSize: '2rem', 
                       marginBottom: '1rem',
                       display: 'flex',
                       justifyContent: 'center',
