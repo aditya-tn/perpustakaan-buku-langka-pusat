@@ -1,4 +1,4 @@
-// pages/koleksi.js - FIXED REGEX VERSION
+// pages/koleksi.js - ROBUST FILTER VERSION
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
@@ -101,7 +101,7 @@ export default function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadingMore, hasMore])
 
-  // Apply filters with CORRECTED REGEX
+  // Apply filters with ROBUST LOGIC
   const applyFilters = async () => {
     if (!allLoadedBooks.length) return
 
@@ -113,7 +113,7 @@ export default function Koleksi() {
 
       let result = [...allLoadedBooks]
 
-      // Apply huruf filter dengan REGEX YANG BENAR
+      // Apply huruf filter dengan ROBUST LOGIC (LOOP)
       if (hurufFilter) {
         result = result.filter(book => {
           let fieldToCheck = ''
@@ -126,26 +126,24 @@ export default function Koleksi() {
             fieldToCheck = book.judul || ''
           }
           
-          // CORRECTED CLEANING - hanya hapus karakter khusus, jangan hapus spasi
-          const cleanedField = fieldToCheck
-            .trim()                                  // Hilangkan spasi di awal/akhir
-            .replace(/^[^a-zA-Z0-9\s]+/, '')        // Hanya hapus karakter khusus di awal, JANGAN hapus spasi
-            .trim()                                  // Trim lagi
+          const trimmedField = fieldToCheck.trim()
+          if (!trimmedField) return hurufFilter === '#'
           
-          if (!cleanedField) return false
-          
-          // Ambil karakter pertama dan convert ke uppercase
-          const firstChar = cleanedField.charAt(0).toUpperCase()
-          
-          console.log(`🔍 DEBUG: "${fieldToCheck}" -> "${cleanedField}" -> "${firstChar}" vs "${hurufFilter}"`)
-          
-          // Jika hurufFilter adalah '#', tangani angka dan karakter khusus
-          if (hurufFilter === '#') {
-            return !/^[A-Z]$/.test(firstChar) // Bukan A-Z
+          // ROBUST LOGIC - cari karakter alphabet pertama (lewati semua karakter khusus)
+          let firstChar = ''
+          for (let i = 0; i < trimmedField.length; i++) {
+            const char = trimmedField[i].toUpperCase()
+            if (/[A-Z]/.test(char)) {
+              firstChar = char
+              break
+            }
           }
           
-          // STRICT MATCH - harus persis sama
-          return firstChar === hurufFilter
+          if (!firstChar) return hurufFilter === '#'
+          
+          console.log(`🔍 DEBUG: "${fieldToCheck}" -> "${firstChar}" vs "${hurufFilter}"`)
+          
+          return hurufFilter === '#' ? false : firstChar === hurufFilter
         })
       }
 
@@ -334,7 +332,7 @@ export default function Koleksi() {
             </button>
           </div>
 
-          {/* Filter by Huruf A-Z - WITH CORRECTED LOGIC */}
+          {/* Filter by Huruf A-Z - WITH ROBUST LOGIC */}
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{
               fontSize: '0.9rem',
