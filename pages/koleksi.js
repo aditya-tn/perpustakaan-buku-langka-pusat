@@ -23,8 +23,8 @@ function Koleksi() {
   const [viewMode, setViewMode] = useState('list')
   const [filtersApplied, setFiltersApplied] = useState(false)
 
-  // Refs
-  const filterTimeoutRef = useRef(null)
+  // Refs untuk track filter sebelumnya
+  const prevFiltersRef = useRef({ huruf: '', tahun: '', sortBy: 'judul', sortOrder: 'asc' })
 
   // Detect mobile screen
   useEffect(() => {
@@ -93,17 +93,19 @@ function Koleksi() {
     return query
   }
 
-  // Load data dengan filter
+  // Load data dengan filter - PASTI RESET KE OFFSET 0
   const loadBooks = async (offset = 0, append = false) => {
-    try {
-      if (offset === 0) {
-        setLoading(true)
-      } else {
-        setLoadingMore(true)
-      }
+    // Jika bukan append (load baru), reset loading state
+    if (offset === 0 && !append) {
+      setLoading(true)
+      setVisibleBooks([]) // Clear dulu data sebelumnya
+    } else {
+      setLoadingMore(true)
+    }
 
+    try {
       const query = buildQuery(offset)
-      const { data, error, count } = await query
+      const { data, error } = await query
 
       if (error) throw error
 
@@ -148,20 +150,29 @@ function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadMoreBooks])
 
-  // DEBOUNCE FILTERS - Load ulang data dari server ketika filter berubah
+  // DETEKSI PERUBAHAN FILTER DAN RESET PAGINATION
   useEffect(() => {
-    if (filterTimeoutRef.current) {
-      clearTimeout(filterTimeoutRef.current)
-    }
+    const currentFilters = { huruf: hurufFilter, tahun: tahunFilter, sortBy, sortOrder }
+    const prevFilters = prevFiltersRef.current
 
-    filterTimeoutRef.current = setTimeout(() => {
+    // Cek apakah filter berubah
+    const filtersChanged = 
+      currentFilters.huruf !== prevFilters.huruf ||
+      currentFilters.tahun !== prevFilters.tahun ||
+      currentFilters.sortBy !== prevFilters.sortBy ||
+      currentFilters.sortOrder !== prevFilters.sortOrder
+
+    if (filtersChanged) {
+      console.log('🔄 Filter berubah, reset pagination...')
+      
+      // Reset ke offset 0 dengan data baru
       loadBooks(0, false)
-    }, 600)
-
-    return () => {
-      if (filterTimeoutRef.current) {
-        clearTimeout(filterTimeoutRef.current)
-      }
+      
+      // Scroll ke atas agar user lihat perubahan
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      
+      // Update previous filters
+      prevFiltersRef.current = currentFilters
     }
   }, [hurufFilter, tahunFilter, sortBy, sortOrder])
 
@@ -172,7 +183,7 @@ function Koleksi() {
     setSortBy('judul')
     setSortOrder('asc')
     setFiltersApplied(false)
-    // Reset akan trigger useEffect di atas
+    // Akan trigger useEffect di atas
   }
 
   // Generate tahun ranges
