@@ -14,7 +14,6 @@ function Koleksi() {
   const [currentOffset, setCurrentOffset] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
   const [showBackToTop, setShowBackToTop] = useState(false)
-  const [showFilterSidebar, setShowFilterSidebar] = useState(false)
   
   // Filter states - GUNAKAN STATE SAJA, TIDAK PERLU REF
   const [hurufFilter, setHurufFilter] = useState('')
@@ -28,21 +27,15 @@ function Koleksi() {
   const filterTimeoutRef = useRef(null)
   const isInitialLoad = useRef(true)
 
-  // Detect mobile screen dengan optimasi
+  // Detect mobile screen
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768
-      setIsMobile(mobile)
-      if (mobile) {
-        setShowFilterSidebar(false)
-      }
-    }
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Back to top visibility dengan bounce effect
+  // Back to top visibility
   useEffect(() => {
     const handleScroll = () => {
       setShowBackToTop(window.scrollY > 1000)
@@ -55,12 +48,7 @@ function Koleksi() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Toggle filter sidebar untuk mobile
-  const toggleFilterSidebar = () => {
-    setShowFilterSidebar(!showFilterSidebar)
-  }
-
-  // Build query berdasarkan filter - GUNAKAN PARAMETER (TETAP SAMA)
+  // Build query berdasarkan filter - GUNAKAN PARAMETER
   const buildQuery = (offset = 0, filters = {}) => {
     const { hurufFilter: hf, tahunFilter: tf, sortBy: sb, sortOrder: so } = filters
     
@@ -108,7 +96,7 @@ function Koleksi() {
     return query
   }
 
-  // Load data dengan filter - PASS FILTERS SEBAGAI PARAMETER (TETAP SAMA)
+  // Load data dengan filter - PASS FILTERS SEBAGAI PARAMETER
   const loadBooks = async (offset = 0, append = false, filters = null) => {
     // Gunakan filter dari parameter atau state current
     const currentFilters = filters || {
@@ -159,7 +147,7 @@ function Koleksi() {
     }
   }
 
-  // Initial load - HANYA saat pertama kali (TETAP SAMA)
+  // Initial load - HANYA saat pertama kali
   useEffect(() => {
     if (isInitialLoad.current) {
       loadBooks(0, false)
@@ -167,7 +155,7 @@ function Koleksi() {
     }
   }, [])
 
-  // Load more books - GUNAKAN STATE CURRENT (TETAP SAMA)
+  // Load more books - GUNAKAN STATE CURRENT
   const loadMoreBooks = useCallback(async () => {
     if (loadingMore || !hasMore) return
     
@@ -182,7 +170,7 @@ function Koleksi() {
     await loadBooks(currentOffset, true, currentFilters)
   }, [loadingMore, hasMore, currentOffset, hurufFilter, tahunFilter, sortBy, sortOrder])
 
-  // Infinite scroll (TETAP SAMA)
+  // Infinite scroll
   useEffect(() => {
     const handleScroll = () => {
       if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500) {
@@ -194,7 +182,7 @@ function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadMoreBooks])
 
-  // EFFECT UTAMA: Handle perubahan filter dan reload data (TETAP SAMA)
+  // EFFECT UTAMA: Handle perubahan filter dan reload data
   useEffect(() => {
     // Skip initial load
     if (isInitialLoad.current) return
@@ -231,7 +219,7 @@ function Koleksi() {
     }
   }, [hurufFilter, tahunFilter, sortBy, sortOrder])
 
-  // Reset filters (TETAP SAMA)
+  // Reset filters
   const clearFilters = () => {
     setHurufFilter('')
     setTahunFilter('')
@@ -240,23 +228,19 @@ function Koleksi() {
     // useEffect di atas akan otomatis trigger reload
   }
 
-  // Handler untuk filter huruf - LANGSUNG SET STATE (TETAP SAMA)
+  // Handler untuk filter huruf - LANGSUNG SET STATE
   const handleHurufFilter = (huruf) => {
     console.log('🎯 Setting huruf filter to:', huruf)
     setHurufFilter(huruf)
-    // Di mobile, tutup sidebar setelah pilih filter
-    if (isMobile) {
-      setTimeout(() => setShowFilterSidebar(false), 500)
-    }
   }
 
-  // Handler untuk tahun filter (TETAP SAMA)
+  // Handler untuk tahun filter
   const handleTahunFilter = (tahun) => {
     console.log('🎯 Setting tahun filter to:', tahun)
     setTahunFilter(tahun)
   }
 
-  // Handler untuk sort (TETAP SAMA)
+  // Handler untuk sort
   const handleSortChange = (field) => {
     console.log('🎯 Setting sort to:', field)
     setSortBy(field)
@@ -268,7 +252,7 @@ function Koleksi() {
     setSortOrder(newOrder)
   }
 
-  // Generate tahun ranges (TETAP SAMA)
+  // Generate tahun ranges
   const generateYearRanges = () => {
     const ranges = []
     let start = 1547
@@ -285,24 +269,23 @@ function Koleksi() {
 
   const yearRanges = generateYearRanges()
 
-  // Book Card Component dengan optimasi mobile
+  // Book Card Component
   const BookCard = ({ book, isMobile }) => (
     <div style={{
       backgroundColor: 'white',
-      padding: isMobile ? '1rem' : '1.5rem',
+      padding: isMobile ? '1.25rem' : '1.5rem',
       borderRadius: '12px',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
       border: '1px solid #f0f0f0',
       height: '100%',
       display: 'flex',
-      flexDirection: 'column',
-      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+      flexDirection: 'column'
     }}>
       <h4 style={{ 
         fontWeight: '600',
         color: '#2d3748',
         marginBottom: '0.75rem',
-        fontSize: isMobile ? '0.95rem' : '1.1rem',
+        fontSize: isMobile ? '1rem' : '1.1rem',
         lineHeight: '1.4',
         flex: 1
       }}>
@@ -311,25 +294,22 @@ function Koleksi() {
       
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ 
-          fontSize: isMobile ? '0.75rem' : '0.9rem', 
+          fontSize: isMobile ? '0.8rem' : '0.9rem', 
           color: '#4a5568', 
-          marginBottom: '0.25rem',
-          lineHeight: '1.4'
+          marginBottom: '0.25rem' 
         }}>
           <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
         </div>
         <div style={{ 
-          fontSize: isMobile ? '0.75rem' : '0.9rem', 
+          fontSize: isMobile ? '0.8rem' : '0.9rem', 
           color: '#4a5568', 
-          marginBottom: '0.25rem',
-          lineHeight: '1.4'
+          marginBottom: '0.25rem' 
         }}>
           <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
         </div>
         <div style={{ 
-          fontSize: isMobile ? '0.75rem' : '0.9rem', 
-          color: '#4a5568',
-          lineHeight: '1.4'
+          fontSize: isMobile ? '0.8rem' : '0.9rem', 
+          color: '#4a5568' 
         }}>
           <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
         </div>
@@ -337,15 +317,15 @@ function Koleksi() {
 
       {book.deskripsi_fisik && (
         <p style={{ 
-          fontSize: isMobile ? '0.7rem' : '0.85rem', 
+          fontSize: isMobile ? '0.75rem' : '0.85rem', 
           color: '#718096', 
           marginTop: '0.75rem',
           lineHeight: '1.5',
           fontStyle: 'italic',
           flex: 1
         }}>
-          {book.deskripsi_fisik.length > (isMobile ? 100 : 150) 
-            ? `${book.deskripsi_fisik.substring(0, isMobile ? 100 : 150)}...` 
+          {book.deskripsi_fisik.length > 150 
+            ? `${book.deskripsi_fisik.substring(0, 150)}...` 
             : book.deskripsi_fisik
           }
         </p>
@@ -354,7 +334,7 @@ function Koleksi() {
       <div style={{ 
         marginTop: '1.25rem', 
         display: 'flex', 
-        gap: '0.5rem',
+        gap: '0.75rem',
         flexWrap: 'wrap'
       }}>
         {book.lihat_opac && book.lihat_opac !== 'null' && (
@@ -365,10 +345,10 @@ function Koleksi() {
             style={{
               backgroundColor: '#4299e1',
               color: 'white',
-              padding: isMobile ? '0.4rem 0.7rem' : '0.5rem 1rem',
+              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
               borderRadius: '6px',
               textDecoration: 'none',
-              fontSize: isMobile ? '0.7rem' : '0.85rem',
+              fontSize: isMobile ? '0.75rem' : '0.85rem',
               fontWeight: '500'
             }}
           >
@@ -384,10 +364,10 @@ function Koleksi() {
             style={{
               backgroundColor: '#48bb78',
               color: 'white',
-              padding: isMobile ? '0.4rem 0.7rem' : '0.5rem 1rem',
+              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
               borderRadius: '6px',
               textDecoration: 'none',
-              fontSize: isMobile ? '0.7rem' : '0.85rem',
+              fontSize: isMobile ? '0.75rem' : '0.85rem',
               fontWeight: '500'
             }}
           >
@@ -398,17 +378,17 @@ function Koleksi() {
     </div>
   )
 
-  // Book List Item Component dengan optimasi mobile
+  // Book List Item Component
   const BookListItem = ({ book, isMobile }) => (
     <div style={{
       backgroundColor: 'white',
-      padding: isMobile ? '0.875rem' : '1.5rem',
-      borderRadius: '10px',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+      padding: isMobile ? '1rem' : '1.5rem',
+      borderRadius: '8px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
       border: '1px solid #e2e8f0',
       display: 'flex',
       flexDirection: isMobile ? 'column' : 'row',
-      gap: isMobile ? '0.75rem' : '1.5rem',
+      gap: isMobile ? '1rem' : '2rem',
       alignItems: isMobile ? 'stretch' : 'center'
     }}>
       <div style={{ flex: 1 }}>
@@ -416,7 +396,7 @@ function Koleksi() {
           fontWeight: '600',
           color: '#2d3748',
           marginBottom: '0.5rem',
-          fontSize: isMobile ? '0.95rem' : '1.1rem',
+          fontSize: isMobile ? '1rem' : '1.1rem',
           lineHeight: '1.4'
         }}>
           {book.judul}
@@ -424,11 +404,10 @@ function Koleksi() {
         
         <div style={{ 
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '0.5rem',
-          fontSize: isMobile ? '0.75rem' : '0.9rem',
-          color: '#4a5568',
-          lineHeight: '1.4'
+          fontSize: isMobile ? '0.8rem' : '0.9rem',
+          color: '#4a5568'
         }}>
           <div><strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}</div>
           <div><strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}</div>
@@ -437,14 +416,14 @@ function Koleksi() {
 
         {book.deskripsi_fisik && (
           <p style={{ 
-            fontSize: isMobile ? '0.7rem' : '0.85rem', 
+            fontSize: isMobile ? '0.75rem' : '0.85rem', 
             color: '#718096', 
             marginTop: '0.5rem',
             lineHeight: '1.5',
             fontStyle: 'italic'
           }}>
-            {book.deskripsi_fisik.length > (isMobile ? 120 : 200) 
-              ? `${book.deskripsi_fisik.substring(0, isMobile ? 120 : 200)}...` 
+            {book.deskripsi_fisik.length > 200 
+              ? `${book.deskripsi_fisik.substring(0, 200)}...` 
               : book.deskripsi_fisik
             }
           </p>
@@ -465,10 +444,10 @@ function Koleksi() {
             style={{
               backgroundColor: '#4299e1',
               color: 'white',
-              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+              padding: '0.5rem 1rem',
               borderRadius: '6px',
               textDecoration: 'none',
-              fontSize: isMobile ? '0.7rem' : '0.85rem',
+              fontSize: '0.85rem',
               fontWeight: '500',
               whiteSpace: 'nowrap'
             }}
@@ -485,10 +464,10 @@ function Koleksi() {
             style={{
               backgroundColor: '#48bb78',
               color: 'white',
-              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+              padding: '0.5rem 1rem',
               borderRadius: '6px',
               textDecoration: 'none',
-              fontSize: isMobile ? '0.7rem' : '0.85rem',
+              fontSize: '0.85rem',
               fontWeight: '500',
               whiteSpace: 'nowrap'
             }}
@@ -507,15 +486,15 @@ function Koleksi() {
         <meta name="description" content="Jelajahi seluruh koleksi buku langka Perpustakaan Nasional RI" />
       </Head>
 
-      {/* Hero Section dengan optimasi mobile */}
+      {/* Hero Section */}
       <section style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
-        padding: isMobile ? '1.5rem 1rem' : '3rem 2rem',
+        padding: isMobile ? '2rem 1rem' : '3rem 2rem',
         textAlign: 'center'
       }}>
         <h1 style={{
-          fontSize: isMobile ? '1.5rem' : '2.5rem',
+          fontSize: isMobile ? '1.75rem' : '2.5rem',
           fontWeight: '800',
           marginBottom: '1rem',
           lineHeight: '1.2'
@@ -523,7 +502,7 @@ function Koleksi() {
           Koleksi Buku Langka
         </h1>
         <p style={{
-          fontSize: isMobile ? '0.9rem' : '1.2rem',
+          fontSize: isMobile ? '1rem' : '1.2rem',
           opacity: 0.9,
           maxWidth: '600px',
           margin: '0 auto',
@@ -533,340 +512,267 @@ function Koleksi() {
         </p>
       </section>
 
-      {/* Mobile Filter Toggle Button */}
-      {isMobile && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#f7fafc',
-          borderBottom: '1px solid #e2e8f0'
-        }}>
-          <button
-            onClick={toggleFilterSidebar}
-            style={{
-              width: '100%',
-              padding: '0.875rem 1rem',
-              backgroundColor: '#4299e1',
-              color: 'white',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              boxShadow: '0 4px 12px rgba(66, 153, 225, 0.3)'
-            }}
-          >
-            🔍 {showFilterSidebar ? 'Tutup Filter' : 'Buka Filter'}
-          </button>
-        </div>
-      )}
-
       {/* Main Content */}
       <div style={{
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
         maxWidth: '1400px',
         margin: '0 auto',
-        padding: isMobile ? '0' : '2rem',
-        gap: isMobile ? '0' : '2rem',
-        minHeight: 'calc(100vh - 200px)'
+        padding: isMobile ? '1rem' : '2rem',
+        gap: isMobile ? '1rem' : '2rem'
       }}>
         
-        {/* Filter Sidebar - Desktop selalu tampil, Mobile conditional */}
-        {(isMobile ? showFilterSidebar : true) && (
-          <div style={{
-            width: isMobile ? '100%' : '300px',
-            backgroundColor: 'white',
-            padding: isMobile ? '1.25rem 1rem' : '1.5rem',
-            borderRadius: isMobile ? '0' : '12px',
-            boxShadow: isMobile ? 'none' : '0 2px 10px rgba(0,0,0,0.1)',
-            border: isMobile ? 'none' : '1px solid #e2e8f0',
-            height: isMobile ? 'auto' : 'fit-content',
-            position: isMobile ? 'static' : 'sticky',
-            top: isMobile ? '0' : '100px',
-            overflowY: isMobile ? 'auto' : 'visible',
-            maxHeight: isMobile ? '80vh' : 'none'
+        {/* Filter Sidebar */}
+        <div style={{
+          width: isMobile ? '100%' : '300px',
+          backgroundColor: 'white',
+          padding: '1.5rem',
+          borderRadius: '12px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          border: '1px solid #e2e8f0',
+          height: 'fit-content',
+          position: isMobile ? 'static' : 'sticky',
+          top: '100px'
+        }}>
+          <h3 style={{
+            fontSize: '1.25rem',
+            fontWeight: '700',
+            color: '#2d3748',
+            marginBottom: '1.5rem'
           }}>
-            <h3 style={{
-              fontSize: isMobile ? '1.1rem' : '1.25rem',
-              fontWeight: '700',
-              color: '#2d3748',
-              marginBottom: isMobile ? '1rem' : '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
+            🔍 Filter Koleksi
+          </h3>
+
+          {/* Debug info */}
+          <div style={{
+            backgroundColor: '#fffaf0',
+            border: '1px solid #fbd38d',
+            borderRadius: '8px',
+            padding: '0.75rem',
+            marginBottom: '1.5rem',
+            fontSize: '0.8rem',
+            color: '#744210'
+          }}>
+            🔧 Filter aktif: <strong>{hurufFilter || 'All'}</strong> 
+            {tahunFilter && ` | ${tahunFilter}`}
+            {sortBy !== 'judul' && ` | Sort: ${sortBy}`}
+          </div>
+
+          {/* Sort Options */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h4 style={{
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              color: '#4a5568',
+              marginBottom: '1rem'
             }}>
-              🔍 Filter Koleksi
-              {isMobile && (
-                <button
-                  onClick={toggleFilterSidebar}
-                  style={{
-                    marginLeft: 'auto',
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '1.25rem',
-                    cursor: 'pointer',
-                    color: '#718096'
-                  }}
-                >
-                  ✕
-                </button>
-              )}
-            </h3>
-
-            {/* Auto-filter notice */}
-            <div style={{
-              backgroundColor: '#e6fffa',
-              border: '1px solid #81e6d9',
-              borderRadius: '8px',
-              padding: '0.75rem',
-              marginBottom: '1.5rem',
-              fontSize: isMobile ? '0.75rem' : '0.8rem',
-              color: '#234e52'
-            }}>
-              ⚡ Filter diterapkan otomatis
-            </div>
-
-            {/* Sort Options dengan optimasi mobile */}
-            <div style={{ marginBottom: '2rem' }}>
-              <h4 style={{
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                color: '#4a5568',
-                marginBottom: '0.875rem'
-              }}>
-                URUTKAN BERDASARKAN
-              </h4>
-              <select
-                value={sortBy}
-                onChange={(e) => handleSortChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: isMobile ? '0.875rem' : '0.75rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  marginBottom: '0.75rem',
-                  fontSize: isMobile ? '0.9rem' : '0.9rem'
-                }}
-              >
-                <option value="judul">Judul Buku</option>
-                <option value="pengarang">Nama Pengarang</option>
-                <option value="penerbit">Penerbit</option>
-              </select>
-              
-              <button
-                onClick={handleSortOrder}
-                style={{
-                  width: '100%',
-                  padding: isMobile ? '0.875rem' : '0.75rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  backgroundColor: sortOrder === 'asc' ? '#e6fffa' : '#fed7d7',
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '0.9rem'
-                }}
-              >
-                {sortOrder === 'asc' ? '↑ A-Z (Ascending)' : '↓ Z-A (Descending)'}
-              </button>
-            </div>
-
-            {/* Filter by Huruf dengan optimasi mobile */}
-            <div style={{ marginBottom: '2rem' }}>
-              <h4 style={{
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                color: '#4a5568',
-                marginBottom: '0.875rem'
-              }}>
-                FILTER BERDASARKAN ABJAD
-              </h4>
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '0.2rem',
-                justifyContent: 'center'
-              }}>
-                <button
-                  onClick={() => handleHurufFilter('')}
-                  style={{
-                    padding: isMobile ? '0.4rem 0.6rem' : '0.5rem 0.75rem',
-                    border: '1px solid #e2e8f0',
-                    backgroundColor: hurufFilter === '' ? '#4299e1' : 'white',
-                    color: hurufFilter === '' ? 'white' : '#4a5568',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: isMobile ? '0.75rem' : '0.8rem',
-                    fontWeight: '500',
-                    minWidth: isMobile ? '35px' : '40px'
-                  }}
-                >
-                  All
-                </button>
-                {['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(huruf => (
-                  <button
-                    key={huruf}
-                    onClick={() => handleHurufFilter(huruf)}
-                    style={{
-                      padding: isMobile ? '0.35rem' : '0.5rem',
-                      border: '1px solid #e2e8f0',
-                      backgroundColor: hurufFilter === huruf ? '#4299e1' : 'white',
-                      color: hurufFilter === huruf ? 'white' : '#4a5568',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: isMobile ? '0.75rem' : '0.8rem',
-                      fontWeight: '500',
-                      minWidth: isMobile ? '28px' : '30px'
-                    }}
-                  >
-                    {huruf}
-                  </button>
-                ))}
-                <button
-                  onClick={() => handleHurufFilter('#')}
-                  style={{
-                    padding: isMobile ? '0.35rem' : '0.5rem',
-                    border: '1px solid #e2e8f0',
-                    backgroundColor: hurufFilter === '#' ? '#4299e1' : 'white',
-                    color: hurufFilter === '#' ? 'white' : '#4a5568',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: isMobile ? '0.75rem' : '0.8rem',
-                    fontWeight: '500',
-                    minWidth: isMobile ? '28px' : '30px'
-                  }}
-                  title="Angka dan Karakter Khusus"
-                >
-                  #
-                </button>
-              </div>
-            </div>
-
-            {/* Filter by Tahun dengan optimasi mobile */}
-            <div style={{ marginBottom: '2rem' }}>
-              <h4 style={{
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                color: '#4a5568',
-                marginBottom: '0.875rem'
-              }}>
-                FILTER TAHUN
-              </h4>
-              <select
-                value={tahunFilter}
-                onChange={(e) => handleTahunFilter(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: isMobile ? '0.875rem' : '0.75rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: isMobile ? '0.9rem' : '0.9rem'
-                }}
-              >
-                <option value="">Semua Periode</option>
-                {yearRanges.map(range => {
-                  const [start, end] = range.split('-')
-                  return (
-                    <option key={range} value={range}>
-                      {start} - {end}
-                    </option>
-                  )
-                })}
-              </select>
-            </div>
-
-            {/* View Mode dengan optimasi mobile */}
-            <div style={{ marginBottom: '2rem' }}>
-              <h4 style={{
-                fontSize: '0.85rem',
-                fontWeight: '600',
-                color: '#4a5568',
-                marginBottom: '0.875rem'
-              }}>
-                TAMPILAN
-              </h4>
-              <div style={{
-                display: 'flex',
+              URUTKAN BERDASARKAN
+            </h4>
+            <select
+              value={sortBy}
+              onChange={(e) => handleSortChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
                 border: '1px solid #e2e8f0',
                 borderRadius: '8px',
-                overflow: 'hidden'
-              }}>
-                <button
-                  onClick={() => setViewMode('list')}
-                  style={{
-                    flex: 1,
-                    padding: isMobile ? '0.875rem' : '0.75rem',
-                    border: 'none',
-                    backgroundColor: viewMode === 'list' ? '#4299e1' : 'white',
-                    color: viewMode === 'list' ? 'white' : '#4a5568',
-                    cursor: 'pointer',
-                    fontSize: isMobile ? '0.9rem' : '0.9rem'
-                  }}
-                >
-                  ☰ List
-                </button>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  style={{
-                    flex: 1,
-                    padding: isMobile ? '0.875rem' : '0.75rem',
-                    border: 'none',
-                    backgroundColor: viewMode === 'grid' ? '#4299e1' : 'white',
-                    color: viewMode === 'grid' ? 'white' : '#4a5568',
-                    cursor: 'pointer',
-                    fontSize: isMobile ? '0.9rem' : '0.9rem'
-                  }}
-                >
-                  ▦ Grid
-                </button>
-              </div>
-            </div>
+                marginBottom: '0.75rem'
+              }}
+            >
+              <option value="judul">Judul Buku</option>
+              <option value="pengarang">Nama Pengarang</option>
+              <option value="penerbit">Penerbit</option>
+            </select>
+            
+            <button
+              onClick={handleSortOrder}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                backgroundColor: sortOrder === 'asc' ? '#e6fffa' : '#fed7d7',
+                cursor: 'pointer'
+              }}
+            >
+              {sortOrder === 'asc' ? '↑ A-Z (Ascending)' : '↓ Z-A (Descending)'}
+            </button>
+          </div>
 
-            {/* Reset Filters */}
-            {(filtersApplied || hurufFilter || tahunFilter) && (
+          {/* Filter by Huruf */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h4 style={{
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              color: '#4a5568',
+              marginBottom: '1rem'
+            }}>
+              FILTER BERDASARKAN ABJAD
+            </h4>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.25rem',
+              justifyContent: 'center'
+            }}>
               <button
-                onClick={clearFilters}
+                onClick={() => handleHurufFilter('')}
                 style={{
-                  width: '100%',
-                  padding: isMobile ? '0.875rem' : '0.75rem',
-                  border: '1px solid #f56565',
-                  borderRadius: '8px',
-                  backgroundColor: '#f56565',
-                  color: 'white',
+                  padding: '0.5rem 0.75rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: hurufFilter === '' ? '#4299e1' : 'white',
+                  color: hurufFilter === '' ? 'white' : '#4a5568',
+                  borderRadius: '6px',
                   cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '0.9rem'
+                  fontSize: '0.8rem'
                 }}
               >
-                🔄 Reset Semua Filter
+                All
               </button>
-            )}
+              {['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(huruf => (
+                <button
+                  key={huruf}
+                  onClick={() => handleHurufFilter(huruf)}
+                  style={{
+                    padding: '0.5rem',
+                    border: '1px solid #e2e8f0',
+                    backgroundColor: hurufFilter === huruf ? '#4299e1' : 'white',
+                    color: hurufFilter === huruf ? 'white' : '#4a5568',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  {huruf}
+                </button>
+              ))}
+              <button
+                onClick={() => handleHurufFilter('#')}
+                style={{
+                  padding: '0.5rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: hurufFilter === '#' ? '#4299e1' : 'white',
+                  color: hurufFilter === '#' ? 'white' : '#4a5568',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem'
+                }}
+                title="Angka dan Karakter Khusus"
+              >
+                #
+              </button>
+            </div>
           </div>
-        )}
 
-        {/* Main Content Area dengan optimasi mobile */}
-        <div style={{ 
-          flex: 1,
-          padding: isMobile ? '1rem' : '0'
-        }}>
+          {/* Filter by Tahun */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h4 style={{
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              color: '#4a5568',
+              marginBottom: '1rem'
+            }}>
+              FILTER TAHUN
+            </h4>
+            <select
+              value={tahunFilter}
+              onChange={(e) => handleTahunFilter(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px'
+              }}
+            >
+              <option value="">Semua Periode</option>
+              {yearRanges.map(range => {
+                const [start, end] = range.split('-')
+                return (
+                  <option key={range} value={range}>
+                    {start} - {end}
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+
+          {/* View Mode */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h4 style={{
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              color: '#4a5568',
+              marginBottom: '1rem'
+            }}>
+              TAMPILAN
+            </h4>
+            <div style={{
+              display: 'flex',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              overflow: 'hidden'
+            }}>
+              <button
+                onClick={() => setViewMode('list')}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  border: 'none',
+                  backgroundColor: viewMode === 'list' ? '#4299e1' : 'white',
+                  color: viewMode === 'list' ? 'white' : '#4a5568',
+                  cursor: 'pointer'
+                }}
+              >
+                ☰ List
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  border: 'none',
+                  backgroundColor: viewMode === 'grid' ? '#4299e1' : 'white',
+                  color: viewMode === 'grid' ? 'white' : '#4a5568',
+                  cursor: 'pointer'
+                }}
+              >
+                ▦ Grid
+              </button>
+            </div>
+          </div>
+
+          {/* Reset Filters */}
+          {(filtersApplied || hurufFilter || tahunFilter) && (
+            <button
+              onClick={clearFilters}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #f56565',
+                borderRadius: '8px',
+                backgroundColor: '#f56565',
+                color: 'white',
+                cursor: 'pointer'
+              }}
+            >
+              🔄 Reset Semua Filter
+            </button>
+          )}
+        </div>
+
+        {/* Main Content Area */}
+        <div style={{ flex: 1 }}>
           {/* Results Info */}
           <div style={{
             backgroundColor: 'white',
-            padding: isMobile ? '1rem' : '1.5rem',
-            borderRadius: isMobile ? '0' : '12px',
-            boxShadow: isMobile ? 'none' : '0 2px 10px rgba(0,0,0,0.1)',
-            marginBottom: isMobile ? '1rem' : '1.5rem'
+            padding: '1.5rem',
+            borderRadius: '12px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            marginBottom: '1.5rem'
           }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              flexWrap: 'wrap', 
-              gap: '1rem' 
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <h3 style={{ 
-                fontSize: isMobile ? '1.1rem' : '1.25rem', 
+                fontSize: '1.25rem', 
                 fontWeight: '700',
                 color: '#2d3748',
                 margin: 0
@@ -874,7 +780,7 @@ function Koleksi() {
                 Koleksi Buku Langka
                 {filtersApplied && (
                   <span style={{
-                    fontSize: isMobile ? '0.8rem' : '0.9rem',
+                    fontSize: '0.9rem',
                     fontWeight: '400',
                     color: '#718096',
                     marginLeft: '0.5rem'
@@ -884,39 +790,31 @@ function Koleksi() {
                 )}
               </h3>
               <div style={{ 
-                fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                fontSize: '0.9rem', 
                 color: '#718096',
                 backgroundColor: '#f7fafc',
-                padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                borderRadius: '6px',
-                fontWeight: '500'
+                padding: '0.5rem 1rem',
+                borderRadius: '6px'
               }}>
-                📊 Total: {visibleBooks.length} buku
+                📊 Menampilkan: {visibleBooks.length} buku
                 {hasMore && ' + scroll untuk lebih banyak'}
+                {loading && ' (Loading...)'}
               </div>
             </div>
           </div>
 
-          {/* Books List/Grid dengan optimasi mobile */}
-          <div style={{ 
-            minHeight: '500px',
-            padding: isMobile ? '0' : '0 0.5rem'
-          }}>
+          {/* Books List/Grid */}
+          <div style={{ minHeight: '500px' }}>
             {loading ? (
               <div style={{
                 textAlign: 'center',
-                padding: isMobile ? '3rem 1rem' : '4rem 2rem',
+                padding: '4rem 2rem',
                 color: '#718096',
                 backgroundColor: 'white',
-                borderRadius: isMobile ? '0' : '12px',
-                boxShadow: isMobile ? 'none' : '0 2px 10px rgba(0,0,0,0.1)'
+                borderRadius: '12px'
               }}>
-                <div style={{ 
-                  fontSize: isMobile ? '2.5rem' : '3rem', 
-                  marginBottom: '1rem',
-                  animation: 'bounce 1s infinite'
-                }}>📚</div>
-                <p style={{ fontSize: isMobile ? '0.9rem' : '1rem' }}>Memuat koleksi buku langka...</p>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
+                <p>Memuat koleksi buku langka...</p>
               </div>
             ) : (
               <>
@@ -925,7 +823,7 @@ function Koleksi() {
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: isMobile ? '0.5rem' : '0.75rem',
+                    gap: '0.75rem',
                     marginBottom: '2rem'
                   }}>
                     {visibleBooks.map((book) => (
@@ -938,8 +836,8 @@ function Koleksi() {
                 {viewMode === 'grid' && (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
-                    gap: isMobile ? '1rem' : '1.5rem',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
+                    gap: '1.5rem',
                     marginBottom: '2rem'
                   }}>
                     {visibleBooks.map((book) => (
@@ -948,43 +846,28 @@ function Koleksi() {
                   </div>
                 )}
 
-                {/* No Results dengan animasi */}
+                {/* No Results */}
                 {visibleBooks.length === 0 && !loading && (
                   <div style={{
                     textAlign: 'center',
-                    padding: isMobile ? '3rem 1rem' : '4rem 2rem',
+                    padding: '4rem 2rem',
                     color: '#718096',
                     backgroundColor: 'white',
-                    borderRadius: isMobile ? '0' : '12px',
-                    boxShadow: isMobile ? 'none' : '0 2px 10px rgba(0,0,0,0.1)'
+                    borderRadius: '12px'
                   }}>
-                    <div style={{ 
-                      fontSize: isMobile ? '3rem' : '4rem', 
-                      marginBottom: '1rem',
-                      animation: 'bounce 1s'
-                    }}>🔍</div>
-                    <h3 style={{ 
-                      color: '#4a5568', 
-                      marginBottom: '0.5rem',
-                      fontSize: isMobile ? '1.1rem' : '1.25rem'
-                    }}>
-                      Tidak ada buku ditemukan
-                    </h3>
-                    <p style={{ fontSize: isMobile ? '0.9rem' : '1rem' }}>
-                      Silakan coba filter yang berbeda
-                    </p>
+                    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔍</div>
+                    <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Tidak ada buku ditemukan</h3>
+                    <p>Silakan coba filter yang berbeda</p>
                     <button
                       onClick={clearFilters}
                       style={{
                         marginTop: '1rem',
-                        padding: isMobile ? '0.75rem 1.25rem' : '0.75rem 1.5rem',
+                        padding: '0.75rem 1.5rem',
                         backgroundColor: '#4299e1',
                         color: 'white',
                         border: 'none',
                         borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontWeight: '500',
-                        fontSize: isMobile ? '0.9rem' : '1rem'
+                        cursor: 'pointer'
                       }}
                     >
                       Tampilkan Semua Buku
@@ -996,11 +879,10 @@ function Koleksi() {
                 {loadingMore && hasMore && (
                   <div style={{
                     textAlign: 'center',
-                    padding: isMobile ? '1.5rem' : '2rem',
+                    padding: '2rem',
                     color: '#718096',
                     backgroundColor: 'white',
-                    borderRadius: isMobile ? '0' : '12px',
-                    boxShadow: isMobile ? 'none' : '0 2px 10px rgba(0,0,0,0.1)',
+                    borderRadius: '12px',
                     marginTop: '1rem'
                   }}>
                     <div style={{ 
@@ -1018,29 +900,27 @@ function Koleksi() {
                         borderRadius: '50%',
                         animation: 'spin 1s linear infinite'
                       }} />
-                      <span style={{ fontSize: isMobile ? '0.9rem' : '1rem' }}>
-                        Memuat lebih banyak buku...
-                      </span>
+                      <span>Memuat lebih banyak buku...</span>
                     </div>
+                    <p style={{ fontSize: '0.8rem', color: '#a0aec0' }}>
+                      Filter: {hurufFilter || 'All'} | Loaded: {visibleBooks.length}
+                    </p>
                   </div>
                 )}
 
-                {/* End of Results dengan animasi */}
+                {/* End of Results */}
                 {!hasMore && visibleBooks.length > 0 && (
                   <div style={{
                     textAlign: 'center',
-                    padding: isMobile ? '1.5rem' : '2rem',
+                    padding: '2rem',
                     color: '#718096',
                     marginTop: '2rem',
                     backgroundColor: 'white',
-                    borderRadius: isMobile ? '0' : '12px',
-                    boxShadow: isMobile ? 'none' : '0 2px 10px rgba(0,0,0,0.1)'
+                    borderRadius: '12px'
                   }}>
-                    <p style={{ 
-                      fontSize: isMobile ? '0.9rem' : '1rem',
-                      animation: 'bounce 0.5s'
-                    }}>
-                      🎉 Semua hasil telah dimuat ({visibleBooks.length} buku)
+                    <p>🎉 Semua hasil telah dimuat ({visibleBooks.length} buku)</p>
+                    <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                      Filter: {hurufFilter || 'All'} {tahunFilter && `| ${tahunFilter}`}
                     </p>
                   </div>
                 )}
@@ -1050,28 +930,27 @@ function Koleksi() {
         </div>
       </div>
 
-      {/* Back to Top Button dengan bounce effect */}
+      {/* Back to Top Button */}
       {showBackToTop && (
         <button
           onClick={scrollToTop}
           style={{
             position: 'fixed',
-            bottom: isMobile ? '70px' : '30px',
-            right: isMobile ? '15px' : '30px',
-            width: isMobile ? '45px' : '60px',
-            height: isMobile ? '45px' : '60px',
+            bottom: isMobile ? '80px' : '30px',
+            right: isMobile ? '20px' : '30px',
+            width: isMobile ? '50px' : '60px',
+            height: isMobile ? '50px' : '60px',
             backgroundColor: '#4299e1',
             color: 'white',
             border: 'none',
             borderRadius: '50%',
             cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(66, 153, 225, 0.4)',
+            boxShadow: '0 4px 12px rgba(66, 153, 225, 0.4)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: isMobile ? '1.1rem' : '1.5rem',
-            zIndex: 1000,
-            animation: 'bounce 2s infinite'
+            fontSize: isMobile ? '1.2rem' : '1.5rem',
+            zIndex: 1000
           }}
           title="Kembali ke atas"
         >
@@ -1079,23 +958,10 @@ function Koleksi() {
         </button>
       )}
 
-      {/* CSS Animations */}
       <style jsx>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
-        }
-        
-        @keyframes bounce {
-          0%, 20%, 50%, 80%, 100% {
-            transform: translateY(0);
-          }
-          40% {
-            transform: translateY(-5px);
-          }
-          60% {
-            transform: translateY(-3px);
-          }
         }
       `}</style>
     </Layout>
