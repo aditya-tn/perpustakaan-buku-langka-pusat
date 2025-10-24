@@ -1,4 +1,4 @@
-// pages/koleksi.js - FIXED VERSION
+// pages/koleksi.js - SUPER STRICT FILTER VERSION
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
@@ -101,7 +101,7 @@ export default function Koleksi() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [loadingMore, hasMore])
 
-  // Improved filter function with better logic
+  // Apply filters with SUPER STRICT logic
   const applyFilters = async () => {
     if (!allLoadedBooks.length) return
 
@@ -113,7 +113,7 @@ export default function Koleksi() {
 
       let result = [...allLoadedBooks]
 
-      // Apply huruf filter dengan logic yang lebih baik
+      // Apply huruf filter dengan LOGIC SUPER STRICT
       if (hurufFilter) {
         result = result.filter(book => {
           let fieldToCheck = ''
@@ -126,18 +126,25 @@ export default function Koleksi() {
             fieldToCheck = book.judul || ''
           }
           
-          // Clean the field and get first character
-          const cleanedField = fieldToCheck.trim()
+          // SUPER STRICT CLEANING
+          const cleanedField = fieldToCheck
+            .trim()                                  // Hilangkan spasi
+            .replace(/^[^a-zA-Z0-9]+/, '')          // Hilangkan SEMUA karakter non-alphanumeric di awal
+            .trim()                                  // Trim lagi
+          
           if (!cleanedField) return false
           
+          // Ambil karakter pertama dan convert ke uppercase
           const firstChar = cleanedField.charAt(0).toUpperCase()
           
-          // Handle special characters and numbers
-          if (!/^[A-Z]$/.test(firstChar)) {
-            // Jika karakter pertama bukan huruf, masukkan ke kategori khusus
-            return hurufFilter === '#' 
+          console.log(`🔍 DEBUG: "${fieldToCheck}" -> "${cleanedField}" -> "${firstChar}" vs "${hurufFilter}"`)
+          
+          // Jika hurufFilter adalah '#', tangani angka dan karakter khusus
+          if (hurufFilter === '#') {
+            return !/^[A-Z]$/.test(firstChar) // Bukan A-Z
           }
           
+          // STRICT MATCH - harus persis sama
           return firstChar === hurufFilter
         })
       }
@@ -170,6 +177,8 @@ export default function Koleksi() {
         }
       })
 
+      console.log(`✅ Filter results: ${result.length} books found for huruf "${hurufFilter}"`)
+      
       setVisibleBooks(result)
       setFiltersApplied(true)
     } catch (error) {
@@ -325,7 +334,7 @@ export default function Koleksi() {
             </button>
           </div>
 
-          {/* Filter by Huruf A-Z - IMPROVED */}
+          {/* Filter by Huruf A-Z - SUPER STRICT */}
           <div style={{ marginBottom: '2rem' }}>
             <h4 style={{
               fontSize: '0.9rem',
@@ -743,7 +752,6 @@ export default function Koleksi() {
     </Layout>
   )
 }
-
 
 // Book Card Component (Grid View)
 function BookCard({ book, isMobile }) {
