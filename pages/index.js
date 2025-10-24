@@ -1,7 +1,25 @@
+// pages/index.js - FIXED REAL-TIME SEARCH
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
+
+// Custom hook untuk real-time search
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -17,12 +35,14 @@ export default function Home() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [searchHistory, setSearchHistory] = useState([])
   const [searchMethod, setSearchMethod] = useState('')
-  const [liveSearchEnabled, setLiveSearchEnabled] = useState(true) // NEW: Live search toggle
-  const [isTyping, setIsTyping] = useState(false) // NEW: Typing indicator
+  const [liveSearchEnabled, setLiveSearchEnabled] = useState(true)
+  const [isTyping, setIsTyping] = useState(false)
 
-  // Refs untuk debounce dan cancellation
-  const searchTimeoutRef = useRef(null)
+  // Refs untuk cancellation
   const abortControllerRef = useRef(null)
+
+  // NEW: Use debounce hook
+  const debouncedSearchTerm = useDebounce(searchTerm, 800)
 
   // Detect mobile screen
   useEffect(() => {
@@ -35,85 +55,63 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Load search history dari localStorage
+  // Load preferences
   useEffect(() => {
     const savedHistory = localStorage.getItem('searchHistory')
-    if (savedHistory) {
-      setSearchHistory(JSON.parse(savedHistory))
-    }
-    
-    // Load live search preference
     const savedLiveSearch = localStorage.getItem('liveSearchEnabled')
-    if (savedLiveSearch !== null) {
-      setLiveSearchEnabled(JSON.parse(savedLiveSearch))
-    }
+    
+    if (savedHistory) setSearchHistory(JSON.parse(savedHistory))
+    if (savedLiveSearch !== null) setLiveSearchEnabled(JSON.parse(savedLiveSearch))
   }, [])
 
-  // Save preferences ke localStorage
+  // Save preferences
   useEffect(() => {
+    localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
     if (searchHistory.length > 0) {
       localStorage.setItem('searchHistory', JSON.stringify(searchHistory))
     }
-    localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
   }, [searchHistory, liveSearchEnabled])
 
-  // NEW: Real-time Search Effect
+  // NEW: FIXED Real-time Search Effect
   useEffect(() => {
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-    
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-
     // Skip jika search term kosong atau live search disabled
-    if (!searchTerm.trim() || !liveSearchEnabled) {
-      if (searchTerm.trim().length === 0) {
+    if (!debouncedSearchTerm.trim() || !liveSearchEnabled) {
+      if (debouncedSearchTerm.trim().length === 0) {
         setSearchResults([])
         setShowStats(true)
       }
       return
     }
 
-    // Set typing indicator
-    setIsTyping(true)
+    console.log('🔄 Real-time search triggered:', debouncedSearchTerm)
+    executeSearch(debouncedSearchTerm)
+  }, [debouncedSearchTerm, liveSearchEnabled]) // Hanya depend on debounced value
 
-    // Debounce search execution
-    searchTimeoutRef.current = setTimeout(async () => {
+  // NEW: Typing indicator effect
+  useEffect(() => {
+    if (searchTerm.trim() && liveSearchEnabled) {
+      setIsTyping(true)
+      const typingTimer = setTimeout(() => {
+        setIsTyping(false)
+      }, 500)
+      return () => clearTimeout(typingTimer)
+    } else {
       setIsTyping(false)
-      await executeSearch(searchTerm)
-    }, 800) // 800ms debounce
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
     }
   }, [searchTerm, liveSearchEnabled])
 
-  // Auto scroll ke atas ketika currentPage berubah
+  // Auto scroll dan hide stats
   useEffect(() => {
     if (searchResults.length > 0) {
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [currentPage, searchResults.length])
 
-  // Hide stats when search results appear
   useEffect(() => {
-    if (searchResults.length > 0) {
-      setShowStats(false)
-    } else {
-      setShowStats(true)
-    }
+    setShowStats(searchResults.length === 0)
   }, [searchResults])
 
-  // Debounced Search Suggestions (terpisah dari real-time search)
+  // Suggestions effect (tetap terpisah)
   useEffect(() => {
     if (searchTerm.length < 2) {
       setSuggestions([])
@@ -138,27 +136,31 @@ export default function Home() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  // NEW: Execute Search dengan cancellation
+  // NEW: SIMPLIFIED Search Execution
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return
     
-    // Create new AbortController untuk request ini
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
     abortControllerRef.current = new AbortController()
     
     setLoading(true)
     setCurrentPage(1)
 
     try {
+      console.log('🔍 Executing search:', searchQuery)
       const results = await performSmartSearch(searchQuery)
+      console.log('✅ Search results:', results.length)
       setSearchResults(results)
       
-      // Save to search history jika ada results
       if (results.length > 0) {
         saveToSearchHistory(searchQuery, results.length)
       }
       
     } catch (err) {
-      // Ignore abortion errors
       if (err.name !== 'AbortError') {
         console.error('Search error:', err)
         setSearchResults([])
@@ -168,8 +170,8 @@ export default function Home() {
     }
   }
 
-  // Smart Search Algorithm dengan Relevance Scoring
-  const performSmartSearch = async (searchQuery = searchTerm) => {
+  // Smart Search Algorithm (sama seperti sebelumnya)
+  const performSmartSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return []
     
     const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0)
@@ -185,13 +187,12 @@ export default function Home() {
       
       if (exactError) throw exactError
 
-      // Jika exact match memberikan hasil cukup, gunakan itu
-      if (exactMatches && exactMatches.length >= 8) {
+      if (exactMatches && exactMatches.length >= 5) {
         setSearchMethod('Exact Match')
         return rankSearchResults(exactMatches, searchWords, searchQuery)
       }
 
-      // Priority 2: Individual word match dengan scoring tinggi
+      // Priority 2: Individual word match
       const wordMatchPromises = searchWords.map(word => 
         supabase
           .from('books')
@@ -201,7 +202,6 @@ export default function Home() {
 
       const wordResults = await Promise.all(wordMatchPromises)
       
-      // Combine semua results
       const allResults = [...(exactMatches || [])]
       wordResults.forEach(({ data }) => {
         if (data) allResults.push(...data)
@@ -217,7 +217,7 @@ export default function Home() {
     }
   }
 
-  // Relevance Scoring Algorithm
+  // Relevance Scoring (sama seperti sebelumnya)
   const rankSearchResults = (results, searchWords, originalQuery) => {
     const scoredResults = results.map(book => {
       let score = 0
@@ -226,26 +226,17 @@ export default function Home() {
       const lowerPenerbit = book.penerbit?.toLowerCase() || ''
       const lowerQuery = originalQuery.toLowerCase()
       
-      // Exact phrase match - highest priority
       if (lowerJudul.includes(lowerQuery)) score += 100
       if (lowerPengarang.includes(lowerQuery)) score += 80
       if (lowerPenerbit.includes(lowerQuery)) score += 60
       
-      // Field-specific weighting
       searchWords.forEach(word => {
         const lowerWord = word.toLowerCase()
-        
-        // Judul matches - highest weight
         if (lowerJudul.includes(lowerWord)) score += 30
-        
-        // Pengarang matches - medium weight
         if (lowerPengarang.includes(lowerWord)) score += 20
-        
-        // Penerbit matches - lower weight
         if (lowerPenerbit.includes(lowerWord)) score += 10
       })
       
-      // Exact word match bonus (whole word matches)
       const judulWords = lowerJudul.split(/\s+/) || []
       const pengarangWords = lowerPengarang.split(/\s+/) || []
       
@@ -255,18 +246,15 @@ export default function Home() {
         if (pengarangWords.includes(lowerWord)) score += 10
       })
       
-      // Length penalty - prefer shorter, more relevant titles
       if (book.judul && book.judul.length < 50) score += 5
       
       return { ...book, _relevanceScore: score }
     })
     
-    // Remove duplicates berdasarkan ID
     const uniqueResults = scoredResults.filter((book, index, self) => 
       index === self.findIndex(b => b.id === book.id)
     )
     
-    // Sort by relevance score, lalu judul
     return uniqueResults.sort((a, b) => {
       if (b._relevanceScore !== a._relevanceScore) {
         return b._relevanceScore - a._relevanceScore
@@ -299,26 +287,22 @@ export default function Home() {
     
     setSearchHistory(prev => {
       const filtered = prev.filter(item => item.term !== term)
-      return [newSearch, ...filtered.slice(0, 9)] // Keep last 10 searches
+      return [newSearch, ...filtered.slice(0, 9)]
     })
   }
 
-  // UPDATED: Manual Search Handler (untuk ketika live search disabled)
-  const handleManualSearch = async (e, customTerm = null) => {
-    if (e && e.preventDefault) e.preventDefault()
+  // NEW: SIMPLIFIED Manual Search
+  const handleManualSearch = async (e) => {
+    if (e) e.preventDefault()
     
-    const searchQuery = customTerm || searchTerm
-    if (!searchQuery.trim()) return
-    
+    if (!searchTerm.trim()) return
+
     // Cancel any ongoing real-time search
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
 
-    await executeSearch(searchQuery)
+    await executeSearch(searchTerm)
     setShowSuggestions(false)
   }
 
@@ -326,25 +310,11 @@ export default function Home() {
   const handleSuggestionClick = (suggestion) => {
     setSearchTerm(suggestion.judul)
     setShowSuggestions(false)
-    
-    if (liveSearchEnabled) {
-      // Trigger real-time search
-      setSearchTerm(suggestion.judul) // Will trigger useEffect
-    } else {
-      // Manual search
-      handleManualSearch({ preventDefault: () => {} }, suggestion.judul)
-    }
   }
 
   // Handle search history click
   const handleHistoryClick = (historyItem) => {
     setSearchTerm(historyItem.term)
-    
-    if (liveSearchEnabled) {
-      setSearchTerm(historyItem.term) // Will trigger useEffect
-    } else {
-      handleManualSearch({ preventDefault: () => {} }, historyItem.term)
-    }
   }
 
   // Clear search history
@@ -353,36 +323,26 @@ export default function Home() {
     localStorage.removeItem('searchHistory')
   }
 
-  // NEW: Toggle live search
+  // Toggle live search
   const toggleLiveSearch = () => {
     setLiveSearchEnabled(prev => !prev)
   }
 
-  // NEW: Clear current search
+  // Clear current search
   const clearSearch = () => {
     setSearchTerm('')
     setSearchResults([])
     setShowStats(true)
     setShowSuggestions(false)
     
-    // Cancel any ongoing search
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
   }
 
   const popularSearches = [
-    'sejarah indonesia',
-    'sastra jawa',
-    'naskah kuno',
-    'budaya nusantara',
-    'colonial history',
-    'manuskrip',
-    'sastra melayu',
-    'sejarah islam'
+    'sejarah indonesia', 'sastra jawa', 'naskah kuno', 'budaya nusantara',
+    'colonial history', 'manuskrip', 'sastra melayu', 'sejarah islam'
   ]
 
   // Pagination calculations
@@ -391,7 +351,6 @@ export default function Home() {
   const currentItems = searchResults.slice(indexOfFirstItem, indexOfLastItem)
   const totalPages = Math.ceil(searchResults.length / itemsPerPage)
   
-  // Function untuk ganti halaman dengan scroll ke atas
   const paginate = (pageNumber) => {
     setCurrentPage(pageNumber)
   }
@@ -409,7 +368,6 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      {/* Modern Hero Section - Responsive */}
       <section style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
@@ -436,13 +394,13 @@ export default function Home() {
             85.000+ warisan budaya di layanan buku langka - Perpustakaan Nasional RI
           </p>
           
-          {/* NEW: Enhanced Search Form dengan Live Search Controls */}
+          {/* SIMPLIFIED Search Form */}
           <form onSubmit={handleManualSearch} style={{ 
             maxWidth: '600px', 
             margin: '0 auto',
             position: 'relative'
           }}>
-            {/* Search Controls Bar */}
+            {/* Search Controls */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -451,11 +409,7 @@ export default function Home() {
               flexWrap: 'wrap',
               gap: '0.5rem'
             }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {/* Live Search Toggle */}
                 <button
                   type="button"
@@ -480,7 +434,7 @@ export default function Home() {
                   Live Search
                 </button>
 
-                {/* Search Status Indicator */}
+                {/* Search Status */}
                 {(loading || isTyping) && (
                   <div style={{
                     padding: '0.3rem 0.6rem',
@@ -503,7 +457,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Clear Search Button */}
               {searchTerm && (
                 <button
                   type="button"
@@ -515,10 +468,7 @@ export default function Home() {
                     border: 'none',
                     borderRadius: '15px',
                     fontSize: '0.7rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem'
+                    cursor: 'pointer'
                   }}
                 >
                   ✕ Hapus
@@ -558,7 +508,7 @@ export default function Home() {
                   }}
                 />
                 
-                {/* Search Suggestions Dropdown */}
+                {/* Suggestions Dropdown */}
                 {showSuggestions && (suggestions.length > 0 || searchHistory.length > 0 || searchTerm.length >= 2) && (
                   <div style={{
                     position: 'absolute',
@@ -688,12 +638,7 @@ export default function Home() {
                         {popularSearches.map((term, index) => (
                           <div
                             key={index}
-                            onClick={() => {
-                              setSearchTerm(term)
-                              if (!liveSearchEnabled) {
-                                handleManualSearch({ preventDefault: () => {} }, term)
-                              }
-                            }}
+                            onClick={() => setSearchTerm(term)}
                             style={{
                               padding: '0.75rem 1rem',
                               cursor: 'pointer',
@@ -712,7 +657,7 @@ export default function Home() {
                 )}
               </div>
               
-              {/* Manual Search Button (visible when live search disabled) */}
+              {/* Manual Search Button */}
               {!liveSearchEnabled && (
                 <button 
                   type="submit"
@@ -735,7 +680,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* NEW: Live Search Status */}
+            {/* Live Search Status */}
             {liveSearchEnabled && searchTerm && (
               <div style={{
                 marginTop: '0.5rem',
@@ -758,7 +703,7 @@ export default function Home() {
             )}
           </form>
 
-          {/* Search Intelligence Info */}
+          {/* Search Info */}
           {searchResults.length > 0 && (
             <div style={{
               marginTop: '1rem',
@@ -775,100 +720,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section - Responsive */}
-      {showStats && (
-        <section style={{
-          backgroundColor: 'white',
-          padding: isMobile ? '2rem 1rem' : '3rem 2rem',
-          transition: 'all 0.3s ease-in-out'
-        }}>
-          <div style={{ 
-            maxWidth: '1200px', 
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: isMobile ? '1.5rem' : '2rem',
-            textAlign: 'center'
-          }}>
-            <div>
-              <div style={{ fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
-              <div style={{ color: '#718096', fontWeight: '500', fontSize: isMobile ? '0.85rem' : '1rem' }}>Koleksi Buku</div>
-            </div>
-            <div>
-              <div style={{ fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
-              <div style={{ color: '#718096', fontWeight: '500', fontSize: isMobile ? '0.85rem' : '1rem' }}>Tahun Sejarah</div>
-            </div>
-            <div>
-              <div style={{ fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
-              <div style={{ color: '#718096', fontWeight: '500', fontSize: isMobile ? '0.85rem' : '1rem' }}>Bahasa</div>
-            </div>
-            <div>
-              <div style={{ fontSize: isMobile ? '2rem' : '2.5rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
-              <div style={{ color: '#718096', fontWeight: '500', fontSize: isMobile ? '0.85rem' : '1rem' }}>Akses Digital</div>
-            </div>
-          </div>
+      {/* ... (rest of the component remains the same) ... */}
 
-          {/* Quick Search Suggestions */}
-          <div style={{
-            maxWidth: '800px',
-            margin: '2rem auto 0 auto',
-            textAlign: 'center'
-          }}>
-            <p style={{ 
-              color: '#718096', 
-              marginBottom: '1rem',
-              fontSize: '0.9rem'
-            }}>
-              💡 Coba pencarian: 
-              {popularSearches.slice(0, 4).map((term, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setSearchTerm(term)
-                    if (!liveSearchEnabled) {
-                      handleManualSearch({ preventDefault: () => {} }, term)
-                    }
-                  }}
-                  style={{
-                    margin: '0 0.5rem',
-                    padding: '0.25rem 0.75rem',
-                    backgroundColor: '#f7fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '15px',
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#4299e1'
-                    e.target.style.color = 'white'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#f7fafc'
-                    e.target.style.color = 'inherit'
-                  }}
-                >
-                  {term}
-                </button>
-              ))}
-            </p>
-          </div>
-        </section>
-      )}
-
-      {/* Search Results Section */}
-      {searchResults.length > 0 && (
-        <section style={{ 
-          maxWidth: '1400px', 
-          margin: isMobile ? '2rem auto' : '3rem auto',
-          padding: isMobile ? '0 1rem' : '0 2rem',
-          animation: 'fadeInUp 0.5s ease-out'
-        }}>
-          {/* ... (rest of the search results code remains the same) ... */}
-        </section>
-      )}
-
-      {/* CSS Animations */}
       <style jsx>{`
         @keyframes fadeInUp {
           from {
@@ -882,15 +735,9 @@ export default function Home() {
         }
 
         @keyframes pulse {
-          0% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
-          100% {
-            opacity: 1;
-          }
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
         }
       `}</style>
     </Layout>
