@@ -22,7 +22,6 @@ function Koleksi() {
   const [sortBy, setSortBy] = useState('judul')
   const [sortOrder, setSortOrder] = useState('asc')
   const [viewMode, setViewMode] = useState('list')
-  const [filtersApplied, setFiltersApplied] = useState(false)
 
   // Refs untuk debounce
   const filterTimeoutRef = useRef(null)
@@ -92,7 +91,7 @@ function Koleksi() {
   const loadInitialBooks = async () => {
     try {
       setLoading(true)
-      setCurrentOffset(0) // Reset offset
+      setCurrentOffset(0)
       
       const { data, error } = await supabase
         .from('books')
@@ -106,17 +105,17 @@ function Koleksi() {
       setVisibleBooks(data || [])
       setCurrentOffset(ITEMS_PER_PAGE)
       setHasMore((data?.length || 0) === ITEMS_PER_PAGE)
-      setFiltersApplied(false)
     } catch (error) {
       console.error('Error loading books:', error)
+      throw error
     } finally {
       setLoading(false)
     }
   }
 
-  // Load more books on scroll - HANYA untuk data tanpa filter
+  // Load more books on scroll - SELALU AKTIF
   const loadMoreBooks = useCallback(async () => {
-    if (loadingMore || !hasMore || filtersApplied) return
+    if (loadingMore || !hasMore) return
     
     try {
       setLoadingMore(true)
@@ -130,10 +129,18 @@ function Koleksi() {
       if (error) throw error
       
       const newBooks = data || []
-      const updatedBooks = [...allLoadedBooks, ...newBooks]
+      const updatedAllBooks = [...allLoadedBooks, ...newBooks]
       
-      setAllLoadedBooks(updatedBooks)
-      setVisibleBooks(updatedBooks) // Tampilkan semua data yang sudah diload
+      setAllLoadedBooks(updatedAllBooks)
+      
+      // Apply current filters to the updated data
+      if (hurufFilter || tahunFilter) {
+        const filtered = applyFiltersToData(updatedAllBooks)
+        setVisibleBooks(filtered)
+      } else {
+        setVisibleBooks(updatedAllBooks)
+      }
+      
       setCurrentOffset(prev => prev + ITEMS_PER_PAGE)
       setHasMore(newBooks.length === ITEMS_PER_PAGE)
     } catch (error) {
@@ -141,12 +148,10 @@ function Koleksi() {
     } finally {
       setLoadingMore(false)
     }
-  }, [loadingMore, hasMore, currentOffset, sortBy, sortOrder, allLoadedBooks, filtersApplied])
+  }, [loadingMore, hasMore, currentOffset, sortBy, sortOrder, allLoadedBooks, hurufFilter, tahunFilter])
 
-  // Infinite scroll detection - HANYA aktif ketika tidak ada filter
+  // Infinite scroll detection - SELALU AKTIF
   useEffect(() => {
-    if (filtersApplied) return; // Nonaktifkan infinite scroll saat filter aktif
-
     const handleScroll = () => {
       if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500) {
         loadMoreBooks()
@@ -155,13 +160,11 @@ function Koleksi() {
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [loadMoreBooks, filtersApplied])
+  }, [loadMoreBooks])
 
   // Apply filters function dengan logika karakter pertama
-  const applyFilters = useCallback(() => {
-    if (!allLoadedBooks.length) return
-
-    let result = [...allLoadedBooks]
+  const applyFiltersToData = useCallback((data) => {
+    let result = [...data]
 
     // Apply huruf filter dengan logika karakter pertama
     if (hurufFilter) {
@@ -214,11 +217,16 @@ function Koleksi() {
       }
     })
 
-    console.log(`✅ Filter results: ${result.length} books found`)
-    setVisibleBooks(result)
-    setFiltersApplied(true)
-    setHasMore(false) // Nonaktifkan infinite scroll saat filter aktif
-  }, [allLoadedBooks, hurufFilter, tahunFilter, sortBy, sortOrder, getFirstCharacter])
+    return result
+  }, [hurufFilter, tahunFilter, sortBy, sortOrder, getFirstCharacter])
+
+  // Apply filters ketika filter berubah
+  const applyFilters = useCallback(() => {
+    if (!allLoadedBooks.length) return
+
+    const filtered = applyFiltersToData(allLoadedBooks)
+    setVisibleBooks(filtered)
+  }, [allLoadedBooks, applyFiltersToData])
 
   // DEBOUNCE FILTERS - Auto apply setelah 500ms
   useEffect(() => {
@@ -227,14 +235,7 @@ function Koleksi() {
     }
 
     filterTimeoutRef.current = setTimeout(() => {
-      if (hurufFilter || tahunFilter) {
-        applyFilters()
-      } else {
-        // Jika tidak ada filter, tampilkan semua data yang sudah diload
-        setVisibleBooks(allLoadedBooks)
-        setFiltersApplied(false)
-        setHasMore(true) // Aktifkan kembali infinite scroll
-      }
+      applyFilters()
     }, 500)
 
     return () => {
@@ -242,7 +243,7 @@ function Koleksi() {
         clearTimeout(filterTimeoutRef.current)
       }
     }
-  }, [hurufFilter, tahunFilter, applyFilters, allLoadedBooks])
+  }, [hurufFilter, tahunFilter, applyFilters])
 
   // Reset filters dan reload data asli
   const clearFilters = async () => {
@@ -250,28 +251,9 @@ function Koleksi() {
     setTahunFilter('')
     setSortBy('judul')
     setSortOrder('asc')
-    setFiltersApplied(false)
     
     // Reset ke data awal (100 buku pertama)
-    setLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('books')
-        .select('*')
-        .order('judul', { ascending: true })
-        .range(0, ITEMS_PER_PAGE - 1)
-
-      if (error) throw error
-      
-      setAllLoadedBooks(data || [])
-      setVisibleBooks(data || [])
-      setCurrentOffset(ITEMS_PER_PAGE)
-      setHasMore((data?.length || 0) === ITEMS_PER_PAGE)
-    } catch (error) {
-      console.error('Error resetting filters:', error)
-    } finally {
-      setLoading(false)
-    }
+    await loadInitialBooks()
   }
 
   // Generate tahun ranges
@@ -291,8 +273,217 @@ function Koleksi() {
 
   const yearRanges = generateYearRanges()
 
-  // Komponen BookCard dan BookListItem tetap sama...
-  // [KODE UNTUK BOOKCARD DAN BOOKLISTITEM SAMA SEPERTI SEBELUMNYA]
+  // Book Card Component
+  const BookCard = ({ book, isMobile }) => (
+    <div style={{
+      backgroundColor: 'white',
+      padding: isMobile ? '1.25rem' : '1.5rem',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      border: '1px solid #f0f0f0',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      <h4 style={{ 
+        fontWeight: '600',
+        color: '#2d3748',
+        marginBottom: '0.75rem',
+        fontSize: isMobile ? '1rem' : '1.1rem',
+        lineHeight: '1.4',
+        flex: 1
+      }}>
+        {book.judul}
+      </h4>
+      
+      <div style={{ marginBottom: '1rem' }}>
+        <div style={{ 
+          fontSize: isMobile ? '0.8rem' : '0.9rem', 
+          color: '#4a5568', 
+          marginBottom: '0.25rem' 
+        }}>
+          <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
+        </div>
+        <div style={{ 
+          fontSize: isMobile ? '0.8rem' : '0.9rem', 
+          color: '#4a5568', 
+          marginBottom: '0.25rem' 
+        }}>
+          <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
+        </div>
+        <div style={{ 
+          fontSize: ismobile ? '0.8rem' : '0.9rem', 
+          color: '#4a5568' 
+        }}>
+          <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
+        </div>
+      </div>
+
+      {book.deskripsi_fisik && (
+        <p style={{ 
+          fontSize: isMobile ? '0.75rem' : '0.85rem', 
+          color: '#718096', 
+          marginTop: '0.75rem',
+          lineHeight: '1.5',
+          fontStyle: 'italic',
+          flex: 1
+        }}>
+          {book.deskripsi_fisik.length > 150 
+            ? `${book.deskripsi_fisik.substring(0, 150)}...` 
+            : book.deskripsi_fisik
+          }
+        </p>
+      )}
+
+      <div style={{ 
+        marginTop: '1.25rem', 
+        display: 'flex', 
+        gap: '0.75rem',
+        flexWrap: 'wrap'
+      }}>
+        {book.lihat_opac && book.lihat_opac !== 'null' && (
+          <a 
+            href={book.lihat_opac}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              backgroundColor: '#4299e1',
+              color: 'white',
+              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: isMobile ? '0.75rem' : '0.85rem',
+              fontWeight: '500'
+            }}
+          >
+            📖 Lihat OPAC
+          </a>
+        )}
+
+        {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
+          <a 
+            href={book.link_pesan_koleksi}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              backgroundColor: '#48bb78',
+              color: 'white',
+              padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: isMobile ? '0.75rem' : '0.85rem',
+              fontWeight: '500'
+            }}
+          >
+            📥 Pesan Koleksi
+          </a>
+        )}
+      </div>
+    </div>
+  )
+
+  // Book List Item Component
+  const BookListItem = ({ book, isMobile }) => (
+    <div style={{
+      backgroundColor: 'white',
+      padding: isMobile ? '1rem' : '1.5rem',
+      borderRadius: '8px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      border: '1px solid #e2e8f0',
+      display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
+      gap: isMobile ? '1rem' : '2rem',
+      alignItems: isMobile ? 'stretch' : 'center'
+    }}>
+      <div style={{ flex: 1 }}>
+        <h4 style={{ 
+          fontWeight: '600',
+          color: '#2d3748',
+          marginBottom: '0.5rem',
+          fontSize: isMobile ? '1rem' : '1.1rem',
+          lineHeight: '1.4'
+        }}>
+          {book.judul}
+        </h4>
+        
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '0.5rem',
+          fontSize: isMobile ? '0.8rem' : '0.9rem',
+          color: '#4a5568'
+        }}>
+          <div><strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}</div>
+          <div><strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}</div>
+          <div><strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}</div>
+        </div>
+
+        {book.deskripsi_fisik && (
+          <p style={{ 
+            fontSize: isMobile ? '0.75rem' : '0.85rem', 
+            color: '#718096', 
+            marginTop: '0.5rem',
+            lineHeight: '1.5',
+            fontStyle: 'italic'
+          }}>
+            {book.deskripsi_fisik.length > 200 
+              ? `${book.deskripsi_fisik.substring(0, 200)}...` 
+              : book.deskripsi_fisik
+            }
+          </p>
+        )}
+      </div>
+
+      <div style={{ 
+        display: 'flex', 
+        gap: '0.5rem',
+        flexWrap: 'wrap',
+        justifyContent: isMobile ? 'center' : 'flex-end'
+      }}>
+        {book.lihat_opac && book.lihat_opac !== 'null' && (
+          <a 
+            href={book.lihat_opac}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              backgroundColor: '#4299e1',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '0.85rem',
+              fontWeight: '500',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            📖 OPAC
+          </a>
+        )}
+
+        {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
+          <a 
+            href={book.link_pesan_koleksi}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              backgroundColor: '#48bb78',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '0.85rem',
+              fontWeight: '500',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            📥 Pesan
+          </a>
+        )}
+      </div>
+    </div>
+  )
+
+  const hasActiveFilters = hurufFilter || tahunFilter
 
   return (
     <Layout isMobile={isMobile}>
@@ -368,8 +559,7 @@ function Koleksi() {
             fontSize: '0.8rem',
             color: '#234e52'
           }}>
-            ⚡ Filter diterapkan otomatis
-            {filtersApplied && ' • Infinite scroll nonaktif'}
+            ⚡ Filter aktif • Infinite scroll tetap berjalan
           </div>
 
           {/* Sort Options */}
@@ -556,7 +746,7 @@ function Koleksi() {
           </div>
 
           {/* Reset Filters */}
-          {(filtersApplied || hurufFilter || tahunFilter) && (
+          {hasActiveFilters && (
             <button
               onClick={clearFilters}
               style={{
@@ -592,7 +782,7 @@ function Koleksi() {
                 margin: 0
               }}>
                 Koleksi Buku Langka
-                {filtersApplied && (
+                {hasActiveFilters && (
                   <span style={{
                     fontSize: '0.9rem',
                     fontWeight: '400',
@@ -611,8 +801,7 @@ function Koleksi() {
                 borderRadius: '6px'
               }}>
                 📊 {visibleBooks.length} buku
-                {!filtersApplied && hasMore && ' + scroll untuk lebih banyak'}
-                {filtersApplied && ' (semua hasil filter)'}
+                {hasMore && ' + scroll untuk lebih banyak'}
               </div>
             </div>
           </div>
@@ -689,8 +878,8 @@ function Koleksi() {
                   </div>
                 )}
 
-                {/* Loading More - HANYA tampil ketika tidak ada filter */}
-                {!filtersApplied && loadingMore && hasMore && (
+                {/* Loading More - SELALU TAMPIL JIKA MASIH ADA DATA */}
+                {loadingMore && hasMore && (
                   <div style={{
                     textAlign: 'center',
                     padding: '2rem',
@@ -730,7 +919,7 @@ function Koleksi() {
                     borderRadius: '12px'
                   }}>
                     <p>
-                      {filtersApplied 
+                      {hasActiveFilters 
                         ? `🎉 Semua hasil filter telah dimuat (${visibleBooks.length} buku)`
                         : `🎉 Semua buku telah dimuat (${visibleBooks.length} buku)`
                       }
