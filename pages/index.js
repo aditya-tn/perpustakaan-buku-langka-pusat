@@ -1,8 +1,50 @@
-// pages/index.js - WITH YEAR SLIDER & CLEANED FILTERS
-import { useState, useEffect, useCallback, useRef } from 'react'
+// pages/index.js - WITH DATABASE INDEX OPTIMIZATION & ENHANCED YEAR FILTERING
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
+
+// NEW: Helper function untuk extract tahun dari berbagai format
+const extractYearFromString = (yearStr) => {
+  if (!yearStr) return null;
+  
+  // Case 1: Exact 4-digit year "1920"
+  const exactYearMatch = yearStr.match(/^(\d{4})$/);
+  if (exactYearMatch) {
+    const year = parseInt(exactYearMatch[1]);
+    return (year >= 1000 && year <= 2999) ? year : null;
+  }
+  
+  // Case 2: Year in brackets "[1920]"
+  const bracketYearMatch = yearStr.match(/\[(\d{4})\]/);
+  if (bracketYearMatch) {
+    const year = parseInt(bracketYearMatch[1]);
+    return (year >= 1000 && year <= 2999) ? year : null;
+  }
+  
+  // Case 3: Range "[1920-1930]" - take first year
+  const rangeYearMatch = yearStr.match(/\[(\d{4})-\d{4}\]/);
+  if (rangeYearMatch) {
+    const year = parseInt(rangeYearMatch[1]);
+    return (year >= 1000 && year <= 2999) ? year : null;
+  }
+  
+  // Case 4: Approximate "[ca. 1920]"
+  const approxYearMatch = yearStr.match(/(\d{4})/);
+  if (approxYearMatch) {
+    const year = parseInt(approxYearMatch[1]);
+    return (year >= 1000 && year <= 2999) ? year : null;
+  }
+  
+  // Case 5: Incomplete "[19-?]" - treat as 1900
+  const incompleteMatch = yearStr.match(/\[(\d{2})-\?\]/);
+  if (incompleteMatch) {
+    const century = incompleteMatch[1];
+    return parseInt(century + '00'); // e.g., "[19-?]" -> 1900
+  }
+  
+  return null;
+};
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -25,7 +67,7 @@ export default function Home() {
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
     // NEW: Year range dengan slider
-    tahunRange: [1547, 1990], // [min, max]
+    tahunRange: [1500, 2024], // [min, max] - UPDATED RANGE
     tahunAwal: '', // Backup untuk input manual
     tahunAkhir: '' // Backup untuk input manual
   })
@@ -35,9 +77,14 @@ export default function Home() {
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
 
-  // NEW: Year range constants
-  const MIN_YEAR = 1547
-  const MAX_YEAR = 1990
+  // NEW: Year range constants - UPDATED
+  const MIN_YEAR = 1500
+  const MAX_YEAR = 2024
+
+  // NEW: Helper untuk count buku dengan tahun valid
+  const countValidYears = (books) => {
+    return books.filter(book => extractYearFromString(book.tahun_terbit) !== null).length;
+  };
 
   // Detect mobile screen
   useEffect(() => {
@@ -149,7 +196,7 @@ export default function Home() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  // NEW: Improved Filtered Results dengan Year Slider
+  // NEW: IMPROVED Filtered Results dengan Enhanced Year Filtering
   const getFilteredResults = useCallback(() => {
     if (!withinSearchTerm.trim() && 
         activeFilters.tahunRange[0] === MIN_YEAR && 
@@ -171,13 +218,27 @@ export default function Home() {
         }
       }
 
-      // NEW: Filter dengan Year Range Slider
+      // ENHANCED: Year filter untuk handle berbagai format
       if (book.tahun_terbit) {
-        const bookYear = parseInt(book.tahun_terbit)
-        const [minYear, maxYear] = activeFilters.tahunRange
+        const yearStr = book.tahun_terbit.toString().trim();
+        const extractedYear = extractYearFromString(yearStr);
         
-        if (bookYear < minYear || bookYear > maxYear) {
-          return false
+        if (extractedYear !== null) {
+          const [minYear, maxYear] = activeFilters.tahunRange;
+          if (extractedYear < minYear || extractedYear > maxYear) {
+            return false;
+          }
+        } else {
+          // Skip books dengan format tahun tidak valid untuk filtering
+          // Tapi tetap tampilkan jika tidak ada filter tahun aktif
+          if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
+            return false;
+          }
+        }
+      } else {
+        // Book tanpa tahun_terbit, skip jika filter tahun aktif
+        if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
+          return false;
         }
       }
 
@@ -185,25 +246,53 @@ export default function Home() {
     })
   }, [searchResults, withinSearchTerm, activeFilters.tahunRange])
 
-  // Get current filtered results
-  const filteredResults = getFilteredResults()
+  // Get current filtered results dengan useMemo untuk optimasi
+  const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
-  // SMART SEARCH EXECUTION
+  // SMART SEARCH EXECUTION dengan Cache
+  const [searchCache, setSearchCache] = useState(new Map());
+
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return
+    
+    // Check cache first
+    const cacheKey = searchQuery.toLowerCase().trim();
+    if (searchCache.has(cacheKey)) {
+      const cachedResults = searchCache.get(cacheKey);
+      setSearchResults(cachedResults);
+      setCurrentPage(1);
+      setSearchMethod('Cached + Index');
+      return;
+    }
     
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
     
     abortControllerRef.current = new AbortController()
-    
     setLoading(true)
     setCurrentPage(1)
 
     try {
+      const startTime = performance.now();
       const results = await performSmartSearch(searchQuery)
+      const endTime = performance.now();
+      
       setSearchResults(results)
+      
+      // Update cache
+      setSearchCache(prev => {
+        const newCache = new Map(prev);
+        if (newCache.size > 50) { // Limit cache size
+          const firstKey = newCache.keys().next().value;
+          newCache.delete(firstKey);
+        }
+        newCache.set(cacheKey, results);
+        return newCache;
+      });
+      
+      // Log performance
+      console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms, found ${results.length} results`);
       
       if (results.length > 0) {
         saveToSearchHistory(searchQuery, results.length)
@@ -219,107 +308,136 @@ export default function Home() {
     }
   }
 
-  // Smart Search Algorithm (sama seperti sebelumnya)
+  // Smart Search Algorithm yang dioptimalkan untuk indexes
   const performSmartSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return []
     
     const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0)
     
     try {
+      // Strategy 1: Exact phrase match (memanfaatkan GIN index)
       const exactMatchQuery = supabase
         .from('books')
         .select('*')
         .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`)
+        .limit(50); // Reduced limit karena sekarang lebih cepat
 
-      const { data: exactMatches, error: exactError } = await exactMatchQuery
+      const { data: exactMatches, error: exactError } = await exactMatchQuery;
       
-      if (exactError) throw exactError
+      if (exactError) throw exactError;
 
-      if (exactMatches && exactMatches.length >= 5) {
-        setSearchMethod('Exact Match')
-        return rankSearchResults(exactMatches, searchWords, searchQuery)
+      // Jika exact matches cukup, return saja (lebih cepat)
+      if (exactMatches && exactMatches.length >= 8) {
+        setSearchMethod('Exact Match + Index');
+        return rankSearchResults(exactMatches, searchWords, searchQuery);
       }
 
+      // Strategy 2: Individual word matches (masih cepat dengan GIN index)
       const wordMatchPromises = searchWords.map(word => 
         supabase
           .from('books')
           .select('*')
           .or(`judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`)
-      )
+          .limit(30) // Limit per word untuk performance
+      );
 
-      const wordResults = await Promise.all(wordMatchPromises)
+      const wordResults = await Promise.all(wordMatchPromises);
       
-      const allResults = [...(exactMatches || [])]
+      // Combine results efficiently
+      const allResults = [...(exactMatches || [])];
+      const seenIds = new Set(exactMatches?.map(item => item.id) || []);
+      
       wordResults.forEach(({ data }) => {
-        if (data) allResults.push(...data)
-      })
+        if (data) {
+          data.forEach(item => {
+            if (!seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              allResults.push(item);
+            }
+          });
+        }
+      });
 
-      setSearchMethod('Smart Ranking')
-      return rankSearchResults(allResults, searchWords, searchQuery)
+      setSearchMethod('Smart Ranking + Index');
+      return rankSearchResults(allResults, searchWords, searchQuery);
 
     } catch (error) {
-      console.error('Smart search error:', error)
-      return performBasicSearch(searchQuery)
+      console.error('Smart search error:', error);
+      // Fallback ke basic search yang tetap manfaatkan index
+      return performBasicSearch(searchQuery);
     }
   }
 
-  // Relevance Scoring (sama seperti sebelumnya)
+  // Enhanced Relevance Scoring
   const rankSearchResults = (results, searchWords, originalQuery) => {
-    const scoredResults = results.map(book => {
-      let score = 0
-      const lowerJudul = book.judul?.toLowerCase() || ''
-      const lowerPengarang = book.pengarang?.toLowerCase() || ''
-      const lowerPenerbit = book.penerbit?.toLowerCase() || ''
-      const lowerQuery = originalQuery.toLowerCase()
-      
-      if (lowerJudul.includes(lowerQuery)) score += 100
-      if (lowerPengarang.includes(lowerQuery)) score += 80
-      if (lowerPenerbit.includes(lowerQuery)) score += 60
-      
-      searchWords.forEach(word => {
-        const lowerWord = word.toLowerCase()
-        if (lowerJudul.includes(lowerWord)) score += 30
-        if (lowerPengarang.includes(lowerWord)) score += 20
-        if (lowerPenerbit.includes(lowerWord)) score += 10
-      })
-      
-      const judulWords = lowerJudul.split(/\s+/) || []
-      const pengarangWords = lowerPengarang.split(/\s+/) || []
-      
-      searchWords.forEach(word => {
-        const lowerWord = word.toLowerCase()
-        if (judulWords.includes(lowerWord)) score += 15
-        if (pengarangWords.includes(lowerWord)) score += 10
-      })
-      
-      if (book.judul && book.judul.length < 50) score += 5
-      
-      return { ...book, _relevanceScore: score }
-    })
+    const lowerQuery = originalQuery.toLowerCase();
     
+    const scoredResults = results.map(book => {
+      let score = 0;
+      const lowerJudul = book.judul?.toLowerCase() || '';
+      const lowerPengarang = book.pengarang?.toLowerCase() || '';
+      const lowerPenerbit = book.penerbit?.toLowerCase() || '';
+      
+      // Exact matches get highest priority
+      if (lowerJudul === lowerQuery) score += 200;
+      if (lowerPengarang === lowerQuery) score += 150;
+      
+      // Partial matches
+      if (lowerJudul.includes(lowerQuery)) score += 100;
+      if (lowerPengarang.includes(lowerQuery)) score += 80;
+      if (lowerPenerbit.includes(lowerQuery)) score += 60;
+      
+      // Word-by-word matching dengan position weighting
+      searchWords.forEach(word => {
+        const lowerWord = word.toLowerCase();
+        
+        // Title matches (most important)
+        if (lowerJudul.includes(lowerWord)) {
+          score += 40;
+          // Bonus for word at beginning of title
+          if (lowerJudul.startsWith(lowerWord)) score += 20;
+        }
+        
+        // Author matches
+        if (lowerPengarang.includes(lowerWord)) score += 25;
+        
+        // Publisher matches
+        if (lowerPenerbit.includes(lowerWord)) score += 15;
+      });
+      
+      // Quality bonuses
+      if (book.judul && book.judul.length < 60) score += 10; // Concise titles
+      if (book.tahun_terbit && extractYearFromString(book.tahun_terbit) > 1900) score += 5; // Recent publications
+      
+      return { ...book, _relevanceScore: score };
+    });
+    
+    // Remove duplicates and sort
     const uniqueResults = scoredResults.filter((book, index, self) => 
       index === self.findIndex(b => b.id === book.id)
-    )
+    );
     
     return uniqueResults.sort((a, b) => {
       if (b._relevanceScore !== a._relevanceScore) {
-        return b._relevanceScore - a._relevanceScore
+        return b._relevanceScore - a._relevanceScore;
       }
-      return (a.judul || '').localeCompare(b.judul || '')
-    })
-  }
+      // Secondary sort by title
+      return (a.judul || '').localeCompare(b.judul || '');
+    });
+  };
 
-  // Basic search fallback
+  // Basic search fallback yang dioptimalkan
   const performBasicSearch = async (searchQuery) => {
-    setSearchMethod('Basic Search')
+    setSearchMethod('Basic Search + Index');
     
     const { data, error } = await supabase
       .from('books')
       .select('*')
       .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`)
+      .limit(100); // Increased limit karena sekarang lebih cepat
 
-    if (error) throw error
-    return data || []
+    if (error) throw error;
+    return data || [];
   }
 
   // Save to search history
@@ -421,10 +539,9 @@ export default function Home() {
       
       // Update range jika kedua input terisi
       if (newFilters.tahunAwal && newFilters.tahunAkhir) {
-        newFilters.tahunRange = [
-          parseInt(newFilters.tahunAwal),
-          parseInt(newFilters.tahunAkhir)
-        ]
+        const minYear = Math.max(MIN_YEAR, parseInt(newFilters.tahunAwal));
+        const maxYear = Math.min(MAX_YEAR, parseInt(newFilters.tahunAkhir));
+        newFilters.tahunRange = [minYear, maxYear];
       }
       
       return newFilters
@@ -805,8 +922,8 @@ export default function Home() {
               fontSize: '0.8rem',
               display: 'inline-block'
             }}>
-              🧠 {searchMethod} • {searchResults.length} hasil relevan
-              {liveSearchEnabled && ' • 🔴 Live'}
+              🚀 {searchMethod} • {searchResults.length} hasil relevan
+              {liveSearchEnabled && ' • 🔴 Live'} • 📊 Index Optimized
             </div>
           )}
         </div>
@@ -1081,7 +1198,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Filter Status */}
+            {/* UPDATE: Filter Status dengan Info Tahun Valid */}
             {isWithinSearchActive && (
               <div style={{
                 marginTop: '1rem',
@@ -1096,7 +1213,8 @@ export default function Home() {
                 {withinSearchTerm && ` Teks: "${withinSearchTerm}"`}
                 {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
                   ` Tahun: ${activeFilters.tahunRange[0]} - ${activeFilters.tahunRange[1]}`}
-                {` • Menampilkan ${filteredResults.length} dari ${searchResults.length} hasil`}
+                {` • ${filteredResults.length} hasil (dari ${searchResults.length})`}
+                {` • 📊 ${countValidYears(filteredResults)} buku dengan tahun valid`}
               </div>
             )}
           </div>
@@ -1230,7 +1348,17 @@ export default function Home() {
                     color: '#4a5568', 
                     marginBottom: '0.25rem' 
                   }}>
-                    <strong>Tahun:</strong> {book.tahun_terbit || 'Tidak diketahui'}
+                    <strong>Tahun:</strong> 
+                    <span style={{
+                      backgroundColor: extractYearFromString(book.tahun_terbit) ? '#f0fff4' : '#fffaf0',
+                      padding: '0.1rem 0.3rem',
+                      borderRadius: '4px',
+                      marginLeft: '0.3rem',
+                      fontFamily: 'monospace'
+                    }}>
+                      {book.tahun_terbit || 'Tidak diketahui'}
+                      {!extractYearFromString(book.tahun_terbit) && book.tahun_terbit && ' ⚠️'}
+                    </span>
                   </div>
                   <div style={{ 
                     fontSize: isMobile ? '0.8rem' : '0.9rem', 
