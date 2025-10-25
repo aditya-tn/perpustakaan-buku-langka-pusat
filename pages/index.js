@@ -4,46 +4,37 @@ import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 
-// NEW: Helper function untuk extract tahun dari berbagai format
+// NEW: Pre-compiled regex patterns untuk performa
+const yearPatterns = {
+  exact: /^(\d{4})$/,
+  bracket: /\[(\d{4})\]/,
+  range: /\[(\d{4})-\d{4}\]/,
+  approx: /(\d{4})/,
+  incomplete: /\[(\d{2})-\?\]/
+};
+
+// OPTIMIZED: Helper function untuk extract tahun dari berbagai format
 const extractYearFromString = (yearStr) => {
   if (!yearStr) return null;
   
-  // Case 1: Exact 4-digit year "1920"
-  const exactYearMatch = yearStr.match(/^(\d{4})$/);
-  if (exactYearMatch) {
-    const year = parseInt(exactYearMatch[1]);
-    return (year >= 1000 && year <= 2999) ? year : null;
+  const str = yearStr.toString().trim();
+  let year = null;
+
+  // Cek pattern secara berurutan
+  if (yearPatterns.exact.test(str)) {
+    year = parseInt(str);
+  } else if (yearPatterns.bracket.test(str)) {
+    year = parseInt(str.match(yearPatterns.bracket)[1]);
+  } else if (yearPatterns.range.test(str)) {
+    year = parseInt(str.match(yearPatterns.range)[1]);
+  } else if (yearPatterns.approx.test(str)) {
+    year = parseInt(str.match(yearPatterns.approx)[1]);
+  } else if (yearPatterns.incomplete.test(str)) {
+    const century = str.match(yearPatterns.incomplete)[1];
+    year = parseInt(century + '00');
   }
-  
-  // Case 2: Year in brackets "[1920]"
-  const bracketYearMatch = yearStr.match(/\[(\d{4})\]/);
-  if (bracketYearMatch) {
-    const year = parseInt(bracketYearMatch[1]);
-    return (year >= 1000 && year <= 2999) ? year : null;
-  }
-  
-  // Case 3: Range "[1920-1930]" - take first year
-  const rangeYearMatch = yearStr.match(/\[(\d{4})-\d{4}\]/);
-  if (rangeYearMatch) {
-    const year = parseInt(rangeYearMatch[1]);
-    return (year >= 1000 && year <= 2999) ? year : null;
-  }
-  
-  // Case 4: Approximate "[ca. 1920]"
-  const approxYearMatch = yearStr.match(/(\d{4})/);
-  if (approxYearMatch) {
-    const year = parseInt(approxYearMatch[1]);
-    return (year >= 1000 && year <= 2999) ? year : null;
-  }
-  
-  // Case 5: Incomplete "[19-?]" - treat as 1900
-  const incompleteMatch = yearStr.match(/\[(\d{2})-\?\]/);
-  if (incompleteMatch) {
-    const century = incompleteMatch[1];
-    return parseInt(century + '00'); // e.g., "[19-?]" -> 1900
-  }
-  
-  return null;
+
+  return (year >= 1000 && year <= 2999) ? year : null;
 };
 
 // NEW: Synonyms service
@@ -77,26 +68,28 @@ const detectLanguage = (text) => {
   return 'en'; // default to English
 };
 
-// NEW: Enhanced synonyms expansion dengan context awareness
+// OPTIMIZED: Enhanced synonyms expansion dengan parallel fetching
 const expandSearchWithSynonyms = async (searchQuery) => {
   const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 1);
   
   if (searchWords.length === 0) return { terms: [searchQuery], synonyms: [] };
 
-  const allSynonyms = [];
-  const detectedSynonyms = [];
-  const primaryLanguage = detectLanguage(searchQuery);
-  
-  console.log(`🌐 Detected language: ${primaryLanguage} for query: "${searchQuery}"`);
-
-  // Cari synonyms untuk setiap kata dengan priority berdasarkan bahasa
-  for (const word of searchWords) {
-    const synonymsData = await fetchSynonyms(word);
+  try {
+    const allSynonyms = [];
+    const detectedSynonyms = [];
+    const primaryLanguage = detectLanguage(searchQuery);
     
-    synonymsData.forEach(item => {
+    console.log(`🌐 Detected language: ${primaryLanguage} for query: "${searchQuery}"`);
+
+    // PARALLEL fetching untuk semua kata sekaligus
+    const synonymsPromises = searchWords.map(word => fetchSynonyms(word));
+    const synonymsResults = await Promise.all(synonymsPromises);
+    
+    // Process results
+    synonymsResults.flat().forEach(item => {
       // Tambahkan ke detected synonyms untuk display
       item.synonyms.forEach(synonym => {
-        if (!detectedSynonyms.includes(synonym) && synonym.toLowerCase() !== word.toLowerCase()) {
+        if (!detectedSynonyms.includes(synonym) && synonym.toLowerCase() !== item.term.toLowerCase()) {
           detectedSynonyms.push(synonym);
         }
       });
@@ -113,32 +106,95 @@ const expandSearchWithSynonyms = async (searchQuery) => {
         }
       });
     });
+
+    // Gabungkan original terms dengan synonyms yang unik
+    const uniqueSynonyms = [...new Set(allSynonyms)]
+      .filter(synonym => {
+        const lowerSynonym = synonym.toLowerCase();
+        return !searchWords.some(word => 
+          lowerSynonym.includes(word.toLowerCase()) || 
+          word.toLowerCase().includes(lowerSynonym)
+        );
+      })
+      .slice(0, 15);
+
+    const expandedTerms = [searchQuery, ...uniqueSynonyms];
+    const finalSynonyms = detectedSynonyms.slice(0, 8); // Limit untuk display
+    
+    console.log('🔤 Expanded search terms:', {
+      original: searchQuery,
+      synonyms: uniqueSynonyms,
+      totalTerms: expandedTerms.length
+    });
+    
+    return { terms: expandedTerms, synonyms: finalSynonyms };
+  } catch (error) {
+    console.error('Synonyms expansion failed:', error);
+    return { terms: [searchQuery], synonyms: [] }; // Fallback ke original query
   }
-
-  // Gabungkan original terms dengan synonyms yang unik
-  const uniqueSynonyms = [...new Set(allSynonyms)]
-    .filter(synonym => {
-      const lowerSynonym = synonym.toLowerCase();
-      return !searchWords.some(word => 
-        lowerSynonym.includes(word.toLowerCase()) || 
-        word.toLowerCase().includes(lowerSynonym)
-      );
-    })
-    .slice(0, 15);
-
-  const expandedTerms = [searchQuery, ...uniqueSynonyms];
-  const finalSynonyms = detectedSynonyms.slice(0, 8); // Limit untuk display
-  
-  console.log('🔤 Expanded search terms:', {
-    original: searchQuery,
-    synonyms: uniqueSynonyms,
-    totalTerms: expandedTerms.length
-  });
-  
-  return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-export default function Home() {
+// Error Boundary Component
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Search Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#e53e3e' }}>
+          <h3>⚠️ Terjadi kesalahan dalam pencarian</h3>
+          <button 
+            onClick={() => this.setState({ hasError: false, error: null })}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#4299e1',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Coba Lagi
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Debounce utility function
+const debounce = (func, wait) => {
+  let timeout;
+  const executedFunction = (...args) => {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+
+  executedFunction.cancel = () => {
+    clearTimeout(timeout);
+  };
+
+  return executedFunction;
+};
+
+function HomeComponent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(false)
@@ -163,7 +219,6 @@ export default function Home() {
   // NEW: Search-within-Search dengan Year Slider ONLY
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
-    // YEAR SLIDER ONLY - NO MANUAL INPUTS
     tahunRange: [1500, 2024] // [min, max]
   })
 
@@ -184,9 +239,96 @@ export default function Home() {
   const [searchCache, setSearchCache] = useState(new Map());
 
   // NEW: Toggle synonyms function
-  const toggleSynonyms = () => {
+  const toggleSynonyms = useCallback(() => {
     setSynonymsEnabled(prev => !prev);
-  };
+  }, []);
+
+  // Optimized search execution dengan proper cleanup
+  const executeSearch = useCallback(async (searchQuery) => {
+    if (!searchQuery.trim()) return;
+    
+    // Cancel previous search
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    // Reset active synonyms
+    setActiveSynonyms([]);
+    
+    // Check cache first
+    const cacheKey = searchQuery.toLowerCase().trim();
+    if (searchCache.has(cacheKey) && !synonymsEnabled) {
+      const cachedResults = searchCache.get(cacheKey);
+      setSearchResults(cachedResults);
+      setCurrentPage(1);
+      setSearchMethod('Cached + Index');
+      setLoading(false);
+      return;
+    }
+    
+    // Detect language
+    const lang = detectLanguage(searchQuery);
+    setDetectedLanguage(lang);
+    
+    setLoading(true);
+    setCurrentPage(1);
+
+    try {
+      const startTime = performance.now();
+      const results = await performSmartSearch(searchQuery);
+      
+      // Check if search was aborted
+      if (abortController.signal.aborted) return;
+      
+      const endTime = performance.now();
+      
+      setSearchResults(results);
+      
+      // Update cache dengan better cleanup
+      setSearchCache(prev => {
+        const newCache = new Map(prev);
+        if (newCache.size > 50) {
+          // Hapus 10 item tertua
+          const keysToDelete = Array.from(newCache.keys()).slice(0, 10);
+          keysToDelete.forEach(key => newCache.delete(key));
+        }
+        newCache.set(cacheKey, results);
+        return newCache;
+      });
+      
+      // Log performance
+      console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms, found ${results.length} results`);
+      
+      if (results.length > 0) {
+        saveToSearchHistory(searchQuery, results.length);
+      }
+      
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Search error:', err);
+        setSearchResults([]);
+        setSearchMethod('Error - Coba lagi');
+      }
+    } finally {
+      if (!abortController.signal.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [searchCache, synonymsEnabled]);
+
+  // Debounced search function
+  const debouncedSearch = useMemo(() => 
+    debounce(async (searchQuery) => {
+      if (searchQuery.trim()) {
+        setIsTyping(false);
+        await executeSearch(searchQuery);
+      }
+    }, 800),
+    [executeSearch]
+  );
 
   // Detect mobile screen
   useEffect(() => {
@@ -216,12 +358,8 @@ export default function Home() {
     }
   }, [searchHistory, liveSearchEnabled, synonymsEnabled])
 
-  // REAL-TIME SEARCH EFFECT
+  // OPTIMIZED: REAL-TIME SEARCH EFFECT dengan proper cleanup
   useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-
     if (!searchTerm.trim()) {
       if (searchTerm.trim().length === 0) {
         setSearchResults([])
@@ -239,18 +377,12 @@ export default function Home() {
     if (!liveSearchEnabled) return
 
     setIsTyping(true)
-
-    searchTimeoutRef.current = setTimeout(async () => {
-      setIsTyping(false)
-      await executeSearch(searchTerm)
-    }, 800)
+    debouncedSearch(searchTerm)
 
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
+      debouncedSearch.cancel?.();
     }
-  }, [searchTerm, liveSearchEnabled, synonymsEnabled])
+  }, [searchTerm, liveSearchEnabled, debouncedSearch])
 
   // Reset within-search ketika search utama berubah
   useEffect(() => {
@@ -273,7 +405,7 @@ export default function Home() {
     setShowStats(searchResults.length === 0)
   }, [searchResults])
 
-  // Suggestions effect
+  // OPTIMIZED: Suggestions effect dengan cleanup
   useEffect(() => {
     if (searchTerm.length < 2) {
       setSuggestions([])
@@ -286,7 +418,7 @@ export default function Home() {
           .from('books')
           .select('judul, pengarang, penerbit, id')
           .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%`)
-          .limit(5) // ✅ Hanya untuk suggestions, biarkan limit
+          .limit(5)
 
         setSuggestions(data || [])
       } catch (error) {
@@ -350,69 +482,6 @@ export default function Home() {
   // Get current filtered results dengan useMemo untuk optimasi
   const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
-  const executeSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) return
-    
-    // Reset active synonyms
-    setActiveSynonyms([]);
-    
-    // Check cache first
-    const cacheKey = searchQuery.toLowerCase().trim();
-    if (searchCache.has(cacheKey) && !synonymsEnabled) {
-      const cachedResults = searchCache.get(cacheKey);
-      setSearchResults(cachedResults);
-      setCurrentPage(1);
-      setSearchMethod('Cached + Index');
-      return;
-    }
-    
-    // Detect language
-    const lang = detectLanguage(searchQuery);
-    setDetectedLanguage(lang);
-    
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    
-    abortControllerRef.current = new AbortController()
-    setLoading(true)
-    setCurrentPage(1)
-
-    try {
-      const startTime = performance.now();
-      const results = await performSmartSearch(searchQuery)
-      const endTime = performance.now();
-      
-      setSearchResults(results)
-      
-      // Update cache
-      setSearchCache(prev => {
-        const newCache = new Map(prev);
-        if (newCache.size > 50) {
-          const firstKey = newCache.keys().next().value;
-          newCache.delete(firstKey);
-        }
-        newCache.set(cacheKey, results);
-        return newCache;
-      });
-      
-      // Log performance
-      console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms, found ${results.length} results`);
-      
-      if (results.length > 0) {
-        saveToSearchHistory(searchQuery, results.length)
-      }
-      
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Search error:', err)
-        setSearchResults([])
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // Smart Search Algorithm - UNLIMITED RESULTS dengan Synonyms Support
   const performSmartSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return []
@@ -462,7 +531,8 @@ export default function Home() {
             .select('*')
             .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
         );
-        synonymResults = await Promise.all(synonymPromises);
+        const synonymResponses = await Promise.all(synonymPromises);
+        synonymResults = synonymResponses.map(response => response.data || []);
       }
 
       // Combine semua results
@@ -470,15 +540,13 @@ export default function Home() {
       const seenIds = new Set(exactMatches?.map(item => item.id) || []);
       
       if (synonymsEnabled) {
-        synonymResults.forEach(({ data }) => {
-          if (data) {
-            data.forEach(item => {
-              if (!seenIds.has(item.id)) {
-                seenIds.add(item.id);
-                allResults.push(item);
-              }
-            });
-          }
+        synonymResults.forEach(data => {
+          data.forEach(item => {
+            if (!seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              allResults.push(item);
+            }
+          });
         });
       }
 
@@ -490,8 +558,8 @@ export default function Home() {
           .or(`judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`)
       );
 
-      const wordResults = await Promise.all(wordMatchPromises);
-      wordResults.forEach(({ data }) => {
+      const wordResponses = await Promise.all(wordMatchPromises);
+      wordResponses.forEach(({ data }) => {
         if (data) {
           data.forEach(item => {
             if (!seenIds.has(item.id)) {
@@ -614,9 +682,8 @@ export default function Home() {
     
     if (!searchTerm.trim()) return
 
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
+    debouncedSearch.cancel?.();
+    setIsTyping(false);
 
     await executeSearch(searchTerm)
     setShowSuggestions(false)
@@ -656,11 +723,9 @@ export default function Home() {
       tahunRange: [MIN_YEAR, MAX_YEAR]
     })
     
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
+    debouncedSearch.cancel?.();
     if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
+      abortControllerRef.current.abort();
     }
   }
 
@@ -1728,5 +1793,14 @@ export default function Home() {
         }
       `}</style>
     </Layout>
+  )
+}
+
+// Wrap dengan Error Boundary
+export default function Home() {
+  return (
+    <ErrorBoundary>
+      <HomeComponent />
+    </ErrorBoundary>
   )
 }
