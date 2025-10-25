@@ -1,47 +1,52 @@
-// pages/index.js - OPTIMIZED SEARCH WITH CONTEXTUAL SYNONYMS TOGGLE
+// pages/index.js - OPTIMIZED SEARCH WITH MULTILINGUAL SYNONYMS & TOGGLE
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 
-// Helper function untuk extract tahun dari berbagai format
+// NEW: Helper function untuk extract tahun dari berbagai format
 const extractYearFromString = (yearStr) => {
   if (!yearStr) return null;
   
+  // Case 1: Exact 4-digit year "1920"
   const exactYearMatch = yearStr.match(/^(\d{4})$/);
   if (exactYearMatch) {
     const year = parseInt(exactYearMatch[1]);
     return (year >= 1000 && year <= 2999) ? year : null;
   }
   
+  // Case 2: Year in brackets "[1920]"
   const bracketYearMatch = yearStr.match(/\[(\d{4})\]/);
   if (bracketYearMatch) {
     const year = parseInt(bracketYearMatch[1]);
     return (year >= 1000 && year <= 2999) ? year : null;
   }
   
+  // Case 3: Range "[1920-1930]" - take first year
   const rangeYearMatch = yearStr.match(/\[(\d{4})-\d{4}\]/);
   if (rangeYearMatch) {
     const year = parseInt(rangeYearMatch[1]);
     return (year >= 1000 && year <= 2999) ? year : null;
   }
   
+  // Case 4: Approximate "[ca. 1920]"
   const approxYearMatch = yearStr.match(/(\d{4})/);
   if (approxYearMatch) {
     const year = parseInt(approxYearMatch[1]);
     return (year >= 1000 && year <= 2999) ? year : null;
   }
   
+  // Case 5: Incomplete "[19-?]" - treat as 1900
   const incompleteMatch = yearStr.match(/\[(\d{2})-\?\]/);
   if (incompleteMatch) {
     const century = incompleteMatch[1];
-    return parseInt(century + '00');
+    return parseInt(century + '00'); // e.g., "[19-?]" -> 1900
   }
   
   return null;
 };
 
-// Synonyms service
+// NEW: Synonyms service
 const fetchSynonyms = async (searchTerm) => {
   try {
     const { data, error } = await supabase
@@ -58,7 +63,7 @@ const fetchSynonyms = async (searchTerm) => {
   }
 };
 
-// Simple language detection
+// NEW: Simple language detection
 const detectLanguage = (text) => {
   const indonesianWords = ['yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'pada', 'dengan', 'ini', 'itu'];
   const dutchWords = ['de', 'het', 'en', 'van', 'tot', 'voor', 'met', 'zijn', 'een'];
@@ -69,10 +74,10 @@ const detectLanguage = (text) => {
   
   if (nlCount > idCount && nlCount > 1) return 'nl';
   if (idCount > nlCount && idCount > 1) return 'id';
-  return 'en';
+  return 'en'; // default to English
 };
 
-// Enhanced synonyms expansion dengan context awareness
+// NEW: Enhanced synonyms expansion dengan context awareness
 const expandSearchWithSynonyms = async (searchQuery) => {
   const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 1);
   
@@ -81,6 +86,8 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   const allSynonyms = [];
   const detectedSynonyms = [];
   const primaryLanguage = detectLanguage(searchQuery);
+  
+  console.log(`🌐 Detected language: ${primaryLanguage} for query: "${searchQuery}"`);
 
   // Cari synonyms untuk setiap kata dengan priority berdasarkan bahasa
   for (const word of searchWords) {
@@ -120,7 +127,13 @@ const expandSearchWithSynonyms = async (searchQuery) => {
     .slice(0, 15);
 
   const expandedTerms = [searchQuery, ...uniqueSynonyms];
-  const finalSynonyms = detectedSynonyms.slice(0, 8);
+  const finalSynonyms = detectedSynonyms.slice(0, 8); // Limit untuk display
+  
+  console.log('🔤 Expanded search terms:', {
+    original: searchQuery,
+    synonyms: uniqueSynonyms,
+    totalTerms: expandedTerms.length
+  });
   
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
@@ -143,26 +156,26 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState('')
   
-  // NEW: Synonyms States - ALWAYS ON by default, toggle hanya muncul ketika ada synonyms
+  // NEW: Synonyms States
   const [synonymsEnabled, setSynonymsEnabled] = useState(true)
   const [activeSynonyms, setActiveSynonyms] = useState([])
-  const [showSynonymsFilter, setShowSynonymsFilter] = useState(false)
 
-  // Search-within-Search dengan Year Slider ONLY
+  // NEW: Search-within-Search dengan Year Slider ONLY
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
-    tahunRange: [1500, 2024]
+    // YEAR SLIDER ONLY - NO MANUAL INPUTS
+    tahunRange: [1500, 2024] // [min, max]
   })
 
   // Refs
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
 
-  // Constants
+  // NEW: Year range constants
   const MIN_YEAR = 1500
   const MAX_YEAR = 2024
 
-  // Helper untuk count buku dengan tahun valid
+  // NEW: Helper untuk count buku dengan tahun valid
   const countValidYears = (books) => {
     return books.filter(book => extractYearFromString(book.tahun_terbit) !== null).length;
   };
@@ -170,16 +183,9 @@ export default function Home() {
   // SMART SEARCH EXECUTION dengan Cache & Synonyms
   const [searchCache, setSearchCache] = useState(new Map());
 
-  // NEW: Toggle synonyms function - hanya muncul ketika ada synonyms aktif
+  // NEW: Toggle synonyms function
   const toggleSynonyms = () => {
     setSynonymsEnabled(prev => !prev);
-  };
-
-  // NEW: Clear synonyms filter
-  const clearSynonymsFilter = () => {
-    setSynonymsEnabled(true);
-    setShowSynonymsFilter(false);
-    setActiveSynonyms([]);
   };
 
   // Detect mobile screen
@@ -220,11 +226,12 @@ export default function Home() {
       if (searchTerm.trim().length === 0) {
         setSearchResults([])
         setShowStats(true)
-        // Reset semua filters
+        // Reset within-search
         setWithinSearchTerm('')
-        setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
+        setActiveFilters({
+          tahunRange: [MIN_YEAR, MAX_YEAR]
+        })
         setActiveSynonyms([])
-        setShowSynonymsFilter(false)
       }
       return
     }
@@ -245,11 +252,13 @@ export default function Home() {
     }
   }, [searchTerm, liveSearchEnabled, synonymsEnabled])
 
-  // Reset filters ketika search utama berubah
+  // Reset within-search ketika search utama berubah
   useEffect(() => {
     if (searchResults.length > 0) {
       setWithinSearchTerm('')
-      setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
+      setActiveFilters({
+        tahunRange: [MIN_YEAR, MAX_YEAR]
+      })
     }
   }, [searchResults])
 
@@ -277,7 +286,7 @@ export default function Home() {
           .from('books')
           .select('judul, pengarang, penerbit, id')
           .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%`)
-          .limit(5)
+          .limit(5) // ✅ Hanya untuk suggestions, biarkan limit
 
         setSuggestions(data || [])
       } catch (error) {
@@ -289,40 +298,53 @@ export default function Home() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  // Filtered Results dengan Enhanced Year Filtering
+  // NEW: IMPROVED Filtered Results dengan Enhanced Year Filtering
   const getFilteredResults = useCallback(() => {
-    let results = searchResults;
+    if (!withinSearchTerm.trim() && 
+        activeFilters.tahunRange[0] === MIN_YEAR && 
+        activeFilters.tahunRange[1] === MAX_YEAR) {
+      return searchResults
+    }
 
-    // Apply within-search text filter
-    if (withinSearchTerm.trim()) {
-      const searchLower = withinSearchTerm.toLowerCase()
-      results = results.filter(book => {
+    return searchResults.filter(book => {
+      // Filter: Search within text
+      if (withinSearchTerm.trim()) {
+        const searchLower = withinSearchTerm.toLowerCase()
         const judulMatch = book.judul?.toLowerCase().includes(searchLower) || false
         const pengarangMatch = book.pengarang?.toLowerCase().includes(searchLower) || false
         const penerbitMatch = book.penerbit?.toLowerCase().includes(searchLower) || false
         const deskripsiMatch = book.deskripsi_fisik?.toLowerCase().includes(searchLower) || false
         
-        return judulMatch || pengarangMatch || penerbitMatch || deskripsiMatch
-      })
-    }
+        if (!judulMatch && !pengarangMatch && !penerbitMatch && !deskripsiMatch) {
+          return false
+        }
+      }
 
-    // Apply year filter
-    if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
-      results = results.filter(book => {
-        if (book.tahun_terbit) {
-          const yearStr = book.tahun_terbit.toString().trim();
-          const extractedYear = extractYearFromString(yearStr);
-          
-          if (extractedYear !== null) {
-            const [minYear, maxYear] = activeFilters.tahunRange;
-            return extractedYear >= minYear && extractedYear <= maxYear;
+      // ENHANCED: Year filter untuk handle berbagai format
+      if (book.tahun_terbit) {
+        const yearStr = book.tahun_terbit.toString().trim();
+        const extractedYear = extractYearFromString(yearStr);
+        
+        if (extractedYear !== null) {
+          const [minYear, maxYear] = activeFilters.tahunRange;
+          if (extractedYear < minYear || extractedYear > maxYear) {
+            return false;
+          }
+        } else {
+          // Skip books dengan format tahun tidak valid untuk filtering
+          if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
+            return false;
           }
         }
-        return false;
-      })
-    }
+      } else {
+        // Book tanpa tahun_terbit, skip jika filter tahun aktif
+        if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
+          return false;
+        }
+      }
 
-    return results;
+      return true
+    })
   }, [searchResults, withinSearchTerm, activeFilters.tahunRange])
 
   // Get current filtered results dengan useMemo untuk optimasi
@@ -333,7 +355,6 @@ export default function Home() {
     
     // Reset active synonyms
     setActiveSynonyms([]);
-    setShowSynonymsFilter(false);
     
     // Check cache first
     const cacheKey = searchQuery.toLowerCase().trim();
@@ -375,6 +396,7 @@ export default function Home() {
         return newCache;
       });
       
+      // Log performance
       console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms, found ${results.length} results`);
       
       if (results.length > 0) {
@@ -391,7 +413,7 @@ export default function Home() {
     }
   }
 
-  // Smart Search Algorithm dengan Synonyms Support
+  // Smart Search Algorithm - UNLIMITED RESULTS dengan Synonyms Support
   const performSmartSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return []
     
@@ -407,17 +429,14 @@ export default function Home() {
         expandedTerms = expansionResult.terms;
         detectedSynonyms = expansionResult.synonyms;
         
-        // Set active synonyms untuk ditampilkan di UI - hanya jika ada synonyms yang ditemukan
-        if (detectedSynonyms.length > 0) {
-          setActiveSynonyms(detectedSynonyms);
-          setShowSynonymsFilter(true);
-        }
+        // Set active synonyms untuk ditampilkan di UI
+        setActiveSynonyms(detectedSynonyms);
         
         console.log('🔤 Expanded search terms:', expandedTerms);
         console.log('📝 Detected synonyms:', detectedSynonyms);
       } else {
         setActiveSynonyms([]);
-        setShowSynonymsFilter(false);
+        setSearchMethod('Smart Search (No Synonyms)');
       }
 
       // Strategy 1: Exact matches dengan original query
@@ -430,14 +449,13 @@ export default function Home() {
       if (exactError) throw exactError;
 
       // Jika synonyms disabled, hanya gunakan exact matches
-      if (!synonymsEnabled) {
-        setSearchMethod('Exact Match');
-        return rankSearchResults(exactMatches || [], searchWords, searchQuery, []);
+      if (!synonymsEnabled && exactMatches && exactMatches.length > 0) {
+        return rankSearchResults(exactMatches, searchWords, searchQuery, []);
       }
 
-      // Strategy 2: Search dengan semua expanded terms (synonyms) - hanya jika enabled dan ada synonyms
+      // Strategy 2: Search dengan semua expanded terms (synonyms) - hanya jika enabled
       let synonymResults = [];
-      if (synonymsEnabled && detectedSynonyms.length > 0) {
+      if (synonymsEnabled) {
         const synonymPromises = expandedTerms.map(term => 
           supabase
             .from('books')
@@ -451,7 +469,7 @@ export default function Home() {
       const allResults = [...(exactMatches || [])];
       const seenIds = new Set(exactMatches?.map(item => item.id) || []);
       
-      if (synonymsEnabled && detectedSynonyms.length > 0) {
+      if (synonymsEnabled) {
         synonymResults.forEach(({ data }) => {
           if (data) {
             data.forEach(item => {
@@ -484,7 +502,7 @@ export default function Home() {
         }
       });
 
-      const method = synonymsEnabled && detectedSynonyms.length > 0 ? 'Smart Search + Synonyms' : 'Smart Search';
+      const method = synonymsEnabled ? 'Smart Search + Synonyms' : 'Smart Search';
       setSearchMethod(method);
       
       return rankSearchResults(allResults, searchWords, searchQuery, expandedTerms);
@@ -521,6 +539,7 @@ export default function Home() {
         // Title matches (most important)
         if (lowerJudul.includes(lowerWord)) {
           score += 40;
+          // Bonus for word at beginning of title
           if (lowerJudul.startsWith(lowerWord)) score += 20;
         }
         
@@ -561,7 +580,7 @@ export default function Home() {
     });
   };
 
-  // Basic search fallback
+  // Basic search fallback - UNLIMITED RESULTS
   const performBasicSearch = async (searchQuery) => {
     setSearchMethod('Basic Search + Index');
     
@@ -633,7 +652,6 @@ export default function Home() {
     setShowSuggestions(false)
     setWithinSearchTerm('')
     setActiveSynonyms([])
-    setShowSynonymsFilter(false)
     setActiveFilters({
       tahunRange: [MIN_YEAR, MAX_YEAR]
     })
@@ -646,7 +664,7 @@ export default function Home() {
     }
   }
 
-  // Clear within-search filters
+  // NEW: Clear within-search filters
   const clearWithinSearch = () => {
     setWithinSearchTerm('')
     setActiveFilters({
@@ -654,7 +672,7 @@ export default function Home() {
     })
   }
 
-  // Update year range dari slider
+  // NEW: Update year range dari slider
   const updateYearRange = (newRange) => {
     setActiveFilters(prev => ({
       ...prev,
@@ -681,7 +699,7 @@ export default function Home() {
     setCurrentPage(1)
   }
 
-  // Check if any within-search filters are active
+  // NEW: Check if any within-search filters are active
   const isWithinSearchActive = withinSearchTerm.trim() || 
     activeFilters.tahunRange[0] !== MIN_YEAR || 
     activeFilters.tahunRange[1] !== MAX_YEAR
@@ -725,7 +743,7 @@ export default function Home() {
             margin: '0 auto',
             position: 'relative'
           }}>
-            {/* Search Controls - HANYA live search toggle */}
+            {/* Search Controls */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -756,6 +774,30 @@ export default function Home() {
                     {liveSearchEnabled ? '🔴' : '⚪'}
                   </span>
                   Live Search
+                </button>
+
+                {/* NEW: Synonyms Toggle Button */}
+                <button
+                  type="button"
+                  onClick={toggleSynonyms}
+                  style={{
+                    padding: '0.3rem 0.6rem',
+                    backgroundColor: synonymsEnabled ? '#4299e1' : '#e2e8f0',
+                    color: synonymsEnabled ? 'white' : '#4a5568',
+                    border: 'none',
+                    borderRadius: '15px',
+                    fontSize: '0.7rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem'
+                  }}
+                >
+                  <span style={{ fontSize: '0.8rem' }}>
+                    {synonymsEnabled ? '🌐' : '🔤'}
+                  </span>
+                  {synonymsEnabled ? 'Synonyms ON' : 'Synonyms OFF'}
                 </button>
 
                 {(loading || isTyping) && (
@@ -915,9 +957,21 @@ export default function Home() {
                           fontWeight: '600',
                           color: '#718096',
                           borderBottom: '1px solid #f7fafc',
-                          backgroundColor: '#f7fafc'
+                          backgroundColor: '#f7fafc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
                         }}>
-                          💡 Saran Pencarian
+                          💡 Saran Pencarian 
+                          <span style={{
+                            fontSize: '0.7rem',
+                            backgroundColor: '#4299e1',
+                            color: 'white',
+                            padding: '0.2rem 0.4rem',
+                            borderRadius: '10px'
+                          }}>
+                            +Synonyms
+                          </span>
                         </div>
                         {suggestions.map((item, index) => (
                           <div
@@ -1026,7 +1080,7 @@ export default function Home() {
             )}
           </form>
 
-          {/* Search Info */}
+          {/* UPDATE: Search info dengan synonyms status */}
           {searchResults.length > 0 && (
             <div style={{
               marginTop: '1rem',
@@ -1039,6 +1093,7 @@ export default function Home() {
               🚀 {searchMethod} • {searchResults.length} hasil relevan
               {liveSearchEnabled && ' • 🔴 Live'} 
               • 📊 Index Optimized
+              • 🌐 {synonymsEnabled ? 'Synonyms ON' : 'Synonyms OFF'}
               {detectedLanguage && ` • ${detectedLanguage.toUpperCase()}`}
             </div>
           )}
@@ -1086,152 +1141,7 @@ export default function Home() {
           margin: isMobile ? '2rem auto' : '3rem auto',
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
-          {/* NEW: Synonyms Filter Panel - MUNCUL HANYA KETIKA ADA SYNONYMS */}
-          {showSynonymsFilter && activeSynonyms.length > 0 && (
-            <div style={{
-              backgroundColor: 'white',
-              padding: '1.5rem',
-              borderRadius: '12px',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-              marginBottom: '2rem',
-              border: '1px solid #e2e8f0'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1rem',
-                flexWrap: 'wrap',
-                gap: '1rem'
-              }}>
-                <h3 style={{ 
-                  fontSize: '1.25rem', 
-                  fontWeight: '700',
-                  color: '#2d3748',
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  🌐 Pencarian dengan Synonyms
-                </h3>
-                
-                <button
-                  onClick={clearSynonymsFilter}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#f7fafc',
-                    color: '#718096',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: '500'
-                  }}
-                >
-                  ✕ Hapus Synonyms
-                </button>
-              </div>
-
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
-                gap: '2rem',
-                alignItems: 'start'
-              }}>
-                {/* Left Column: Synonyms Info */}
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '0.8rem',
-                    fontWeight: '600',
-                    color: '#4a5568',
-                    marginBottom: '0.5rem'
-                  }}>
-                    Pencarian juga termasuk:
-                  </label>
-                  <div style={{ 
-                    display: 'flex', 
-                    flexWrap: 'wrap', 
-                    gap: '0.5rem',
-                    alignItems: 'center'
-                  }}>
-                    {activeSynonyms.map((synonym, index) => (
-                      <span
-                        key={index}
-                        style={{
-                          backgroundColor: '#fef3c7',
-                          color: '#92400e',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '8px',
-                          fontSize: '0.8rem',
-                          border: '1px solid #f59e0b',
-                          fontWeight: '500'
-                        }}
-                      >
-                        {synonym}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Right Column: Toggle Action */}
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem'
-                }}>
-                  <button
-                    onClick={toggleSynonyms}
-                    style={{
-                      padding: '0.75rem 1rem',
-                      backgroundColor: synonymsEnabled ? '#dc2626' : '#059669',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: '600',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem'
-                    }}
-                  >
-                    {synonymsEnabled ? '❌ Matikan Synonyms' : '✅ Aktifkan Synonyms'}
-                  </button>
-                  <div style={{
-                    fontSize: '0.7rem',
-                    color: '#718096',
-                    textAlign: 'center'
-                  }}>
-                    {synonymsEnabled 
-                      ? 'Menampilkan hasil dengan synonyms' 
-                      : 'Hanya menampilkan hasil exact match'
-                    }
-                  </div>
-                </div>
-              </div>
-
-              {/* Filter Status */}
-              <div style={{
-                marginTop: '1rem',
-                padding: '0.75rem',
-                backgroundColor: synonymsEnabled ? '#e6fffa' : '#fef2f2',
-                border: synonymsEnabled ? '1px solid #81e6d9' : '1px solid #fecaca',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                color: synonymsEnabled ? '#234e52' : '#7f1d1d'
-              }}>
-                {synonymsEnabled 
-                  ? `🔍 Synonyms aktif • ${searchResults.length} hasil dengan synonyms`
-                  : `🔍 Synonyms dimatikan • ${searchResults.length} hasil exact match`
-                }
-              </div>
-            </div>
-          )}
-
-          {/* Search-within-Search Panel */}
+          {/* NEW: Improved Search-within-Search Panel dengan Year Slider ONLY */}
           <div style={{
             backgroundColor: 'white',
             padding: '1.5rem',
@@ -1309,7 +1219,7 @@ export default function Home() {
                 />
               </div>
 
-              {/* Right Column: Year Slider */}
+              {/* Right Column: Year Slider ONLY - NO MANUAL INPUTS */}
               <div>
                 <label style={{
                   display: 'block',
@@ -1410,7 +1320,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Filter Status */}
+            {/* UPDATE: Filter Status dengan Info Tahun Valid */}
             {isWithinSearchActive && (
               <div style={{
                 marginTop: '1rem',
@@ -1431,7 +1341,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* Results Header */}
+          {/* UPDATE: Results Header dengan Synonyms Info */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -1441,7 +1351,7 @@ export default function Home() {
             gap: '1rem',
             flexDirection: isMobile ? 'column' : 'row'
           }}>
-            <div>
+            <div style={{ flex: 1 }}>
               <h3 style={{ 
                 fontSize: isMobile ? '1.5rem' : '1.75rem', 
                 fontWeight: '700',
@@ -1450,22 +1360,94 @@ export default function Home() {
               }}>
                 Hasil Pencarian
               </h3>
+              
+              {/* NEW: Synonyms Information */}
+              {synonymsEnabled && activeSynonyms.length > 0 && (
+                <div style={{
+                  marginTop: '0.5rem',
+                  padding: '0.75rem',
+                  backgroundColor: '#fffaf0',
+                  border: '1px solid #fbd38d',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  color: '#744210'
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.5rem',
+                    marginBottom: '0.25rem',
+                    fontWeight: '600'
+                  }}>
+                    🌐 Pencarian juga termasuk:
+                  </div>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: '0.5rem',
+                    alignItems: 'center'
+                  }}>
+                    {activeSynonyms.map((synonym, index) => (
+                      <span
+                        key={index}
+                        style={{
+                          backgroundColor: '#fef3c7',
+                          color: '#92400e',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          border: '1px solid #f59e0b'
+                        }}
+                      >
+                        {synonym}
+                      </span>
+                    ))}
+                    <button
+                      onClick={toggleSynonyms}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#dc2626',
+                        cursor: 'pointer',
+                        fontSize: '0.7rem',
+                        textDecoration: 'underline',
+                        marginLeft: '0.5rem'
+                      }}
+                    >
+                      Matikan synonyms
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <p style={{ 
                 color: '#718096',
-                margin: '0.5rem 0 0 0',
+                margin: activeSynonyms.length > 0 ? '0.75rem 0 0 0' : '0.5rem 0 0 0',
                 fontSize: isMobile ? '0.9rem' : '1rem'
               }}>
                 {isWithinSearchActive ? (
                   <>
                     <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
-                    ditemukan untuk "<strong>{searchTerm}</strong>"
+                    ditemukan {synonymsEnabled && activeSynonyms.length > 0 ? 'dengan synonyms' : 'untuk'} 
+                    "<strong>{searchTerm}</strong>"
                     {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
                     {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
                       ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
                   </>
                 ) : (
                   <>
-                    {searchResults.length} buku ditemukan untuk "<strong>{searchTerm}</strong>"
+                    {searchResults.length} buku ditemukan {synonymsEnabled && activeSynonyms.length > 0 ? 'dengan synonyms' : 'untuk'} 
+                    "<strong>{searchTerm}</strong>"
+                    {synonymsEnabled && activeSynonyms.length === 0 && !loading && (
+                      <span style={{ 
+                        fontSize: '0.8rem', 
+                        color: '#718096',
+                        fontStyle: 'italic',
+                        marginLeft: '0.5rem'
+                      }}>
+                        (coba aktifkan synonyms untuk hasil lebih banyak)
+                      </span>
+                    )}
                   </>
                 )}
               </p>
@@ -1716,6 +1698,7 @@ export default function Home() {
           100% { opacity: 1; }
         }
 
+        /* Custom Slider Styles */
         input[type="range"] {
           -webkit-appearance: none;
         }
