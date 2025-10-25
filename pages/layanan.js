@@ -1,5 +1,5 @@
 // pages/layanan.js
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
 
@@ -109,34 +109,10 @@ export default function Layanan() {
   )
 }
 
-// Komponen Pemesanan Koleksi - VERSI OPTIMIZED
+// Komponen Pemesanan Koleksi - HEIGHT FIXED 1900px
 function PemesananKoleksi({ isMobile }) {
-  const [formHeight, setFormHeight] = useState(800)
-  const containerRef = useRef(null)
-
-  // Calculate optimal form height based on window size
-  useEffect(() => {
-    const calculateFormHeight = () => {
-      const windowHeight = window.innerHeight
-      const containerTop = containerRef.current?.getBoundingClientRect().top || 0
-      const padding = isMobile ? 100 : 150 // Space for header and info section
-      
-      const optimalHeight = windowHeight - containerTop - padding
-      setFormHeight(Math.max(600, optimalHeight)) // Minimum height 600px
-    }
-
-    calculateFormHeight()
-    window.addEventListener('resize', calculateFormHeight)
-    window.addEventListener('scroll', calculateFormHeight)
-    
-    return () => {
-      window.removeEventListener('resize', calculateFormHeight)
-      window.removeEventListener('scroll', calculateFormHeight)
-    }
-  }, [isMobile])
-
   return (
-    <div ref={containerRef} style={{
+    <div style={{
       backgroundColor: 'white',
       padding: isMobile ? '1.5rem' : '2rem',
       borderRadius: '12px',
@@ -160,15 +136,15 @@ function PemesananKoleksi({ isMobile }) {
         Tim kami akan memanggil Anda untuk menyerahkan koleksi.
       </p>
       
-      {/* Google Form Embed dengan Height Dinamis */}
+      {/* Google Form Embed - HEIGHT FIXED 1900px */}
       <div style={{
         width: '100%',
-        height: `${formHeight}px`,
+        height: '1900px', // Height fixed sesuai permintaan
         borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
         marginBottom: '2rem',
-        border: '1px solid #e2e8f0'
+        border: '2px solid #e2e8f0' // Border lebih jelas
       }}>
         <iframe 
           src="https://docs.google.com/forms/d/e/1FAIpQLSdc-dsmpO9oFgzmHTlzU5fvDlLnkWcqqvC9KUL4dn-fqdpiqw/viewform?embedded=true"
@@ -180,8 +156,7 @@ function PemesananKoleksi({ isMobile }) {
             border: 'none',
             display: 'block'
           }}
-          // Scroll internal diaktifkan, tapi frame cukup tinggi sehingga tidak perlu scroll ganda
-          scrolling="yes"
+          scrolling="no" // Scroll internal dimatikan, menggunakan scroll halaman saja
         >
           Loading…
         </iframe>
@@ -192,7 +167,7 @@ function PemesananKoleksi({ isMobile }) {
         padding: isMobile ? '1.25rem' : '1.5rem',
         backgroundColor: '#f0fff4',
         borderRadius: '8px',
-        border: '1px solid #c6f6d5'
+        border: '2px solid #c6f6d5' // Border lebih jelas
       }}>
         <h4 style={{ 
           color: '#2f855a', 
@@ -210,19 +185,19 @@ function PemesananKoleksi({ isMobile }) {
           paddingLeft: '1.5rem',
           lineHeight: '1.6'
         }}>
-          <li style={{ marginBottom: '0.5rem' }}>
+          <li style={{ marginBottom: '0.5rem', padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
             <strong>Waktu Pemesanan:</strong> Hanya pada saat jam layanan buka
           </li>
-          <li style={{ marginBottom: '0.5rem' }}>
+          <li style={{ marginBottom: '0.5rem', padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
             <strong>Lokasi Akses:</strong> Buku hanya dapat dibaca ditempat, tidak diperkenankan dibawa pulang atau ke lantai lain
           </li>
-          <li style={{ marginBottom: '0.5rem' }}>
+          <li style={{ marginBottom: '0.5rem', padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
             <strong>Durasi:</strong> Maksimal peminjaman 5 buku untuk sekali pinjam 
           </li>
-          <li style={{ marginBottom: '0.5rem' }}>
+          <li style={{ marginBottom: '0.5rem', padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
             <strong>Reproduksi:</strong> Dilarang memfotokopi atau mereproduksi koleksi
           </li>
-          <li style={{ marginBottom: '0.5rem' }}>
+          <li style={{ marginBottom: '0.5rem', padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
             <strong>Identitas:</strong> Wajib menyerahkan Kartu Anggota Perpusnas RI / KTP / Kartu Pelajar / Kartu identitas lain yang relevan
           </li>
         </ul>
@@ -231,34 +206,10 @@ function PemesananKoleksi({ isMobile }) {
   )
 }
 
-// Komponen Pemesanan Ruang Baca - VERSI OPTIMIZED
+// Komponen Pemesanan Ruang Baca - HEIGHT FIXED 1740px
 function PemesananRuangBaca({ isMobile }) {
-  const [formHeight, setFormHeight] = useState(700)
-  const containerRef = useRef(null)
-
-  // Calculate optimal form height based on window size
-  useEffect(() => {
-    const calculateFormHeight = () => {
-      const windowHeight = window.innerHeight
-      const containerTop = containerRef.current?.getBoundingClientRect().top || 0
-      const padding = isMobile ? 200 : 250 // Extra space for facilities section
-      
-      const optimalHeight = windowHeight - containerTop - padding
-      setFormHeight(Math.max(500, optimalHeight)) // Minimum height 500px
-    }
-
-    calculateFormHeight()
-    window.addEventListener('resize', calculateFormHeight)
-    window.addEventListener('scroll', calculateFormHeight)
-    
-    return () => {
-      window.removeEventListener('resize', calculateFormHeight)
-      window.removeEventListener('scroll', calculateFormHeight)
-    }
-  }, [isMobile])
-
   return (
-    <div ref={containerRef} style={{
+    <div style={{
       backgroundColor: 'white',
       padding: isMobile ? '1.5rem' : '2rem',
       borderRadius: '12px',
@@ -283,15 +234,15 @@ function PemesananRuangBaca({ isMobile }) {
         Pemesanan harus dilakukan pada saat <strong>jam kerja layanan</strong>.
       </p>
       
-      {/* Google Form Embed dengan Height Dinamis */}
+      {/* Google Form Embed - HEIGHT FIXED 1740px */}
       <div style={{
         width: '100%',
-        height: `${formHeight}px`,
+        height: '1740px', // Height fixed sesuai permintaan
         borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
         marginBottom: '2rem',
-        border: '1px solid #e2e8f0'
+        border: '2px solid #e2e8f0' // Border lebih jelas
       }}>
         <iframe 
           src="https://docs.google.com/forms/d/e/1FAIpQLScKwZjJ91zKwGnknXSno2_f9qd4MUPxqPMciDnJSQnw-FbsHg/viewform?embedded=true"
@@ -303,36 +254,46 @@ function PemesananRuangBaca({ isMobile }) {
             border: 'none',
             display: 'block'
           }}
-          scrolling="yes"
+          scrolling="no" // Scroll internal dimatikan, menggunakan scroll halaman saja
         >
           Loading…
         </iframe>
       </div>
 
-      {/* Fasilitas */}
+      {/* Fasilitas dengan border lebih jelas */}
       <div style={{
-        marginTop: '2rem'
+        marginTop: '2rem',
+        padding: isMobile ? '1.5rem' : '2rem',
+        backgroundColor: '#f7fafc',
+        borderRadius: '12px',
+        border: '2px solid #e2e8f0'
       }}>
         <h3 style={{
           color: '#2d3748',
           marginBottom: '1.5rem',
           textAlign: 'center',
-          fontSize: isMobile ? '1.25rem' : '1.5rem'
+          fontSize: isMobile ? '1.25rem' : '1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem'
         }}>
-          🏆 Fasilitas Unggulan
+          <span>🏆</span>
+          Fasilitas Unggulan
         </h3>
         
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: '1rem'
+          gap: '1.5rem'
         }}>
           <div style={{
             padding: '1.5rem',
-            backgroundColor: '#f7fafc',
+            backgroundColor: 'white',
             borderRadius: '8px',
             textAlign: 'center',
-            border: '1px solid #e2e8f0'
+            border: '2px solid #e2e8f0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
           }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🪑</div>
             <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>Kursi Ergonomis</h4>
@@ -343,10 +304,11 @@ function PemesananRuangBaca({ isMobile }) {
           
           <div style={{
             padding: '1.5rem',
-            backgroundColor: '#f7fafc',
+            backgroundColor: 'white',
             borderRadius: '8px',
             textAlign: 'center',
-            border: '1px solid #e2e8f0'
+            border: '2px solid #e2e8f0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
           }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔌</div>
             <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>Stop Kontak</h4>
@@ -357,10 +319,11 @@ function PemesananRuangBaca({ isMobile }) {
           
           <div style={{
             padding: '1.5rem',
-            backgroundColor: '#f7fafc',
+            backgroundColor: 'white',
             borderRadius: '8px',
             textAlign: 'center',
-            border: '1px solid #e2e8f0'
+            border: '2px solid #e2e8f0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
           }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📶</div>
             <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>WiFi Cepat</h4>
@@ -371,10 +334,11 @@ function PemesananRuangBaca({ isMobile }) {
 
           <div style={{
             padding: '1.5rem',
-            backgroundColor: '#f7fafc',
+            backgroundColor: 'white',
             borderRadius: '8px',
             textAlign: 'center',
-            border: '1px solid #e2e8f0'
+            border: '2px solid #e2e8f0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
           }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔇</div>
             <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>Atmosfer Tenang</h4>
