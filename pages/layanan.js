@@ -242,7 +242,7 @@ function PemesananRuangBaca({ isMobile }) {
         <iframe 
           src="https://docs.google.com/forms/d/e/1FAIpQLScKwZjJ91zKwGnknXSno2_f9qd4MUPxqPMciDnJSQnw-FbsHg/viewform?embedded=true"
           width="100%" 
-          height="100%" 
+          height="1740" 
           frameBorder="0"
           title="Form Pemesanan Ruang Baca Khusus"
           style={{ border: 'none' }}
