@@ -280,7 +280,7 @@ function PemesananRuangBaca({ isMobile }) {
         border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0'
       }}>
         <iframe 
-          src="https://docs.google.comforms/d/e/1FAIpQLScKwZjJ91zKwGnknXSno2_f9qd4MUPxqPMciDnJSQnw-FbsHg/viewform?embedded=true"
+          src="https://docs.google.com/forms/d/e/1FAIpQLScKwZjJ91zKwGnknXSno2_f9qd4MUPxqPMciDnJSQnw-FbsHg/viewform?embedded=true"
           width="100%" 
           height="100%" 
           frameBorder="0"
