@@ -1,4 +1,4 @@
-// pages/index.js - OPTIMIZED SEARCH WITH SYNONYMS FILTER
+// pages/index.js - FINAL OPTIMIZED SEARCH WITH SYNONYMS FILTER
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -118,6 +118,62 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
+// Enhanced Relevance Scoring dengan Synonyms Awareness
+const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = []) => {
+  const lowerQuery = originalQuery.toLowerCase();
+  
+  const scoredResults = results.map(book => {
+    let score = 0;
+    const lowerJudul = book.judul?.toLowerCase() || '';
+    const lowerPengarang = book.pengarang?.toLowerCase() || '';
+    const lowerPenerbit = book.penerbit?.toLowerCase() || '';
+    
+    if (lowerJudul === lowerQuery) score += 200;
+    if (lowerPengarang === lowerQuery) score += 150;
+    
+    if (lowerJudul.includes(lowerQuery)) score += 100;
+    if (lowerPengarang.includes(lowerQuery)) score += 80;
+    if (lowerPenerbit.includes(lowerQuery)) score += 60;
+    
+    searchWords.forEach(word => {
+      const lowerWord = word.toLowerCase();
+      
+      if (lowerJudul.includes(lowerWord)) {
+        score += 40;
+        if (lowerJudul.startsWith(lowerWord)) score += 20;
+      }
+      
+      if (lowerPengarang.includes(lowerWord)) score += 25;
+      if (lowerPenerbit.includes(lowerWord)) score += 15;
+    });
+    
+    expandedTerms.forEach(term => {
+      if (term.toLowerCase() !== lowerQuery) {
+        const lowerTerm = term.toLowerCase();
+        if (lowerJudul.includes(lowerTerm)) score += 15;
+        if (lowerPengarang.includes(lowerTerm)) score += 10;
+        if (lowerPenerbit.includes(lowerTerm)) score += 8;
+      }
+    });
+    
+    if (book.judul && book.judul.length < 60) score += 10;
+    if (book.tahun_terbit && extractYearFromString(book.tahun_terbit) > 1900) score += 5;
+    
+    return { ...book, _relevanceScore: score };
+  });
+  
+  const uniqueResults = scoredResults.filter((book, index, self) => 
+    index === self.findIndex(b => b.id === book.id)
+  );
+  
+  return uniqueResults.sort((a, b) => {
+    if (b._relevanceScore !== a._relevanceScore) {
+      return b._relevanceScore - a._relevanceScore;
+    }
+    return (a.judul || '').localeCompare(b.judul || '');
+  });
+};
+
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -137,10 +193,9 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState('')
 
-  // Synonyms Filter States
+  // Synonyms Filter States - FIX: ON BY DEFAULT
   const [synonymsEnabled, setSynonymsEnabled] = useState(true)
   const [activeSynonyms, setActiveSynonyms] = useState([])
-  const [expandedSearchResults, setExpandedSearchResults] = useState([])
 
   // Search-within-Search dengan Year Slider ONLY
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
@@ -155,9 +210,6 @@ export default function Home() {
   // Constants
   const MIN_YEAR = 1500
   const MAX_YEAR = 2024
-
-  // Cache
-  const [searchCache, setSearchCache] = useState(new Map());
 
   // Helper untuk count buku dengan tahun valid
   const countValidYears = (books) => {
@@ -202,7 +254,6 @@ export default function Home() {
       if (searchTerm.trim().length === 0) {
         setSearchResults([])
         setOriginalSearchResults([])
-        setExpandedSearchResults([])
         setShowStats(true)
         setWithinSearchTerm('')
         setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
@@ -319,75 +370,6 @@ export default function Home() {
   // Get current filtered results dengan useMemo untuk optimasi
   const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
-  // SMART SEARCH EXECUTION
-  const executeSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) return;
-    
-    // Reset states
-    setActiveSynonyms([]);
-    setOriginalSearchResults([]);
-    setExpandedSearchResults([]);
-    
-    // Detect language
-    const lang = detectLanguage(searchQuery);
-    setDetectedLanguage(lang);
-    
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    abortControllerRef.current = new AbortController();
-    setLoading(true);
-    setCurrentPage(1);
-
-    try {
-      const startTime = performance.now();
-      
-      // DAPATKAN HASIL ORIGINAL (tanpa synonyms)
-      const originalResults = await performOriginalSearch(searchQuery);
-      setOriginalSearchResults(originalResults);
-      setSearchMethod('Smart Search');
-      
-      // JIKA SYNONYMS ENABLED, DAPATKAN EXPANDED RESULTS
-      if (synonymsEnabled) {
-        const expandedData = await expandSearchWithSynonyms(searchQuery);
-        
-        if (expandedData.synonyms.length > 0) {
-          const expandedResults = await performExpandedSearch(searchQuery, expandedData.terms);
-          setExpandedSearchResults(expandedResults);
-          setSearchResults(expandedResults); // ✅ SET RESULTS DI SINI
-          setActiveSynonyms(expandedData.synonyms);
-          setSearchMethod('Smart Search + Synonyms');
-        } else {
-          setSearchResults(originalResults); // ✅ JIKA TIDAK ADA SYNONYMS, PAKAI ORIGINAL
-        }
-      } else {
-        setSearchResults(originalResults); // ✅ JIKA SYNONYMS DISABLED, PAKAI ORIGINAL
-      }      
-      const endTime = performance.now();
-      console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms`, {
-        original: originalSearchResults.length,
-        expanded: expandedSearchResults.length,
-        final: searchResults.length,
-        synonyms: activeSynonyms.length
-      });
-      
-      if (searchResults.length > 0) {
-        saveToSearchHistory(searchQuery, searchResults.length);
-      }
-      
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Search error:', err);
-        setSearchResults([]);
-        setOriginalSearchResults([]);
-        setExpandedSearchResults([]);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Perform original search (tanpa synonyms)
   const performOriginalSearch = async (searchQuery) => {
     const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
@@ -464,64 +446,81 @@ export default function Home() {
 
     } catch (error) {
       console.error('Expanded search error:', error);
-      return originalSearchResults;
+      return [];
     }
   };
 
-  // Enhanced Relevance Scoring dengan Synonyms Awareness
-  const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = []) => {
-    const lowerQuery = originalQuery.toLowerCase();
+  // FIXED: SMART SEARCH EXECUTION - SYNONYMS ON BY DEFAULT
+  const executeSearch = async (searchQuery) => {
+    if (!searchQuery.trim()) return;
     
-    const scoredResults = results.map(book => {
-      let score = 0;
-      const lowerJudul = book.judul?.toLowerCase() || '';
-      const lowerPengarang = book.pengarang?.toLowerCase() || '';
-      const lowerPenerbit = book.penerbit?.toLowerCase() || '';
+    // Reset states
+    setActiveSynonyms([]);
+    setOriginalSearchResults([]);
+    
+    // Detect language
+    const lang = detectLanguage(searchQuery);
+    setDetectedLanguage(lang);
+    
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    setLoading(true);
+    setCurrentPage(1);
+
+    try {
+      const startTime = performance.now();
       
-      if (lowerJudul === lowerQuery) score += 200;
-      if (lowerPengarang === lowerQuery) score += 150;
+      // DAPATKAN HASIL ORIGINAL (tanpa synonyms)
+      const originalResults = await performOriginalSearch(searchQuery);
+      setOriginalSearchResults(originalResults);
       
-      if (lowerJudul.includes(lowerQuery)) score += 100;
-      if (lowerPengarang.includes(lowerQuery)) score += 80;
-      if (lowerPenerbit.includes(lowerQuery)) score += 60;
-      
-      searchWords.forEach(word => {
-        const lowerWord = word.toLowerCase();
+      let finalResults = originalResults;
+      let finalMethod = 'Smart Search';
+      let detectedSynonyms = [];
+
+      // JIKA SYNONYMS ENABLED, CARI SYNONYMS DAN EXPANDED RESULTS
+      if (synonymsEnabled) {
+        const expandedData = await expandSearchWithSynonyms(searchQuery);
+        detectedSynonyms = expandedData.synonyms;
         
-        if (lowerJudul.includes(lowerWord)) {
-          score += 40;
-          if (lowerJudul.startsWith(lowerWord)) score += 20;
+        if (detectedSynonyms.length > 0) {
+          // JIKA ADA SYNONYMS, GUNAKAN EXPANDED SEARCH
+          const expandedResults = await performExpandedSearch(searchQuery, expandedData.terms);
+          finalResults = expandedResults;
+          finalMethod = 'Smart Search + Synonyms';
+          setActiveSynonyms(detectedSynonyms);
         }
-        
-        if (lowerPengarang.includes(lowerWord)) score += 25;
-        if (lowerPenerbit.includes(lowerWord)) score += 15;
-      });
-      
-      expandedTerms.forEach(term => {
-        if (term.toLowerCase() !== lowerQuery) {
-          const lowerTerm = term.toLowerCase();
-          if (lowerJudul.includes(lowerTerm)) score += 15;
-          if (lowerPengarang.includes(lowerTerm)) score += 10;
-          if (lowerPenerbit.includes(lowerTerm)) score += 8;
-        }
-      });
-      
-      if (book.judul && book.judul.length < 60) score += 10;
-      if (book.tahun_terbit && extractYearFromString(book.tahun_terbit) > 1900) score += 5;
-      
-      return { ...book, _relevanceScore: score };
-    });
-    
-    const uniqueResults = scoredResults.filter((book, index, self) => 
-      index === self.findIndex(b => b.id === book.id)
-    );
-    
-    return uniqueResults.sort((a, b) => {
-      if (b._relevanceScore !== a._relevanceScore) {
-        return b._relevanceScore - a._relevanceScore;
       }
-      return (a.judul || '').localeCompare(b.judul || '');
-    });
+      
+      // SET FINAL RESULTS SEKALIGUS - TIDAK ADA RACE CONDITION
+      setSearchResults(finalResults);
+      setSearchMethod(finalMethod);
+      
+      const endTime = performance.now();
+      console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms`, {
+        original: originalResults.length,
+        final: finalResults.length,
+        synonyms: detectedSynonyms.length,
+        method: finalMethod,
+        synonymsEnabled: synonymsEnabled
+      });
+      
+      if (finalResults.length > 0) {
+        saveToSearchHistory(searchQuery, finalResults.length);
+      }
+      
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Search error:', err);
+        setSearchResults([]);
+        setOriginalSearchResults([]);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Toggle Synonyms sebagai Filter Client-Side
@@ -529,14 +528,9 @@ export default function Home() {
     const newSynonymsEnabled = !synonymsEnabled;
     setSynonymsEnabled(newSynonymsEnabled);
     
-    if (originalSearchResults.length > 0) {
-      if (newSynonymsEnabled && expandedSearchResults.length > 0) {
-        setSearchResults(expandedSearchResults);
-        setSearchMethod('Smart Search + Synonyms');
-      } else {
-        setSearchResults(originalSearchResults);
-        setSearchMethod('Smart Search');
-      }
+    if (originalSearchResults.length > 0 && activeSynonyms.length > 0) {
+      // Jika ada active synonyms, lakukan search ulang dengan setting baru
+      executeSearch(searchTerm);
     }
     
     setCurrentPage(1);
@@ -598,7 +592,6 @@ export default function Home() {
     setSearchTerm('')
     setSearchResults([])
     setOriginalSearchResults([])
-    setExpandedSearchResults([])
     setShowStats(true)
     setShowSuggestions(false)
     setWithinSearchTerm('')
