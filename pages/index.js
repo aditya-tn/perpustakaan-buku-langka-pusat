@@ -1,4 +1,4 @@
-// pages/index.js - OPTIMIZED SEARCH WITH CONTEXTUAL SYNONYMS TOGGLE
+// pages/index.js - OPTIMIZED SEARCH WITH CONTEXTUAL SYNONYMS TOGGLE (FIXED FILTERING)
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -308,7 +308,7 @@ export default function Home() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  // NEW: IMPROVED Filtered Results dengan Enhanced Year Filtering
+  // FIXED: Enhanced Filtered Results dengan Smart Synonyms Filtering
   const getFilteredResults = useCallback(() => {
     let resultsToFilter = searchResults;
 
@@ -319,18 +319,30 @@ export default function Home() {
         const lowerPengarang = book.pengarang?.toLowerCase() || '';
         const lowerPenerbit = book.penerbit?.toLowerCase() || '';
         
-        // Cek apakah book match dengan original search term
-        const matchesOriginal = lowerJudul.includes(searchTerm.toLowerCase()) ||
-                              lowerPengarang.includes(searchTerm.toLowerCase()) ||
-                              lowerPenerbit.includes(searchTerm.toLowerCase());
+        // FIXED: Cek apakah book match dengan original search term ATAU bagian dari search term
+        const searchWords = searchTerm.toLowerCase().split(/\s+/);
         
-        // Cek apakah book HANYA match dengan synonyms (harus di-exclude)
-        const matchesOnlySynonyms = activeSynonyms.some(synonym => 
-          (lowerJudul.includes(synonym.toLowerCase()) ||
-           lowerPengarang.includes(synonym.toLowerCase()) ||
-           lowerPenerbit.includes(synonym.toLowerCase())) &&
-          !matchesOriginal
+        const matchesOriginal = searchWords.some(word => 
+          lowerJudul.includes(word) ||
+          lowerPengarang.includes(word) || 
+          lowerPenerbit.includes(word)
         );
+        
+        // FIXED: Cek apakah book HANYA match dengan synonyms (tidak match dengan original terms)
+        const matchesOnlySynonyms = activeSynonyms.some(synonym => {
+          const synonymWords = synonym.toLowerCase().split(/\s+/);
+          return synonymWords.some(synonymWord => 
+            (lowerJudul.includes(synonymWord) ||
+             lowerPengarang.includes(synonymWord) ||
+             lowerPenerbit.includes(synonymWord)) &&
+            // Pastikan tidak ada overlap dengan original search words
+            !searchWords.some(originalWord => 
+              lowerJudul.includes(originalWord) ||
+              lowerPengarang.includes(originalWord) ||
+              lowerPenerbit.includes(originalWord)
+            )
+          );
+        });
 
         return matchesOriginal && !matchesOnlySynonyms;
       });
@@ -1752,7 +1764,7 @@ export default function Home() {
         input[type="range"]::-moz-range-thumb {
           width: 20px;
           height: 20px;
-          border-radius: 50%;
+          border-radius: '50%';
           background: #4299e1;
           cursor: pointer;
           border: 2px solid white;
