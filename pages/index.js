@@ -1,4 +1,4 @@
-// pages/index.js - WITH DATABASE INDEX OPTIMIZATION & ENHANCED YEAR FILTERING
+// pages/index.js - UNLIMITED SEARCH RESULTS & SLIDER ONLY
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -63,21 +63,18 @@ export default function Home() {
   const [liveSearchEnabled, setLiveSearchEnabled] = useState(true)
   const [isTyping, setIsTyping] = useState(false)
 
-  // NEW: Search-within-Search dengan Year Slider
+  // NEW: Search-within-Search dengan Year Slider ONLY
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
-    // NEW: Year range dengan slider
-    tahunRange: [1500, 2024], // [min, max] - UPDATED RANGE
-    tahunAwal: '', // Backup untuk input manual
-    tahunAkhir: '' // Backup untuk input manual
+    // YEAR SLIDER ONLY - NO MANUAL INPUTS
+    tahunRange: [1500, 2024] // [min, max]
   })
-  const [showWithinSearch, setShowWithinSearch] = useState(false)
 
   // Refs
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
 
-  // NEW: Year range constants - UPDATED
+  // NEW: Year range constants
   const MIN_YEAR = 1500
   const MAX_YEAR = 2024
 
@@ -124,9 +121,7 @@ export default function Home() {
         // Reset within-search
         setWithinSearchTerm('')
         setActiveFilters({
-          tahunRange: [MIN_YEAR, MAX_YEAR],
-          tahunAwal: '',
-          tahunAkhir: ''
+          tahunRange: [MIN_YEAR, MAX_YEAR]
         })
       }
       return
@@ -153,9 +148,7 @@ export default function Home() {
     if (searchResults.length > 0) {
       setWithinSearchTerm('')
       setActiveFilters({
-        tahunRange: [MIN_YEAR, MAX_YEAR],
-        tahunAwal: '',
-        tahunAkhir: ''
+        tahunRange: [MIN_YEAR, MAX_YEAR]
       })
     }
   }, [searchResults])
@@ -184,7 +177,7 @@ export default function Home() {
           .from('books')
           .select('judul, pengarang, penerbit, id')
           .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%`)
-          .limit(5)
+          .limit(5) // ✅ Hanya untuk suggestions, biarkan limit
 
         setSuggestions(data || [])
       } catch (error) {
@@ -230,7 +223,6 @@ export default function Home() {
           }
         } else {
           // Skip books dengan format tahun tidak valid untuk filtering
-          // Tapi tetap tampilkan jika tidak ada filter tahun aktif
           if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
             return false;
           }
@@ -283,7 +275,7 @@ export default function Home() {
       // Update cache
       setSearchCache(prev => {
         const newCache = new Map(prev);
-        if (newCache.size > 50) { // Limit cache size
+        if (newCache.size > 50) {
           const firstKey = newCache.keys().next().value;
           newCache.delete(firstKey);
         }
@@ -308,19 +300,18 @@ export default function Home() {
     }
   }
 
-  // Smart Search Algorithm yang dioptimalkan untuk indexes
+  // Smart Search Algorithm - UNLIMITED RESULTS
   const performSmartSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return []
     
     const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0)
     
     try {
-      // Strategy 1: Exact phrase match (memanfaatkan GIN index)
+      // Strategy 1: Exact phrase match - NO LIMIT
       const exactMatchQuery = supabase
         .from('books')
         .select('*')
         .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`)
-        .limit(50); // Reduced limit karena sekarang lebih cepat
 
       const { data: exactMatches, error: exactError } = await exactMatchQuery;
       
@@ -332,13 +323,12 @@ export default function Home() {
         return rankSearchResults(exactMatches, searchWords, searchQuery);
       }
 
-      // Strategy 2: Individual word matches (masih cepat dengan GIN index)
+      // Strategy 2: Individual word matches - NO LIMIT
       const wordMatchPromises = searchWords.map(word => 
         supabase
           .from('books')
           .select('*')
           .or(`judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`)
-          .limit(30) // Limit per word untuk performance
       );
 
       const wordResults = await Promise.all(wordMatchPromises);
@@ -363,7 +353,6 @@ export default function Home() {
 
     } catch (error) {
       console.error('Smart search error:', error);
-      // Fallback ke basic search yang tetap manfaatkan index
       return performBasicSearch(searchQuery);
     }
   }
@@ -406,8 +395,8 @@ export default function Home() {
       });
       
       // Quality bonuses
-      if (book.judul && book.judul.length < 60) score += 10; // Concise titles
-      if (book.tahun_terbit && extractYearFromString(book.tahun_terbit) > 1900) score += 5; // Recent publications
+      if (book.judul && book.judul.length < 60) score += 10;
+      if (book.tahun_terbit && extractYearFromString(book.tahun_terbit) > 1900) score += 5;
       
       return { ...book, _relevanceScore: score };
     });
@@ -421,12 +410,11 @@ export default function Home() {
       if (b._relevanceScore !== a._relevanceScore) {
         return b._relevanceScore - a._relevanceScore;
       }
-      // Secondary sort by title
       return (a.judul || '').localeCompare(b.judul || '');
     });
   };
 
-  // Basic search fallback yang dioptimalkan
+  // Basic search fallback - UNLIMITED RESULTS
   const performBasicSearch = async (searchQuery) => {
     setSearchMethod('Basic Search + Index');
     
@@ -434,7 +422,6 @@ export default function Home() {
       .from('books')
       .select('*')
       .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`)
-      .limit(100); // Increased limit karena sekarang lebih cepat
 
     if (error) throw error;
     return data || [];
@@ -499,9 +486,7 @@ export default function Home() {
     setShowSuggestions(false)
     setWithinSearchTerm('')
     setActiveFilters({
-      tahunRange: [MIN_YEAR, MAX_YEAR],
-      tahunAwal: '',
-      tahunAkhir: ''
+      tahunRange: [MIN_YEAR, MAX_YEAR]
     })
     
     if (searchTimeoutRef.current) {
@@ -516,9 +501,7 @@ export default function Home() {
   const clearWithinSearch = () => {
     setWithinSearchTerm('')
     setActiveFilters({
-      tahunRange: [MIN_YEAR, MAX_YEAR],
-      tahunAwal: '',
-      tahunAkhir: ''
+      tahunRange: [MIN_YEAR, MAX_YEAR]
     })
   }
 
@@ -531,30 +514,12 @@ export default function Home() {
     setCurrentPage(1)
   }
 
-  // NEW: Update year dari input manual (fallback)
-  const updateManualYear = (type, value) => {
-    setActiveFilters(prev => {
-      const newFilters = { ...prev }
-      newFilters[type] = value
-      
-      // Update range jika kedua input terisi
-      if (newFilters.tahunAwal && newFilters.tahunAkhir) {
-        const minYear = Math.max(MIN_YEAR, parseInt(newFilters.tahunAwal));
-        const maxYear = Math.min(MAX_YEAR, parseInt(newFilters.tahunAkhir));
-        newFilters.tahunRange = [minYear, maxYear];
-      }
-      
-      return newFilters
-    })
-    setCurrentPage(1)
-  }
-
   const popularSearches = [
     'sejarah indonesia', 'sastra jawa', 'naskah kuno', 'budaya nusantara',
     'colonial history', 'manuskrip', 'sastra melayu', 'sejarah islam'
   ]
 
-  // Pagination calculations - NOW USING FILTERED RESULTS
+  // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredResults.slice(indexOfFirstItem, indexOfLastItem)
@@ -970,7 +935,7 @@ export default function Home() {
           margin: isMobile ? '2rem auto' : '3rem auto',
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
-          {/* NEW: Improved Search-within-Search Panel dengan Year Slider */}
+          {/* NEW: Improved Search-within-Search Panel dengan Year Slider ONLY */}
           <div style={{
             backgroundColor: 'white',
             padding: '1.5rem',
@@ -1048,7 +1013,7 @@ export default function Home() {
                 />
               </div>
 
-              {/* Right Column: Year Slider */}
+              {/* Right Column: Year Slider ONLY - NO MANUAL INPUTS */}
               <div>
                 <label style={{
                   display: 'block',
@@ -1142,55 +1107,6 @@ export default function Home() {
                         background: 'transparent',
                         pointerEvents: 'none',
                         zIndex: 2
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Manual Input Fallback */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '0.5rem',
-                  fontSize: '0.8rem'
-                }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.25rem', color: '#718096' }}>
-                      Tahun Awal:
-                    </label>
-                    <input
-                      type="number"
-                      value={activeFilters.tahunAwal}
-                      onChange={(e) => updateManualYear('tahunAwal', e.target.value)}
-                      placeholder={MIN_YEAR.toString()}
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '4px',
-                        fontSize: '0.8rem'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.25rem', color: '#718096' }}>
-                      Tahun Akhir:
-                    </label>
-                    <input
-                      type="number"
-                      value={activeFilters.tahunAkhir}
-                      onChange={(e) => updateManualYear('tahunAkhir', e.target.value)}
-                      placeholder={MAX_YEAR.toString()}
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '4px',
-                        fontSize: '0.8rem'
                       }}
                     />
                   </div>
