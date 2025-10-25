@@ -1,5 +1,5 @@
 // pages/layanan.js
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
 
@@ -7,7 +7,6 @@ export default function Layanan() {
   const [activeTab, setActiveTab] = useState('koleksi')
   const [isMobile, setIsMobile] = useState(false)
 
-  // Detect mobile screen
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
@@ -110,10 +109,34 @@ export default function Layanan() {
   )
 }
 
-// Komponen Pemesanan Koleksi
+// Komponen Pemesanan Koleksi - VERSI OPTIMIZED
 function PemesananKoleksi({ isMobile }) {
+  const [formHeight, setFormHeight] = useState(800)
+  const containerRef = useRef(null)
+
+  // Calculate optimal form height based on window size
+  useEffect(() => {
+    const calculateFormHeight = () => {
+      const windowHeight = window.innerHeight
+      const containerTop = containerRef.current?.getBoundingClientRect().top || 0
+      const padding = isMobile ? 100 : 150 // Space for header and info section
+      
+      const optimalHeight = windowHeight - containerTop - padding
+      setFormHeight(Math.max(600, optimalHeight)) // Minimum height 600px
+    }
+
+    calculateFormHeight()
+    window.addEventListener('resize', calculateFormHeight)
+    window.addEventListener('scroll', calculateFormHeight)
+    
+    return () => {
+      window.removeEventListener('resize', calculateFormHeight)
+      window.removeEventListener('scroll', calculateFormHeight)
+    }
+  }, [isMobile])
+
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       backgroundColor: 'white',
       padding: isMobile ? '1.5rem' : '2rem',
       borderRadius: '12px',
@@ -137,14 +160,15 @@ function PemesananKoleksi({ isMobile }) {
         Tim kami akan memanggil Anda untuk menyerahkan koleksi.
       </p>
       
-      {/* Google Form Embed */}
+      {/* Google Form Embed dengan Height Dinamis */}
       <div style={{
         width: '100%',
-        height: isMobile ? '600px' : '800px',
+        height: `${formHeight}px`,
         borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        marginBottom: '2rem'
+        marginBottom: '2rem',
+        border: '1px solid #e2e8f0'
       }}>
         <iframe 
           src="https://docs.google.com/forms/d/e/1FAIpQLSdc-dsmpO9oFgzmHTlzU5fvDlLnkWcqqvC9KUL4dn-fqdpiqw/viewform?embedded=true"
@@ -152,7 +176,12 @@ function PemesananKoleksi({ isMobile }) {
           height="100%" 
           frameBorder="0"
           title="Form Pemesanan Koleksi Buku Langka"
-          style={{ border: 'none' }}
+          style={{ 
+            border: 'none',
+            display: 'block'
+          }}
+          // Scroll internal diaktifkan, tapi frame cukup tinggi sehingga tidak perlu scroll ganda
+          scrolling="yes"
         >
           Loading…
         </iframe>
@@ -202,10 +231,34 @@ function PemesananKoleksi({ isMobile }) {
   )
 }
 
-// Komponen Pemesanan Ruang Baca
+// Komponen Pemesanan Ruang Baca - VERSI OPTIMIZED
 function PemesananRuangBaca({ isMobile }) {
+  const [formHeight, setFormHeight] = useState(700)
+  const containerRef = useRef(null)
+
+  // Calculate optimal form height based on window size
+  useEffect(() => {
+    const calculateFormHeight = () => {
+      const windowHeight = window.innerHeight
+      const containerTop = containerRef.current?.getBoundingClientRect().top || 0
+      const padding = isMobile ? 200 : 250 // Extra space for facilities section
+      
+      const optimalHeight = windowHeight - containerTop - padding
+      setFormHeight(Math.max(500, optimalHeight)) // Minimum height 500px
+    }
+
+    calculateFormHeight()
+    window.addEventListener('resize', calculateFormHeight)
+    window.addEventListener('scroll', calculateFormHeight)
+    
+    return () => {
+      window.removeEventListener('resize', calculateFormHeight)
+      window.removeEventListener('scroll', calculateFormHeight)
+    }
+  }, [isMobile])
+
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       backgroundColor: 'white',
       padding: isMobile ? '1.5rem' : '2rem',
       borderRadius: '12px',
@@ -230,14 +283,15 @@ function PemesananRuangBaca({ isMobile }) {
         Pemesanan harus dilakukan pada saat <strong>jam kerja layanan</strong>.
       </p>
       
-      {/* Google Form Embed */}
+      {/* Google Form Embed dengan Height Dinamis */}
       <div style={{
         width: '100%',
-        height: isMobile ? '500px' : '700px',
+        height: `${formHeight}px`,
         borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        marginBottom: '2rem'
+        marginBottom: '2rem',
+        border: '1px solid #e2e8f0'
       }}>
         <iframe 
           src="https://docs.google.com/forms/d/e/1FAIpQLScKwZjJ91zKwGnknXSno2_f9qd4MUPxqPMciDnJSQnw-FbsHg/viewform?embedded=true"
@@ -245,7 +299,11 @@ function PemesananRuangBaca({ isMobile }) {
           height="100%" 
           frameBorder="0"
           title="Form Pemesanan Ruang Baca Khusus"
-          style={{ border: 'none' }}
+          style={{ 
+            border: 'none',
+            display: 'block'
+          }}
+          scrolling="yes"
         >
           Loading…
         </iframe>
