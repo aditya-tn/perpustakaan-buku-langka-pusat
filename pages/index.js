@@ -346,7 +346,6 @@ export default function Home() {
       // DAPATKAN HASIL ORIGINAL (tanpa synonyms)
       const originalResults = await performOriginalSearch(searchQuery);
       setOriginalSearchResults(originalResults);
-      setSearchResults(originalResults);
       setSearchMethod('Smart Search');
       
       // JIKA SYNONYMS ENABLED, DAPATKAN EXPANDED RESULTS
@@ -356,12 +355,15 @@ export default function Home() {
         if (expandedData.synonyms.length > 0) {
           const expandedResults = await performExpandedSearch(searchQuery, expandedData.terms);
           setExpandedSearchResults(expandedResults);
-          setSearchResults(expandedResults);
+          setSearchResults(expandedResults); // ✅ SET RESULTS DI SINI
           setActiveSynonyms(expandedData.synonyms);
           setSearchMethod('Smart Search + Synonyms');
+        } else {
+          setSearchResults(originalResults); // ✅ JIKA TIDAK ADA SYNONYMS, PAKAI ORIGINAL
         }
-      }
-      
+      } else {
+        setSearchResults(originalResults); // ✅ JIKA SYNONYMS DISABLED, PAKAI ORIGINAL
+      }      
       const endTime = performance.now();
       console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms`, {
         original: originalSearchResults.length,
