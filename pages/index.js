@@ -4,7 +4,7 @@ import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 
-// NEW: Pre-compiled regex patterns untuk performa
+// Pre-compiled regex patterns untuk performa
 const yearPatterns = {
   exact: /^(\d{4})$/,
   bracket: /\[(\d{4})\]/,
@@ -24,20 +24,24 @@ const extractYearFromString = (yearStr) => {
   if (yearPatterns.exact.test(str)) {
     year = parseInt(str);
   } else if (yearPatterns.bracket.test(str)) {
-    year = parseInt(str.match(yearPatterns.bracket)[1]);
+    const match = str.match(yearPatterns.bracket);
+    year = match ? parseInt(match[1]) : null;
   } else if (yearPatterns.range.test(str)) {
-    year = parseInt(str.match(yearPatterns.range)[1]);
+    const match = str.match(yearPatterns.range);
+    year = match ? parseInt(match[1]) : null;
   } else if (yearPatterns.approx.test(str)) {
-    year = parseInt(str.match(yearPatterns.approx)[1]);
+    const match = str.match(yearPatterns.approx);
+    year = match ? parseInt(match[1]) : null;
   } else if (yearPatterns.incomplete.test(str)) {
-    const century = str.match(yearPatterns.incomplete)[1];
-    year = parseInt(century + '00');
+    const match = str.match(yearPatterns.incomplete);
+    const century = match ? match[1] : null;
+    year = century ? parseInt(century + '00') : null;
   }
 
   return (year >= 1000 && year <= 2999) ? year : null;
 };
 
-// NEW: Synonyms service
+// Synonyms service
 const fetchSynonyms = async (searchTerm) => {
   try {
     const { data, error } = await supabase
@@ -54,7 +58,7 @@ const fetchSynonyms = async (searchTerm) => {
   }
 };
 
-// NEW: Simple language detection
+// Simple language detection
 const detectLanguage = (text) => {
   const indonesianWords = ['yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'pada', 'dengan', 'ini', 'itu'];
   const dutchWords = ['de', 'het', 'en', 'van', 'tot', 'voor', 'met', 'zijn', 'een'];
@@ -87,9 +91,11 @@ const expandSearchWithSynonyms = async (searchQuery) => {
     
     // Process results
     synonymsResults.flat().forEach(item => {
+      if (!item || !item.synonyms) return;
+      
       // Tambahkan ke detected synonyms untuk display
       item.synonyms.forEach(synonym => {
-        if (!detectedSynonyms.includes(synonym) && synonym.toLowerCase() !== item.term.toLowerCase()) {
+        if (!detectedSynonyms.includes(synonym) && synonym.toLowerCase() !== (item.term || '').toLowerCase()) {
           detectedSynonyms.push(synonym);
         }
       });
@@ -101,7 +107,7 @@ const expandSearchWithSynonyms = async (searchQuery) => {
       
       // Tambahkan synonyms dengan weight consideration
       item.synonyms.forEach(synonym => {
-        for (let i = 0; i < languageWeight * item.weight; i++) {
+        for (let i = 0; i < languageWeight * (item.weight || 1); i++) {
           allSynonyms.push(synonym);
         }
       });
@@ -134,46 +140,43 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   }
 };
 
-// Error Boundary Component
-class ErrorBoundary extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
+// Simple Error Boundary Component
+const ErrorBoundary = ({ children }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = (error) => {
+      console.error('Search Error:', error);
+      setHasError(true);
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#e53e3e' }}>
+        <h3>⚠️ Terjadi kesalahan dalam pencarian</h3>
+        <button 
+          onClick={() => setHasError(false)}
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: '#4299e1',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Coba Lagi
+        </button>
+      </div>
+    );
   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('Search Error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: '2rem', textAlign: 'center', color: '#e53e3e' }}>
-          <h3>⚠️ Terjadi kesalahan dalam pencarian</h3>
-          <button 
-            onClick={() => this.setState({ hasError: false, error: null })}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#4299e1',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Coba Lagi
-          </button>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
+  return children;
+};
 
 // Debounce utility function
 const debounce = (func, wait) => {
@@ -194,7 +197,7 @@ const debounce = (func, wait) => {
   return executedFunction;
 };
 
-function HomeComponent() {
+export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [loading, setLoading] = useState(false)
@@ -212,11 +215,11 @@ function HomeComponent() {
   const [isTyping, setIsTyping] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState('')
   
-  // NEW: Synonyms States
+  // Synonyms States
   const [synonymsEnabled, setSynonymsEnabled] = useState(true)
   const [activeSynonyms, setActiveSynonyms] = useState([])
 
-  // NEW: Search-within-Search dengan Year Slider ONLY
+  // Search-within-Search dengan Year Slider ONLY
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
     tahunRange: [1500, 2024] // [min, max]
@@ -226,11 +229,11 @@ function HomeComponent() {
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
 
-  // NEW: Year range constants
+  // Year range constants
   const MIN_YEAR = 1500
   const MAX_YEAR = 2024
 
-  // NEW: Helper untuk count buku dengan tahun valid
+  // Helper untuk count buku dengan tahun valid
   const countValidYears = (books) => {
     return books.filter(book => extractYearFromString(book.tahun_terbit) !== null).length;
   };
@@ -238,7 +241,7 @@ function HomeComponent() {
   // SMART SEARCH EXECUTION dengan Cache & Synonyms
   const [searchCache, setSearchCache] = useState(new Map());
 
-  // NEW: Toggle synonyms function
+  // Toggle synonyms function
   const toggleSynonyms = useCallback(() => {
     setSynonymsEnabled(prev => !prev);
   }, []);
@@ -430,7 +433,7 @@ function HomeComponent() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  // NEW: IMPROVED Filtered Results dengan Enhanced Year Filtering
+  // IMPROVED Filtered Results dengan Enhanced Year Filtering
   const getFilteredResults = useCallback(() => {
     if (!withinSearchTerm.trim() && 
         activeFilters.tahunRange[0] === MIN_YEAR && 
@@ -482,107 +485,8 @@ function HomeComponent() {
   // Get current filtered results dengan useMemo untuk optimasi
   const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
-  // Smart Search Algorithm - UNLIMITED RESULTS dengan Synonyms Support
-  const performSmartSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) return []
-    
-    const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
-    
-    try {
-      let expandedTerms = [searchQuery];
-      let detectedSynonyms = [];
-
-      if (synonymsEnabled) {
-        // Dapatkan expanded terms dengan synonyms
-        const expansionResult = await expandSearchWithSynonyms(searchQuery);
-        expandedTerms = expansionResult.terms;
-        detectedSynonyms = expansionResult.synonyms;
-        
-        // Set active synonyms untuk ditampilkan di UI
-        setActiveSynonyms(detectedSynonyms);
-        
-        console.log('🔤 Expanded search terms:', expandedTerms);
-        console.log('📝 Detected synonyms:', detectedSynonyms);
-      } else {
-        setActiveSynonyms([]);
-        setSearchMethod('Smart Search (No Synonyms)');
-      }
-
-      // Strategy 1: Exact matches dengan original query
-      const exactMatchQuery = supabase
-        .from('books')
-        .select('*')
-        .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`);
-
-      const { data: exactMatches, error: exactError } = await exactMatchQuery;
-      if (exactError) throw exactError;
-
-      // Jika synonyms disabled, hanya gunakan exact matches
-      if (!synonymsEnabled && exactMatches && exactMatches.length > 0) {
-        return rankSearchResults(exactMatches, searchWords, searchQuery, []);
-      }
-
-      // Strategy 2: Search dengan semua expanded terms (synonyms) - hanya jika enabled
-      let synonymResults = [];
-      if (synonymsEnabled) {
-        const synonymPromises = expandedTerms.map(term => 
-          supabase
-            .from('books')
-            .select('*')
-            .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
-        );
-        const synonymResponses = await Promise.all(synonymPromises);
-        synonymResults = synonymResponses.map(response => response.data || []);
-      }
-
-      // Combine semua results
-      const allResults = [...(exactMatches || [])];
-      const seenIds = new Set(exactMatches?.map(item => item.id) || []);
-      
-      if (synonymsEnabled) {
-        synonymResults.forEach(data => {
-          data.forEach(item => {
-            if (!seenIds.has(item.id)) {
-              seenIds.add(item.id);
-              allResults.push(item);
-            }
-          });
-        });
-      }
-
-      // Juga search per kata
-      const wordMatchPromises = searchWords.map(word => 
-        supabase
-          .from('books')
-          .select('*')
-          .or(`judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`)
-      );
-
-      const wordResponses = await Promise.all(wordMatchPromises);
-      wordResponses.forEach(({ data }) => {
-        if (data) {
-          data.forEach(item => {
-            if (!seenIds.has(item.id)) {
-              seenIds.add(item.id);
-              allResults.push(item);
-            }
-          });
-        }
-      });
-
-      const method = synonymsEnabled ? 'Smart Search + Synonyms' : 'Smart Search';
-      setSearchMethod(method);
-      
-      return rankSearchResults(allResults, searchWords, searchQuery, expandedTerms);
-
-    } catch (error) {
-      console.error('Smart search error:', error);
-      return performBasicSearch(searchQuery);
-    }
-  }
-
   // Enhanced Relevance Scoring dengan Synonyms Awareness
-  const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = []) => {
+  const rankSearchResults = useCallback((results, searchWords, originalQuery, expandedTerms = []) => {
     const lowerQuery = originalQuery.toLowerCase();
     
     const scoredResults = results.map(book => {
@@ -646,7 +550,7 @@ function HomeComponent() {
       }
       return (a.judul || '').localeCompare(b.judul || '');
     });
-  };
+  }, []);
 
   // Basic search fallback - UNLIMITED RESULTS
   const performBasicSearch = async (searchQuery) => {
@@ -661,8 +565,109 @@ function HomeComponent() {
     return data || [];
   }
 
+  // Smart Search Algorithm - UNLIMITED RESULTS dengan Synonyms Support
+  const performSmartSearch = async (searchQuery) => {
+    if (!searchQuery.trim()) return []
+    
+    const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
+    
+    try {
+      let expandedTerms = [searchQuery];
+      let detectedSynonyms = [];
+
+      if (synonymsEnabled) {
+        // Dapatkan expanded terms dengan synonyms
+        const expansionResult = await expandSearchWithSynonyms(searchQuery);
+        expandedTerms = expansionResult.terms;
+        detectedSynonyms = expansionResult.synonyms;
+        
+        // Set active synonyms untuk ditampilkan di UI
+        setActiveSynonyms(detectedSynonyms);
+        
+        console.log('🔤 Expanded search terms:', expandedTerms);
+        console.log('📝 Detected synonyms:', detectedSynonyms);
+      } else {
+        setActiveSynonyms([]);
+        setSearchMethod('Smart Search (No Synonyms)');
+      }
+
+      // Strategy 1: Exact matches dengan original query
+      const exactMatchQuery = supabase
+        .from('books')
+        .select('*')
+        .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`);
+
+      const { data: exactMatches, error: exactError } = await exactMatchQuery;
+      if (exactError) throw exactError;
+
+      // Jika synonyms disabled, hanya gunakan exact matches
+      if (!synonymsEnabled && exactMatches && exactMatches.length > 0) {
+        return rankSearchResults(exactMatches, searchWords, searchQuery, []);
+      }
+
+      // Strategy 2: Search dengan semua expanded terms (synonyms) - hanya jika enabled
+      let synonymResults = [];
+      if (synonymsEnabled) {
+        const synonymPromises = expandedTerms.map(term => 
+          supabase
+            .from('books')
+            .select('*')
+            .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
+        );
+        const synonymResponses = await Promise.all(synonymPromises);
+        synonymResults = synonymResponses.map(response => response.data || []);
+      }
+
+      // Combine semua results
+      const allResults = [...(exactMatches || [])];
+      const seenIds = new Set(exactMatches?.map(item => item.id) || []);
+      
+      if (synonymsEnabled) {
+        synonymResults.forEach(data => {
+          if (data && Array.isArray(data)) {
+            data.forEach(item => {
+              if (item && !seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                allResults.push(item);
+              }
+            });
+          }
+        });
+      }
+
+      // Juga search per kata
+      const wordMatchPromises = searchWords.map(word => 
+        supabase
+          .from('books')
+          .select('*')
+          .or(`judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`)
+      );
+
+      const wordResponses = await Promise.all(wordMatchPromises);
+      wordResponses.forEach(({ data }) => {
+        if (data) {
+          data.forEach(item => {
+            if (item && !seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              allResults.push(item);
+            }
+          });
+        }
+      });
+
+      const method = synonymsEnabled ? 'Smart Search + Synonyms' : 'Smart Search';
+      setSearchMethod(method);
+      
+      return rankSearchResults(allResults, searchWords, searchQuery, expandedTerms);
+
+    } catch (error) {
+      console.error('Smart search error:', error);
+      return performBasicSearch(searchQuery);
+    }
+  }
+
   // Save to search history
-  const saveToSearchHistory = (term, resultsCount) => {
+  const saveToSearchHistory = useCallback((term, resultsCount) => {
     const newSearch = {
       term,
       resultsCount,
@@ -674,7 +679,7 @@ function HomeComponent() {
       const filtered = prev.filter(item => item.term !== term)
       return [newSearch, ...filtered.slice(0, 9)]
     })
-  }
+  }, [])
 
   // Manual search handler
   const handleManualSearch = async (e) => {
@@ -690,29 +695,29 @@ function HomeComponent() {
   }
 
   // Handle suggestion click
-  const handleSuggestionClick = (suggestion) => {
+  const handleSuggestionClick = useCallback((suggestion) => {
     setSearchTerm(suggestion.judul)
     setShowSuggestions(false)
-  }
+  }, [])
 
   // Handle search history click
-  const handleHistoryClick = (historyItem) => {
+  const handleHistoryClick = useCallback((historyItem) => {
     setSearchTerm(historyItem.term)
-  }
+  }, [])
 
   // Clear search history
-  const clearSearchHistory = () => {
+  const clearSearchHistory = useCallback(() => {
     setSearchHistory([])
     localStorage.removeItem('searchHistory')
-  }
+  }, [])
 
   // Toggle live search
-  const toggleLiveSearch = () => {
+  const toggleLiveSearch = useCallback(() => {
     setLiveSearchEnabled(prev => !prev)
-  }
+  }, [])
 
   // Clear current search
-  const clearSearch = () => {
+  const clearSearch = useCallback(() => {
     setSearchTerm('')
     setSearchResults([])
     setShowStats(true)
@@ -727,24 +732,24 @@ function HomeComponent() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-  }
+  }, [debouncedSearch])
 
-  // NEW: Clear within-search filters
-  const clearWithinSearch = () => {
+  // Clear within-search filters
+  const clearWithinSearch = useCallback(() => {
     setWithinSearchTerm('')
     setActiveFilters({
       tahunRange: [MIN_YEAR, MAX_YEAR]
     })
-  }
+  }, [])
 
-  // NEW: Update year range dari slider
-  const updateYearRange = (newRange) => {
+  // Update year range dari slider
+  const updateYearRange = useCallback((newRange) => {
     setActiveFilters(prev => ({
       ...prev,
       tahunRange: newRange
     }))
     setCurrentPage(1)
-  }
+  }, [])
 
   const popularSearches = [
     'sejarah indonesia', 'sastra jawa', 'naskah kuno', 'budaya nusantara',
@@ -764,1043 +769,1036 @@ function HomeComponent() {
     setCurrentPage(1)
   }
 
-  // NEW: Check if any within-search filters are active
+  // Check if any within-search filters are active
   const isWithinSearchActive = withinSearchTerm.trim() || 
     activeFilters.tahunRange[0] !== MIN_YEAR || 
     activeFilters.tahunRange[1] !== MAX_YEAR
 
   return (
-    <Layout isMobile={isMobile}>
-      <Head>
-        <title>Koleksi Buku Langka - Perpustakaan Nasional RI</title>
-        <meta name="description" content="Temukan khazanah literatur langka Indonesia dari koleksi Perpustakaan Nasional RI" />
-      </Head>
+    <ErrorBoundary>
+      <Layout isMobile={isMobile}>
+        <Head>
+          <title>Koleksi Buku Langka - Perpustakaan Nasional RI</title>
+          <meta name="description" content="Temukan khazanah literatur langka Indonesia dari koleksi Perpustakaan Nasional RI" />
+        </Head>
 
-      {/* Hero Section */}
-      <section style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        padding: isMobile ? '2.5rem 1rem' : '4rem 2rem',
-        textAlign: 'center'
-      }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: isMobile ? '2rem' : '3rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            lineHeight: '1.2'
-          }}>
-            Memori Literasi Nusantara
-          </h2>
-          <p style={{
-            fontSize: isMobile ? '1rem' : '1.25rem',
-            marginBottom: isMobile ? '2rem' : '2.5rem',
-            opacity: 0.9,
-            fontWeight: '300',
-            lineHeight: '1.5'
-          }}>
-            85.000+ warisan budaya di layanan buku langka - Perpustakaan Nasional RI
-          </p>
-          
-          {/* Search Form */}
-          <form onSubmit={handleManualSearch} style={{ 
-            maxWidth: '600px', 
-            margin: '0 auto',
-            position: 'relative'
-          }}>
-            {/* Search Controls */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.5rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem'
+        {/* Hero Section */}
+        <section style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          padding: isMobile ? '2.5rem 1rem' : '4rem 2rem',
+          textAlign: 'center'
+        }}>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <h2 style={{
+              fontSize: isMobile ? '2rem' : '3rem',
+              fontWeight: '800',
+              marginBottom: '1rem',
+              lineHeight: '1.2'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={toggleLiveSearch}
-                  style={{
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: liveSearchEnabled ? '#48bb78' : '#e2e8f0',
-                    color: liveSearchEnabled ? 'white' : '#4a5568',
-                    border: 'none',
-                    borderRadius: '15px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem'
-                  }}
-                >
-                  <span style={{ fontSize: '0.8rem' }}>
-                    {liveSearchEnabled ? '🔴' : '⚪'}
-                  </span>
-                  Live Search
-                </button>
-
-                {/* NEW: Synonyms Toggle Button */}
-                <button
-                  type="button"
-                  onClick={toggleSynonyms}
-                  style={{
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: synonymsEnabled ? '#4299e1' : '#e2e8f0',
-                    color: synonymsEnabled ? 'white' : '#4a5568',
-                    border: 'none',
-                    borderRadius: '15px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem'
-                  }}
-                >
-                  <span style={{ fontSize: '0.8rem' }}>
-                    {synonymsEnabled ? '🌐' : '🔤'}
-                  </span>
-                  {synonymsEnabled ? 'Synonyms ON' : 'Synonyms OFF'}
-                </button>
-
-                {(loading || isTyping) && (
-                  <div style={{
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    borderRadius: '15px',
-                    fontSize: '0.7rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem'
-                  }}>
-                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: isTyping ? '#f6e05e' : '#4299e1',
-                      animation: 'pulse 1.5s infinite'
-                    }} />
-                    {isTyping ? 'Mengetik...' : 'Mencari...'}
-                  </div>
-                )}
-              </div>
-
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  style={{
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '15px',
-                    fontSize: '0.7rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ✕ Hapus
-                </button>
-              )}
-            </div>
-
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: isMobile ? '0.5rem' : '0',
-              borderRadius: isMobile ? '8px' : '12px',
-              overflow: 'hidden',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+              Memori Literasi Nusantara
+            </h2>
+            <p style={{
+              fontSize: isMobile ? '1rem' : '1.25rem',
+              marginBottom: isMobile ? '2rem' : '2.5rem',
+              opacity: 0.9,
+              fontWeight: '300',
+              lineHeight: '1.5'
+            }}>
+              85.000+ warisan budaya di layanan buku langka - Perpustakaan Nasional RI
+            </p>
+            
+            {/* Search Form */}
+            <form onSubmit={handleManualSearch} style={{ 
+              maxWidth: '600px', 
+              margin: '0 auto',
               position: 'relative'
             }}>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setShowSuggestions(true)
-                  }}
-                  onFocus={() => setShowSuggestions(true)}
-                  placeholder={
-                    liveSearchEnabled 
-                      ? "Ketik untuk mencari secara real-time..." 
-                      : "Cari judul, pengarang, atau tahun terbit..."
-                  }
-                  style={{
-                    width: '100%',
-                    padding: isMobile ? '1rem 1.25rem' : '1.25rem 1.5rem',
-                    border: 'none',
-                    fontSize: isMobile ? '1rem' : '1.1rem',
-                    outline: 'none'
-                  }}
-                />
-                
-                {/* Suggestions Dropdown */}
-                {showSuggestions && (suggestions.length > 0 || searchHistory.length > 0 || searchTerm.length >= 2) && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    zIndex: 1000,
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    marginTop: '4px'
-                  }}>
-                    {/* Recent Searches */}
-                    {searchHistory.length > 0 && searchTerm.length < 2 && (
-                      <>
-                        <div style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
-                          color: '#718096',
-                          borderBottom: '1px solid #f7fafc',
-                          backgroundColor: '#f7fafc',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          <span>🔍 Pencarian Terakhir</span>
-                          <button
-                            onClick={clearSearchHistory}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#718096',
-                              cursor: 'pointer',
-                              fontSize: '0.7rem'
-                            }}
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                        {searchHistory.slice(0, 3).map((item) => (
-                          <div
-                            key={item.id}
-                            onClick={() => handleHistoryClick(item)}
-                            style={{
-                              padding: '0.75rem 1rem',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f7fafc',
-                              transition: 'background-color 0.2s',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center'
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                          >
-                            <span>{item.term}</span>
-                            <span style={{ 
-                              fontSize: '0.7rem', 
-                              color: '#718096',
-                              backgroundColor: '#e2e8f0',
-                              padding: '0.2rem 0.5rem',
-                              borderRadius: '12px'
-                            }}>
-                              {item.resultsCount} hasil
-                            </span>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Search Suggestions */}
-                    {suggestions.length > 0 && (
-                      <>
-                        <div style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
-                          color: '#718096',
-                          borderBottom: '1px solid #f7fafc',
-                          backgroundColor: '#f7fafc',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem'
-                        }}>
-                          💡 Saran Pencarian 
-                          <span style={{
-                            fontSize: '0.7rem',
-                            backgroundColor: '#4299e1',
-                            color: 'white',
-                            padding: '0.2rem 0.4rem',
-                            borderRadius: '10px'
-                          }}>
-                            +Synonyms
-                          </span>
-                        </div>
-                        {suggestions.map((item, index) => (
-                          <div
-                            key={`${item.id}-${index}`}
-                            onClick={() => handleSuggestionClick(item)}
-                            style={{
-                              padding: '0.75rem 1rem',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f7fafc',
-                              transition: 'background-color 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                          >
-                            <div style={{ fontWeight: '600', color: '#2d3748', marginBottom: '0.25rem' }}>
-                              {item.judul}
-                            </div>
-                            {item.pengarang && (
-                              <div style={{ fontSize: '0.8rem', color: '#718096' }}>
-                                oleh {item.pengarang}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Popular Searches */}
-                    {searchTerm.length < 2 && (
-                      <>
-                        <div style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
-                          color: '#718096',
-                          borderBottom: '1px solid #f7fafc',
-                          backgroundColor: '#f7fafc'
-                        }}>
-                          🔥 Pencarian Populer
-                        </div>
-                        {popularSearches.map((term, index) => (
-                          <div
-                            key={index}
-                            onClick={() => setSearchTerm(term)}
-                            style={{
-                              padding: '0.75rem 1rem',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f7fafc',
-                              transition: 'background-color 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                          >
-                            {term}
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {/* Manual Search Button */}
-              {!liveSearchEnabled && (
-                <button 
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#f56565',
-                    color: 'white',
-                    padding: isMobile ? '1rem 1.5rem' : '0 2.5rem',
-                    border: 'none',
-                    fontSize: isMobile ? '1rem' : '1.1rem',
-                    fontWeight: '600',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    minWidth: isMobile ? 'auto' : '120px',
-                    opacity: loading ? 0.7 : 1
-                  }}
-                >
-                  {loading ? '🔍' : 'Cari'}
-                </button>
-              )}
-            </div>
-
-            {/* Live Search Status */}
-            {liveSearchEnabled && searchTerm && (
+              {/* Search Controls */}
               <div style={{
-                marginTop: '0.5rem',
-                fontSize: '0.7rem',
-                color: 'rgba(255,255,255,0.8)',
                 display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                gap: '0.3rem',
-                justifyContent: 'center'
+                marginBottom: '0.5rem',
+                flexWrap: 'wrap',
+                gap: '0.5rem'
               }}>
-                <span style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: isTyping ? '#f6e05e' : loading ? '#4299e1' : '#48bb78',
-                  animation: (isTyping || loading) ? 'pulse 1.5s infinite' : 'none'
-                }} />
-                {isTyping ? 'Mengetik...' : loading ? 'Mencari...' : 'Live search aktif'}
-              </div>
-            )}
-          </form>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={toggleLiveSearch}
+                    style={{
+                      padding: '0.3rem 0.6rem',
+                      backgroundColor: liveSearchEnabled ? '#48bb78' : '#e2e8f0',
+                      color: liveSearchEnabled ? 'white' : '#4a5568',
+                      border: 'none',
+                      borderRadius: '15px',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.8rem' }}>
+                      {liveSearchEnabled ? '🔴' : '⚪'}
+                    </span>
+                    Live Search
+                  </button>
 
-          {/* UPDATE: Search info dengan synonyms status */}
-          {searchResults.length > 0 && (
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.5rem 1rem',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              borderRadius: '20px',
-              fontSize: '0.8rem',
-              display: 'inline-block'
-            }}>
-              🚀 {searchMethod} • {searchResults.length} hasil relevan
-              {liveSearchEnabled && ' • 🔴 Live'} 
-              • 📊 Index Optimized
-              • 🌐 {synonymsEnabled ? 'Synonyms ON' : 'Synonyms OFF'}
-              {detectedLanguage && ` • ${detectedLanguage.toUpperCase()}`}
-            </div>
-          )}
-        </div>
-      </section>
+                  {/* Synonyms Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={toggleSynonyms}
+                    style={{
+                      padding: '0.3rem 0.6rem',
+                      backgroundColor: synonymsEnabled ? '#4299e1' : '#e2e8f0',
+                      color: synonymsEnabled ? 'white' : '#4a5568',
+                      border: 'none',
+                      borderRadius: '15px',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.8rem' }}>
+                      {synonymsEnabled ? '🌐' : '🔤'}
+                    </span>
+                    {synonymsEnabled ? 'Synonyms ON' : 'Synonyms OFF'}
+                  </button>
 
-      {/* Stats Section */}
-      {showStats && (
-        <section style={{
-          backgroundColor: 'white',
-          padding: isMobile ? '2rem 1rem' : '3rem 2rem'
-        }}>
-          <div style={{ 
-            maxWidth: '1200px', 
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-            gap: '2rem',
-            textAlign: 'center'
-          }}>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Koleksi Buku</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Tahun Sejarah</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Bahasa</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Akses Digital</div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Search Results Section */}
-      {searchResults.length > 0 && (
-        <section style={{ 
-          maxWidth: '1400px', 
-          margin: isMobile ? '2rem auto' : '3rem auto',
-          padding: isMobile ? '0 1rem' : '0 2rem'
-        }}>
-          {/* NEW: Improved Search-within-Search Panel dengan Year Slider ONLY */}
-          <div style={{
-            backgroundColor: 'white',
-            padding: '1.5rem',
-            borderRadius: '12px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-            marginBottom: '2rem',
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-              gap: '1rem'
-            }}>
-              <h3 style={{ 
-                fontSize: '1.25rem', 
-                fontWeight: '700',
-                color: '#2d3748',
-                margin: 0
-              }}>
-                🔎 Filter Hasil Pencarian
-              </h3>
-              
-              {isWithinSearchActive && (
-                <button
-                  onClick={clearWithinSearch}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#f7fafc',
-                    color: '#718096',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: '500'
-                  }}
-                >
-                  ✕ Hapus Filter
-                </button>
-              )}
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr',
-              gap: '2rem',
-              alignItems: 'start'
-            }}>
-              {/* Left Column: Text Search */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '0.5rem'
-                }}>
-                  Cari dalam hasil:
-                </label>
-                <input
-                  type="text"
-                  value={withinSearchTerm}
-                  onChange={(e) => setWithinSearchTerm(e.target.value)}
-                  placeholder="Filter judul, pengarang, penerbit..."
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              {/* Right Column: Year Slider ONLY - NO MANUAL INPUTS */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '1rem'
-                }}>
-                  Rentang Tahun Terbit:
-                </label>
-                
-                {/* Year Range Display */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.9rem',
-                  color: '#4a5568'
-                }}>
-                  <span>{activeFilters.tahunRange[0]}</span>
-                  <span style={{ 
-                    backgroundColor: '#4299e1',
-                    color: 'white',
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '12px',
-                    fontSize: '0.8rem',
-                    fontWeight: '600'
-                  }}>
-                    {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
-                  </span>
-                  <span>{activeFilters.tahunRange[1]}</span>
-                </div>
-
-                {/* Custom Slider */}
-                <div style={{ position: 'relative', marginBottom: '1rem' }}>
-                  <div style={{
-                    height: '6px',
-                    backgroundColor: '#e2e8f0',
-                    borderRadius: '3px',
-                    position: 'relative'
-                  }}>
-                    {/* Active Range */}
+                  {(loading || isTyping) && (
                     <div style={{
-                      position: 'absolute',
-                      height: '100%',
-                      backgroundColor: '#4299e1',
-                      borderRadius: '3px',
-                      left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-                      right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
-                    }} />
-                    
-                    {/* Min Handle */}
-                    <input
-                      type="range"
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      value={activeFilters.tahunRange[0]}
-                      onChange={(e) => updateYearRange([
-                        parseInt(e.target.value),
-                        activeFilters.tahunRange[1]
-                      ])}
-                      style={{
-                        position: 'absolute',
-                        width: '100%',
-                        top: '-6px',
-                        height: '18px',
-                        appearance: 'none',
-                        background: 'transparent',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                    
-                    {/* Max Handle */}
-                    <input
-                      type="range"
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      value={activeFilters.tahunRange[1]}
-                      onChange={(e) => updateYearRange([
-                        activeFilters.tahunRange[0],
-                        parseInt(e.target.value)
-                      ])}
-                      style={{
-                        position: 'absolute',
-                        width: '100%',
-                        top: '-6px',
-                        height: '18px',
-                        appearance: 'none',
-                        background: 'transparent',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                  </div>
+                      padding: '0.3rem 0.6rem',
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      borderRadius: '15px',
+                      fontSize: '0.7rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem'
+                    }}>
+                      <div style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: isTyping ? '#f6e05e' : '#4299e1',
+                        animation: 'pulse 1.5s infinite'
+                      }} />
+                      {isTyping ? 'Mengetik...' : 'Mencari...'}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
 
-            {/* UPDATE: Filter Status dengan Info Tahun Valid */}
-            {isWithinSearchActive && (
-              <div style={{
-                marginTop: '1rem',
-                padding: '0.75rem',
-                backgroundColor: '#e6fffa',
-                border: '1px solid #81e6d9',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                color: '#234e52'
-              }}>
-                🔍 Filter aktif: 
-                {withinSearchTerm && ` Teks: "${withinSearchTerm}"`}
-                {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-                  ` Tahun: ${activeFilters.tahunRange[0]} - ${activeFilters.tahunRange[1]}`}
-                {` • ${filteredResults.length} hasil (dari ${searchResults.length})`}
-                {` • 📊 ${countValidYears(filteredResults)} buku dengan tahun valid`}
-              </div>
-            )}
-          </div>
-
-          {/* UPDATE: Results Header dengan Synonyms Info */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: isMobile ? 'flex-start' : 'center',
-            marginBottom: '2rem',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            flexDirection: isMobile ? 'column' : 'row'
-          }}>
-            <div style={{ flex: 1 }}>
-              <h3 style={{ 
-                fontSize: isMobile ? '1.5rem' : '1.75rem', 
-                fontWeight: '700',
-                color: '#2d3748',
-                margin: 0
-              }}>
-                Hasil Pencarian
-              </h3>
-              
-              {/* NEW: Synonyms Information */}
-              {synonymsEnabled && activeSynonyms.length > 0 && (
-                <div style={{
-                  marginTop: '0.5rem',
-                  padding: '0.75rem',
-                  backgroundColor: '#fffaf0',
-                  border: '1px solid #fbd38d',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  color: '#744210'
-                }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem',
-                    marginBottom: '0.25rem',
-                    fontWeight: '600'
-                  }}>
-                    🌐 Pencarian juga termasuk:
-                  </div>
-                  <div style={{ 
-                    display: 'flex', 
-                    flexWrap: 'wrap', 
-                    gap: '0.5rem',
-                    alignItems: 'center'
-                  }}>
-                    {activeSynonyms.map((synonym, index) => (
-                      <span
-                        key={index}
-                        style={{
-                          backgroundColor: '#fef3c7',
-                          color: '#92400e',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          border: '1px solid #f59e0b'
-                        }}
-                      >
-                        {synonym}
-                      </span>
-                    ))}
-                    <button
-                      onClick={toggleSynonyms}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#dc2626',
-                        cursor: 'pointer',
-                        fontSize: '0.7rem',
-                        textDecoration: 'underline',
-                        marginLeft: '0.5rem'
-                      }}
-                    >
-                      Matikan synonyms
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              <p style={{ 
-                color: '#718096',
-                margin: activeSynonyms.length > 0 ? '0.75rem 0 0 0' : '0.5rem 0 0 0',
-                fontSize: isMobile ? '0.9rem' : '1rem'
-              }}>
-                {isWithinSearchActive ? (
-                  <>
-                    <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
-                    ditemukan {synonymsEnabled && activeSynonyms.length > 0 ? 'dengan synonyms' : 'untuk'} 
-                    "<strong>{searchTerm}</strong>"
-                    {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
-                    {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-                      ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
-                  </>
-                ) : (
-                  <>
-                    {searchResults.length} buku ditemukan {synonymsEnabled && activeSynonyms.length > 0 ? 'dengan synonyms' : 'untuk'} 
-                    "<strong>{searchTerm}</strong>"
-                    {synonymsEnabled && activeSynonyms.length === 0 && !loading && (
-                      <span style={{ 
-                        fontSize: '0.8rem', 
-                        color: '#718096',
-                        fontStyle: 'italic',
-                        marginLeft: '0.5rem'
-                      }}>
-                        (coba aktifkan synonyms untuk hasil lebih banyak)
-                      </span>
-                    )}
-                  </>
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    style={{
+                      padding: '0.3rem 0.6rem',
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '15px',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✕ Hapus
+                  </button>
                 )}
-              </p>
-            </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '1rem',
-              flexWrap: 'wrap'
-            }}>
-              <span style={{ 
-                fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                color: '#4a5568', 
-                fontWeight: '500' 
-              }}>
-                Tampilkan:
-              </span>
-              <select 
-                value={itemsPerPage}
-                onChange={handleItemsPerPageChange}
-                style={{
-                  padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  backgroundColor: 'white',
-                  fontSize: isMobile ? '0.8rem' : '0.9rem',
-                  outline: 'none'
-                }}
-              >
-                <option value={20}>20 per halaman</option>
-                <option value={50}>50 per halaman</option>
-                <option value={100}>100 per halaman</option>
-              </select>
-            </div>
-          </div>
+              </div>
 
-          {/* Book Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: isMobile ? '1rem' : '1.5rem',
-            marginBottom: '3rem'
-          }}>
-            {currentItems.map((book) => (
-              <div key={book.id} style={{
-                backgroundColor: 'white',
-                padding: isMobile ? '1.25rem' : '1.5rem',
-                borderRadius: '12px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                border: '1px solid #f0f0f0',
-                transition: 'all 0.2s ease',
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: isMobile ? 'column' : 'row',
+                gap: isMobile ? '0.5rem' : '0',
+                borderRadius: isMobile ? '8px' : '12px',
+                overflow: 'hidden',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
                 position: 'relative'
               }}>
-                {/* Relevance Indicator */}
-                {book._relevanceScore > 50 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '-8px',
-                    right: '-8px',
-                    backgroundColor: '#48bb78',
-                    color: 'white',
-                    fontSize: '0.7rem',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: '12px',
-                    fontWeight: '600'
-                  }}>
-                    🔥 Relevan
-                  </div>
-                )}
-                
-                <h4 style={{ 
-                  fontWeight: '600',
-                  color: '#2d3748',
-                  marginBottom: '0.75rem',
-                  fontSize: isMobile ? '1rem' : '1.1rem',
-                  lineHeight: '1.4'
-                }}>
-                  {book.judul}
-                </h4>
-                
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568', 
-                    marginBottom: '0.25rem' 
-                  }}>
-                    <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
-                  </div>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568', 
-                    marginBottom: '0.25rem' 
-                  }}>
-                    <strong>Tahun:</strong> 
-                    <span style={{
-                      backgroundColor: extractYearFromString(book.tahun_terbit) ? '#f0fff4' : '#fffaf0',
-                      padding: '0.1rem 0.3rem',
-                      borderRadius: '4px',
-                      marginLeft: '0.3rem',
-                      fontFamily: 'monospace'
-                    }}>
-                      {book.tahun_terbit || 'Tidak diketahui'}
-                      {!extractYearFromString(book.tahun_terbit) && book.tahun_terbit && ' ⚠️'}
-                    </span>
-                  </div>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568' 
-                  }}>
-                    <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
-                  </div>
-                </div>
-
-                {book.deskripsi_fisik && (
-                  <p style={{ 
-                    fontSize: isMobile ? '0.75rem' : '0.85rem', 
-                    color: '#718096', 
-                    marginTop: '0.75rem',
-                    lineHeight: '1.5',
-                    fontStyle: 'italic'
-                  }}>
-                    {book.deskripsi_fisik}
-                  </p>
-                )}
-
-                {/* Action Buttons */}
-                <div style={{ 
-                  marginTop: '1.25rem', 
-                  display: 'flex', 
-                  gap: '0.75rem',
-                  flexWrap: 'wrap'
-                }}>
-                  {book.lihat_opac && book.lihat_opac !== 'null' && (
-                    <a 
-                      href={book.lihat_opac}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        backgroundColor: '#4299e1',
-                        color: 'white',
-                        padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        fontSize: isMobile ? '0.75rem' : '0.85rem',
-                        fontWeight: '500'
-                      }}
-                    >
-                      📖 Lihat OPAC
-                    </a>
-                  )}
-
-                  {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
-                    <a 
-                      href={book.link_pesan_koleksi}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        backgroundColor: '#48bb78',
-                        color: 'white',
-                        padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        fontSize: isMobile ? '0.75rem' : '0.85rem',
-                        fontWeight: '500'
-                      }}
-                    >
-                      📥 Pesan Koleksi
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* No Filtered Results Message */}
-          {filteredResults.length === 0 && isWithinSearchActive && (
-            <div style={{
-              textAlign: 'center',
-              padding: '3rem 2rem',
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              color: '#718096'
-            }}>
-              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-              <h4 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
-                Tidak ada hasil untuk filter ini
-              </h4>
-              <p>Coba ubah kriteria filter atau <button 
-                onClick={clearWithinSearch}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#4299e1',
-                  cursor: 'pointer',
-                  textDecoration: 'underline'
-                }}
-              >
-                hapus filter
-              </button> untuk melihat semua hasil.</p>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {totalPages > 1 && filteredResults.length > 0 && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '0.5rem',
-              marginTop: '3rem',
-              flexWrap: 'wrap'
-            }}>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNumber = i + 1
-                if (totalPages > 5 && currentPage > 3) {
-                  pageNumber = currentPage - 2 + i
-                }
-                if (pageNumber > totalPages) return null
-
-                return (
-                  <button
-                    key={pageNumber}
-                    onClick={() => paginate(pageNumber)}
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value)
+                      setShowSuggestions(true)
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    placeholder={
+                      liveSearchEnabled 
+                        ? "Ketik untuk mencari secara real-time..." 
+                        : "Cari judul, pengarang, atau tahun terbit..."
+                    }
                     style={{
-                      padding: '0.75rem 1rem',
+                      width: '100%',
+                      padding: isMobile ? '1rem 1.25rem' : '1.25rem 1.5rem',
+                      border: 'none',
+                      fontSize: isMobile ? '1rem' : '1.1rem',
+                      outline: 'none'
+                    }}
+                  />
+                  
+                  {/* Suggestions Dropdown */}
+                  {showSuggestions && (suggestions.length > 0 || searchHistory.length > 0 || searchTerm.length >= 2) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      backgroundColor: 'white',
                       border: '1px solid #e2e8f0',
-                      backgroundColor: currentPage === pageNumber ? '#4299e1' : 'white',
-                      color: currentPage === pageNumber ? 'white' : '#4a5568',
                       borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      zIndex: 1000,
+                      maxHeight: '400px',
+                      overflowY: 'auto',
+                      marginTop: '4px'
+                    }}>
+                      {/* Recent Searches */}
+                      {searchHistory.length > 0 && searchTerm.length < 2 && (
+                        <>
+                          <div style={{
+                            padding: '0.75rem 1rem',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            color: '#718096',
+                            borderBottom: '1px solid #f7fafc',
+                            backgroundColor: '#f7fafc',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <span>🔍 Pencarian Terakhir</span>
+                            <button
+                              onClick={clearSearchHistory}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#718096',
+                                cursor: 'pointer',
+                                fontSize: '0.7rem'
+                              }}
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                          {searchHistory.slice(0, 3).map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={() => handleHistoryClick(item)}
+                              style={{
+                                padding: '0.75rem 1rem',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid #f7fafc',
+                                transition: 'background-color 0.2s',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                            >
+                              <span>{item.term}</span>
+                              <span style={{ 
+                                fontSize: '0.7rem', 
+                                color: '#718096',
+                                backgroundColor: '#e2e8f0',
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '12px'
+                              }}>
+                                {item.resultsCount} hasil
+                              </span>
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Search Suggestions */}
+                      {suggestions.length > 0 && (
+                        <>
+                          <div style={{
+                            padding: '0.75rem 1rem',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            color: '#718096',
+                            borderBottom: '1px solid #f7fafc',
+                            backgroundColor: '#f7fafc',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                          }}>
+                            💡 Saran Pencarian 
+                            <span style={{
+                              fontSize: '0.7rem',
+                              backgroundColor: '#4299e1',
+                              color: 'white',
+                              padding: '0.2rem 0.4rem',
+                              borderRadius: '10px'
+                            }}>
+                              +Synonyms
+                            </span>
+                          </div>
+                          {suggestions.map((item, index) => (
+                            <div
+                              key={`${item.id}-${index}`}
+                              onClick={() => handleSuggestionClick(item)}
+                              style={{
+                                padding: '0.75rem 1rem',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid #f7fafc',
+                                transition: 'background-color 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                            >
+                              <div style={{ fontWeight: '600', color: '#2d3748', marginBottom: '0.25rem' }}>
+                                {item.judul}
+                              </div>
+                              {item.pengarang && (
+                                <div style={{ fontSize: '0.8rem', color: '#718096' }}>
+                                  oleh {item.pengarang}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Popular Searches */}
+                      {searchTerm.length < 2 && (
+                        <>
+                          <div style={{
+                            padding: '0.75rem 1rem',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            color: '#718096',
+                            borderBottom: '1px solid #f7fafc',
+                            backgroundColor: '#f7fafc'
+                          }}>
+                            🔥 Pencarian Populer
+                          </div>
+                          {popularSearches.map((term, index) => (
+                            <div
+                              key={index}
+                              onClick={() => setSearchTerm(term)}
+                              style={{
+                                padding: '0.75rem 1rem',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid #f7fafc',
+                                transition: 'background-color 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = '#f7fafc'}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                            >
+                              {term}
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Manual Search Button */}
+                {!liveSearchEnabled && (
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      backgroundColor: '#f56565',
+                      color: 'white',
+                      padding: isMobile ? '1rem 1.5rem' : '0 2.5rem',
+                      border: 'none',
+                      fontSize: isMobile ? '1rem' : '1.1rem',
+                      fontWeight: '600',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s',
+                      minWidth: isMobile ? 'auto' : '120px',
+                      opacity: loading ? 0.7 : 1
+                    }}
+                  >
+                    {loading ? '🔍' : 'Cari'}
+                  </button>
+                )}
+              </div>
+
+              {/* Live Search Status */}
+              {liveSearchEnabled && searchTerm && (
+                <div style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.7rem',
+                  color: 'rgba(255,255,255,0.8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  justifyContent: 'center'
+                }}>
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: isTyping ? '#f6e05e' : loading ? '#4299e1' : '#48bb78',
+                    animation: (isTyping || loading) ? 'pulse 1.5s infinite' : 'none'
+                  }} />
+                  {isTyping ? 'Mengetik...' : loading ? 'Mencari...' : 'Live search aktif'}
+                </div>
+              )}
+            </form>
+
+            {/* UPDATE: Search info dengan synonyms status */}
+            {searchResults.length > 0 && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                borderRadius: '20px',
+                fontSize: '0.8rem',
+                display: 'inline-block'
+              }}>
+                🚀 {searchMethod} • {searchResults.length} hasil relevan
+                {liveSearchEnabled && ' • 🔴 Live'} 
+                • 📊 Index Optimized
+                • 🌐 {synonymsEnabled ? 'Synonyms ON' : 'Synonyms OFF'}
+                {detectedLanguage && ` • ${detectedLanguage.toUpperCase()}`}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Stats Section */}
+        {showStats && (
+          <section style={{
+            backgroundColor: 'white',
+            padding: isMobile ? '2rem 1rem' : '3rem 2rem'
+          }}>
+            <div style={{ 
+              maxWidth: '1200px', 
+              margin: '0 auto',
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+              gap: '2rem',
+              textAlign: 'center'
+            }}>
+              <div>
+                <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
+                <div style={{ color: '#718096', fontWeight: '500' }}>Koleksi Buku</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
+                <div style={{ color: '#718096', fontWeight: '500' }}>Tahun Sejarah</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
+                <div style={{ color: '#718096', fontWeight: '500' }}>Bahasa</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
+                <div style={{ color: '#718096', fontWeight: '500' }}>Akses Digital</div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Search Results Section */}
+        {searchResults.length > 0 && (
+          <section style={{ 
+            maxWidth: '1400px', 
+            margin: isMobile ? '2rem auto' : '3rem auto',
+            padding: isMobile ? '0 1rem' : '0 2rem'
+          }}>
+            {/* Improved Search-within-Search Panel dengan Year Slider ONLY */}
+            <div style={{
+              backgroundColor: 'white',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              marginBottom: '2rem',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                flexWrap: 'wrap',
+                gap: '1rem'
+              }}>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '700',
+                  color: '#2d3748',
+                  margin: 0
+                }}>
+                  🔎 Filter Hasil Pencarian
+                </h3>
+                
+                {isWithinSearchActive && (
+                  <button
+                    onClick={clearWithinSearch}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      backgroundColor: '#f7fafc',
+                      color: '#718096',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
                       cursor: 'pointer',
+                      fontSize: '0.8rem',
                       fontWeight: '500'
                     }}
                   >
-                    {pageNumber}
+                    ✕ Hapus Filter
                   </button>
-                )
-              })}
+                )}
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr',
+                gap: '2rem',
+                alignItems: 'start'
+              }}>
+                {/* Left Column: Text Search */}
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Cari dalam hasil:
+                  </label>
+                  <input
+                    type="text"
+                    value={withinSearchTerm}
+                    onChange={(e) => setWithinSearchTerm(e.target.value)}
+                    placeholder="Filter judul, pengarang, penerbit..."
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                {/* Right Column: Year Slider ONLY - NO MANUAL INPUTS */}
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    marginBottom: '1rem'
+                  }}>
+                    Rentang Tahun Terbit:
+                  </label>
+                  
+                  {/* Year Range Display */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.5rem',
+                    fontSize: '0.9rem',
+                    color: '#4a5568'
+                  }}>
+                    <span>{activeFilters.tahunRange[0]}</span>
+                    <span style={{ 
+                      backgroundColor: '#4299e1',
+                      color: 'white',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}>
+                      {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
+                    </span>
+                    <span>{activeFilters.tahunRange[1]}</span>
+                  </div>
+
+                  {/* Custom Slider */}
+                  <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                    <div style={{
+                      height: '6px',
+                      backgroundColor: '#e2e8f0',
+                      borderRadius: '3px',
+                      position: 'relative'
+                    }}>
+                      {/* Active Range */}
+                      <div style={{
+                        position: 'absolute',
+                        height: '100%',
+                        backgroundColor: '#4299e1',
+                        borderRadius: '3px',
+                        left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+                        right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
+                      }} />
+                      
+                      {/* Min Handle */}
+                      <input
+                        type="range"
+                        min={MIN_YEAR}
+                        max={MAX_YEAR}
+                        value={activeFilters.tahunRange[0]}
+                        onChange={(e) => updateYearRange([
+                          parseInt(e.target.value),
+                          activeFilters.tahunRange[1]
+                        ])}
+                        style={{
+                          position: 'absolute',
+                          width: '100%',
+                          top: '-6px',
+                          height: '18px',
+                          appearance: 'none',
+                          background: 'transparent',
+                          pointerEvents: 'none',
+                          zIndex: 2
+                        }}
+                      />
+                      
+                      {/* Max Handle */}
+                      <input
+                        type="range"
+                        min={MIN_YEAR}
+                        max={MAX_YEAR}
+                        value={activeFilters.tahunRange[1]}
+                        onChange={(e) => updateYearRange([
+                          activeFilters.tahunRange[0],
+                          parseInt(e.target.value)
+                        ])}
+                        style={{
+                          position: 'absolute',
+                          width: '100%',
+                          top: '-6px',
+                          height: '18px',
+                          appearance: 'none',
+                          background: 'transparent',
+                          pointerEvents: 'none',
+                          zIndex: 2
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* UPDATE: Filter Status dengan Info Tahun Valid */}
+              {isWithinSearchActive && (
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem',
+                  backgroundColor: '#e6fffa',
+                  border: '1px solid #81e6d9',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  color: '#234e52'
+                }}>
+                  🔍 Filter aktif: 
+                  {withinSearchTerm && ` Teks: "${withinSearchTerm}"`}
+                  {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+                    ` Tahun: ${activeFilters.tahunRange[0]} - ${activeFilters.tahunRange[1]}`}
+                  {` • ${filteredResults.length} hasil (dari ${searchResults.length})`}
+                  {` • 📊 ${countValidYears(filteredResults)} buku dengan tahun valid`}
+                </div>
+              )}
             </div>
-          )}
-        </section>
-      )}
 
-      <style jsx>{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
-        }
+            {/* UPDATE: Results Header dengan Synonyms Info */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: isMobile ? 'flex-start' : 'center',
+              marginBottom: '2rem',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              flexDirection: isMobile ? 'column' : 'row'
+            }}>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ 
+                  fontSize: isMobile ? '1.5rem' : '1.75rem', 
+                  fontWeight: '700',
+                  color: '#2d3748',
+                  margin: 0
+                }}>
+                  Hasil Pencarian
+                </h3>
+                
+                {/* Synonyms Information */}
+                {synonymsEnabled && activeSynonyms.length > 0 && (
+                  <div style={{
+                    marginTop: '0.5rem',
+                    padding: '0.75rem',
+                    backgroundColor: '#fffaf0',
+                    border: '1px solid #fbd38d',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    color: '#744210'
+                  }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.5rem',
+                      marginBottom: '0.25rem',
+                      fontWeight: '600'
+                    }}>
+                      🌐 Pencarian juga termasuk:
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '0.5rem',
+                      alignItems: 'center'
+                    }}>
+                      {activeSynonyms.map((synonym, index) => (
+                        <span
+                          key={index}
+                          style={{
+                            backgroundColor: '#fef3c7',
+                            color: '#92400e',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            border: '1px solid #f59e0b'
+                          }}
+                        >
+                          {synonym}
+                        </span>
+                      ))}
+                      <button
+                        onClick={toggleSynonyms}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#dc2626',
+                          cursor: 'pointer',
+                          fontSize: '0.7rem',
+                          textDecoration: 'underline',
+                          marginLeft: '0.5rem'
+                        }}
+                      >
+                        Matikan synonyms
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                <p style={{ 
+                  color: '#718096',
+                  margin: activeSynonyms.length > 0 ? '0.75rem 0 0 0' : '0.5rem 0 0 0',
+                  fontSize: isMobile ? '0.9rem' : '1rem'
+                }}>
+                  {isWithinSearchActive ? (
+                    <>
+                      <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
+                      ditemukan {synonymsEnabled && activeSynonyms.length > 0 ? 'dengan synonyms' : 'untuk'} 
+                      "<strong>{searchTerm}</strong>"
+                      {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
+                      {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+                        ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
+                    </>
+                  ) : (
+                    <>
+                      {searchResults.length} buku ditemukan {synonymsEnabled && activeSynonyms.length > 0 ? 'dengan synonyms' : 'untuk'} 
+                      "<strong>{searchTerm}</strong>"
+                      {synonymsEnabled && activeSynonyms.length === 0 && !loading && (
+                        <span style={{ 
+                          fontSize: '0.8rem', 
+                          color: '#718096',
+                          fontStyle: 'italic',
+                          marginLeft: '0.5rem'
+                        }}>
+                          (coba aktifkan synonyms untuk hasil lebih banyak)
+                        </span>
+                      )}
+                    </>
+                  )}
+                </p>
+              </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '1rem',
+                flexWrap: 'wrap'
+              }}>
+                <span style={{ 
+                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                  color: '#4a5568', 
+                  fontWeight: '500' 
+                }}>
+                  Tampilkan:
+                </span>
+                <select 
+                  value={itemsPerPage}
+                  onChange={handleItemsPerPageChange}
+                  style={{
+                    padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    fontSize: isMobile ? '0.8rem' : '0.9rem',
+                    outline: 'none'
+                  }}
+                >
+                  <option value={20}>20 per halaman</option>
+                  <option value={50}>50 per halaman</option>
+                  <option value={100}>100 per halaman</option>
+                </select>
+              </div>
+            </div>
 
-        /* Custom Slider Styles */
-        input[type="range"] {
-          -webkit-appearance: none;
-        }
+            {/* Book Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
+              gap: isMobile ? '1rem' : '1.5rem',
+              marginBottom: '3rem'
+            }}>
+              {currentItems.map((book) => (
+                <div key={book.id} style={{
+                  backgroundColor: 'white',
+                  padding: isMobile ? '1.25rem' : '1.5rem',
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  border: '1px solid #f0f0f0',
+                  transition: 'all 0.2s ease',
+                  position: 'relative'
+                }}>
+                  {/* Relevance Indicator */}
+                  {book._relevanceScore > 50 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      right: '-8px',
+                      backgroundColor: '#48bb78',
+                      color: 'white',
+                      fontSize: '0.7rem',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '12px',
+                      fontWeight: '600'
+                    }}>
+                      🔥 Relevan
+                    </div>
+                  )}
+                  
+                  <h4 style={{ 
+                    fontWeight: '600',
+                    color: '#2d3748',
+                    marginBottom: '0.75rem',
+                    fontSize: isMobile ? '1rem' : '1.1rem',
+                    lineHeight: '1.4'
+                  }}>
+                    {book.judul}
+                  </h4>
+                  
+                  <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ 
+                      fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                      color: '#4a5568', 
+                      marginBottom: '0.25rem' 
+                    }}>
+                      <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
+                    </div>
+                    <div style={{ 
+                      fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                      color: '#4a5568', 
+                      marginBottom: '0.25rem' 
+                    }}>
+                      <strong>Tahun:</strong> 
+                      <span style={{
+                        backgroundColor: extractYearFromString(book.tahun_terbit) ? '#f0fff4' : '#fffaf0',
+                        padding: '0.1rem 0.3rem',
+                        borderRadius: '4px',
+                        marginLeft: '0.3rem',
+                        fontFamily: 'monospace'
+                      }}>
+                        {book.tahun_terbit || 'Tidak diketahui'}
+                        {!extractYearFromString(book.tahun_terbit) && book.tahun_terbit && ' ⚠️'}
+                      </span>
+                    </div>
+                    <div style={{ 
+                      fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                      color: '#4a5568' 
+                    }}>
+                      <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
+                    </div>
+                  </div>
 
-        input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #4299e1;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          pointer-events: auto;
-        }
+                  {book.deskripsi_fisik && (
+                    <p style={{ 
+                      fontSize: isMobile ? '0.75rem' : '0.85rem', 
+                      color: '#718096', 
+                      marginTop: '0.75rem',
+                      lineHeight: '1.5',
+                      fontStyle: 'italic'
+                    }}>
+                      {book.deskripsi_fisik}
+                    </p>
+                  )}
 
-        input[type="range"]::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #4299e1;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          pointer-events: auto;
-        }
-      `}</style>
-    </Layout>
-  )
-}
+                  {/* Action Buttons */}
+                  <div style={{ 
+                    marginTop: '1.25rem', 
+                    display: 'flex', 
+                    gap: '0.75rem',
+                    flexWrap: 'wrap'
+                  }}>
+                    {book.lihat_opac && book.lihat_opac !== 'null' && (
+                      <a 
+                        href={book.lihat_opac}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          backgroundColor: '#4299e1',
+                          color: 'white',
+                          padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+                          borderRadius: '6px',
+                          textDecoration: 'none',
+                          fontSize: isMobile ? '0.75rem' : '0.85rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        📖 Lihat OPAC
+                      </a>
+                    )}
 
-// Wrap dengan Error Boundary
-export default function Home() {
-  return (
-    <ErrorBoundary>
-      <HomeComponent />
+                    {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
+                      <a 
+                        href={book.link_pesan_koleksi}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          backgroundColor: '#48bb78',
+                          color: 'white',
+                          padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+                          borderRadius: '6px',
+                          textDecoration: 'none',
+                          fontSize: isMobile ? '0.75rem' : '0.85rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        📥 Pesan Koleksi
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* No Filtered Results Message */}
+            {filteredResults.length === 0 && isWithinSearchActive && (
+              <div style={{
+                textAlign: 'center',
+                padding: '3rem 2rem',
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                color: '#718096'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+                <h4 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
+                  Tidak ada hasil untuk filter ini
+                </h4>
+                <p>Coba ubah kriteria filter atau <button 
+                  onClick={clearWithinSearch}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#4299e1',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  hapus filter
+                </button> untuk melihat semua hasil.</p>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && filteredResults.length > 0 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginTop: '3rem',
+                flexWrap: 'wrap'
+              }}>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNumber = i + 1
+                  if (totalPages > 5 && currentPage > 3) {
+                    pageNumber = currentPage - 2 + i
+                  }
+                  if (pageNumber > totalPages) return null
+
+                  return (
+                    <button
+                      key={pageNumber}
+                      onClick={() => paginate(pageNumber)}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: currentPage === pageNumber ? '#4299e1' : 'white',
+                        color: currentPage === pageNumber ? 'white' : '#4a5568',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                    >
+                      {pageNumber}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        <style jsx>{`
+          @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+          }
+
+          /* Custom Slider Styles */
+          input[type="range"] {
+            -webkit-appearance: none;
+          }
+
+          input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4299e1;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            pointer-events: auto;
+          }
+
+          input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4299e1;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            pointer-events: auto;
+          }
+        `}</style>
+      </Layout>
     </ErrorBoundary>
   )
 }
