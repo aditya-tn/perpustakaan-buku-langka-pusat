@@ -1,4 +1,4 @@
-// components/profil/QuickActions.js
+// components/profil/QuickActions.js - UPDATED
 import Link from 'next/link'
 
 const ActionCard = ({ icon, title, description, link, onClick }) => (
@@ -10,7 +10,8 @@ const ActionCard = ({ icon, title, description, link, onClick }) => (
     textAlign: 'center',
     transition: 'all 0.3s ease',
     cursor: 'pointer',
-    border: '1px solid #e2e8f0'
+    border: '1px solid #e2e8f0',
+    height: '100%'
   }}
   onClick={onClick}
   onMouseEnter={(e) => {
@@ -65,7 +66,7 @@ export default function QuickActions() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
           gap: '2rem'
         }}>
-          <Link href="/layanan/pemesanan" passHref>
+          <Link href="/layanan" passHref>
             <a style={{ textDecoration: 'none' }}>
               <ActionCard 
                 icon="📚"
@@ -75,12 +76,12 @@ export default function QuickActions() {
             </a>
           </Link>
           
-          <Link href="/kritik-saran" passHref>
+          <Link href="/layanan" passHref>
             <a style={{ textDecoration: 'none' }}>
               <ActionCard 
-                icon="💬"
-                title="Kritik & Saran" 
-                description="Bantu kami meningkatkan kualitas layanan koleksi langka"
+                icon="🕒"
+                title="Ruang Baca Khusus"
+                description="Pesan ruang baca khusus untuk penelitian intensif"
               />
             </a>
           </Link>
@@ -95,12 +96,12 @@ export default function QuickActions() {
             </a>
           </Link>
           
-          <Link href="/layanan/ruang-baca" passHref>
+          <Link href="/kritik-saran" passHref>
             <a style={{ textDecoration: 'none' }}>
               <ActionCard 
-                icon="🕒"
-                title="Ruang Baca Khusus"
-                description="Pesan ruang baca khusus untuk penelitian intensif"
+                icon="💬"
+                title="Kritik & Saran" 
+                description="Bantu kami meningkatkan kualitas layanan koleksi langka"
               />
             </a>
           </Link>
