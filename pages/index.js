@@ -1,4 +1,4 @@
-// pages/index.js - SMOOTH CLEAN MODE SEARCH
+// pages/index.js - SMOOTH CLEAN MODE SEARCH WITH FIXED SYNONYMS
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -193,7 +193,7 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState('')
 
-  // Synonyms Filter States
+  // Synonyms Filter States - FIX: Proper initialization
   const [synonymsEnabled, setSynonymsEnabled] = useState(true)
   const [activeSynonyms, setActiveSynonyms] = useState([])
 
@@ -216,7 +216,7 @@ export default function Home() {
     return books.filter(book => extractYearFromString(book.tahun_terbit) !== null).length;
   };
 
-  // NEW: Clean Mode State
+  // Clean Mode State
   const [cleanMode, setCleanMode] = useState(false)
 
   // Detect mobile screen
@@ -227,21 +227,36 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // FIXED: Load preferences dengan DEFAULT SYNONYMS ON
+  // FIXED: Load preferences dengan proper initialization
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedHistory = localStorage.getItem('searchHistory')
       const savedLiveSearch = localStorage.getItem('liveSearchEnabled')
       const savedSynonymsEnabled = localStorage.getItem('synonymsEnabled')
       
+      console.log('🔄 Loading preferences:', {
+        savedSynonymsEnabled,
+        savedLiveSearch,
+        hasHistory: !!savedHistory
+      })
+      
       if (savedHistory) setSearchHistory(JSON.parse(savedHistory))
       if (savedLiveSearch !== null) setLiveSearchEnabled(JSON.parse(savedLiveSearch))
       
+      // FIX: Proper synonyms loading dengan fallback ke true
       if (savedSynonymsEnabled !== null) {
-        const synonymsSetting = JSON.parse(savedSynonymsEnabled)
-        setSynonymsEnabled(synonymsSetting)
+        try {
+          const synonymsSetting = JSON.parse(savedSynonymsEnabled)
+          setSynonymsEnabled(synonymsSetting)
+          console.log('🔧 Loaded synonyms preference:', synonymsSetting)
+        } catch (error) {
+          console.error('Error parsing synonyms setting, using default true')
+          setSynonymsEnabled(true)
+        }
       } else {
+        // DEFAULT: Synonyms ON
         setSynonymsEnabled(true)
+        console.log('🔧 Using default synonyms: ON')
       }
     }
   }, [])
@@ -251,13 +266,14 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
       localStorage.setItem('synonymsEnabled', JSON.stringify(synonymsEnabled))
+      console.log('💾 Saved synonyms preference:', synonymsEnabled)
       if (searchHistory.length > 0) {
         localStorage.setItem('searchHistory', JSON.stringify(searchHistory))
       }
     }
   }, [searchHistory, liveSearchEnabled, synonymsEnabled])
   
-  // NEW: Clean Mode Effect - Trigger ketika typing/search aktif
+  // Clean Mode Effect - Trigger ketika typing/search aktif
   useEffect(() => {
     const shouldActivateCleanMode = searchTerm.trim().length > 0 || isTyping || searchResults.length > 0
     setCleanMode(shouldActivateCleanMode)
@@ -496,15 +512,19 @@ export default function Home() {
     }
   };
 
-  // Toggle Synonyms
+  // FIXED: Toggle Synonyms - Proper toggle dengan persistence
   const toggleSynonyms = () => {
     const newSynonymsEnabled = !synonymsEnabled;
+    console.log('🔄 Toggling synonyms from', synonymsEnabled, 'to', newSynonymsEnabled);
     setSynonymsEnabled(newSynonymsEnabled);
     
+    // JIKA SUDAH ADA HASIL SEARCH, GUNAKAN HASIL YANG SUDAH DIKOMPUTASI
     if (searchTerm.trim() && originalSearchResults.length > 0) {
       if (newSynonymsEnabled) {
+        // RELOAD SEARCH DENGAN SYNONYMS
         executeSearch(searchTerm);
       } else {
+        // GUNAKAN HASIL EXACT MATCH YANG SUDAH DISIMPAN
         setSearchResults(originalSearchResults);
         setSearchMethod('Exact Match Only');
         setActiveSynonyms([]);
@@ -723,8 +743,8 @@ export default function Home() {
                   Live Search
                 </button>
 
-                {/* Synonyms Toggle - Hanya muncul ketika ada active synonyms */}
-                {activeSynonyms.length > 0 && (
+                {/* FIXED: Synonyms Toggle - Tampilkan selalu ketika ada hasil pencarian */}
+                {searchResults.length > 0 && (
                   <button
                     type="button"
                     onClick={toggleSynonyms}
@@ -1293,8 +1313,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Synonyms Filter Status */}
-            {activeSynonyms.length > 0 && (
+            {/* FIXED: Synonyms Filter Status - Tampilkan selalu ketika ada hasil */}
+            {searchResults.length > 0 && (
               <div style={{
                 marginTop: '1rem',
                 padding: '0.75rem',
@@ -1308,10 +1328,10 @@ export default function Home() {
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: '0.5rem',
-                  marginBottom: synonymsEnabled ? '0.5rem' : '0',
+                  marginBottom: synonymsEnabled && activeSynonyms.length > 0 ? '0.5rem' : '0',
                   fontWeight: '600'
                 }}>
-                  {synonymsEnabled ? '🌐 Dengan Synonyms' : '🔤 Exact Match Only'}
+                  {synonymsEnabled ? '🌐 Pencarian dengan Synonyms' : '🔤 Pencarian Exact Match Only'}
                   <button
                     onClick={toggleSynonyms}
                     style={{
@@ -1324,11 +1344,11 @@ export default function Home() {
                       marginLeft: 'auto'
                     }}
                   >
-                    {synonymsEnabled ? 'Matikan' : 'Nyalakan'} synonyms
+                    {synonymsEnabled ? 'Matikan synonyms' : 'Nyalakan synonyms'}
                   </button>
                 </div>
                 
-                {synonymsEnabled && (
+                {synonymsEnabled && activeSynonyms.length > 0 && (
                   <div style={{ color: '#2d3748' }}>
                     <div style={{ marginBottom: '0.25rem' }}>Termasuk pencarian untuk:</div>
                     <div style={{ 
