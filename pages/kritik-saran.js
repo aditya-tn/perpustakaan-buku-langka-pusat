@@ -354,15 +354,17 @@ export default function KritikSaran() {
         alignItems: 'start'
       }}>
         
-        {/* Left Column - Form & Feedback List */}
+        {/* Left Column - Form (Sticky) & Feedback List */}
         <div>
-          {/* Form Section */}
+          {/* Form Section - Sticky */}
           <div style={{
             backgroundColor: 'white',
             padding: isMobile ? '1.5rem' : '2rem',
             borderRadius: '12px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            marginBottom: '2rem'
+            marginBottom: '2rem',
+            position: isMobile ? 'static' : 'sticky',
+            top: '2rem'
           }}>
             <h3 style={{ 
               marginBottom: '1.5rem', 
@@ -811,15 +813,13 @@ export default function KritikSaran() {
           </div>
         </div>
 
-        {/* Right Column - Analytics Dashboard Compact */}
+        {/* Right Column - Analytics Dashboard Compact (Normal scroll) */}
         <div>
           <div style={{
             backgroundColor: 'white',
             padding: isMobile ? '1.5rem' : '2rem',
             borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            position: isMobile ? 'static' : 'sticky',
-            top: '2rem'
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
           }}>
             <h3 style={{ 
               marginBottom: '1.5rem', 
@@ -913,7 +913,7 @@ export default function KritikSaran() {
                     padding: '0.75rem',
                     backgroundColor: '#fff5f5',
                     borderRadius: '6px',
-                    borderLeft: '4px solid '#f56565'
+                    borderLeft: '4px solid #f56565'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span>😔</span>
