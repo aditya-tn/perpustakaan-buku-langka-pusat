@@ -1,25 +1,38 @@
-// components/profil/KontakJam.js
+// components/profil/KontakJam.js - FIXED VERSION
 import { useState, useEffect } from 'react'
 import ContactCard from './ContactCard'
 
 export default function KontakJam() {
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [isClient, setIsClient] = useState(false)
   
   useEffect(() => {
+    setIsClient(true)
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
   const isOpen = () => {
+    if (!isClient) return false
     const hour = currentTime.getHours()
     const day = currentTime.getDay()
-    // Senin-Jumat, 08:00-16:00
     return day >= 1 && day <= 5 && hour >= 8 && hour < 16
   }
 
-  const getDayName = (dayIndex) => {
-    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-    return days[dayIndex]
+  // FIX: Safe date formatting
+  const formatTime = () => {
+    if (!isClient) return 'Loading...'
+    return currentTime.toLocaleTimeString('id-ID')
+  }
+
+  const formatDate = () => {
+    if (!isClient) return 'Loading...'
+    return currentTime.toLocaleDateString('id-ID', { 
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
   }
 
   return (
@@ -53,12 +66,7 @@ export default function KontakJam() {
           marginBottom: '0.5rem',
           fontSize: '1.1rem'
         }}>
-          {currentTime.toLocaleDateString('id-ID', { 
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })} • {currentTime.toLocaleTimeString('id-ID')}
+          {formatDate()} • {formatTime()}
         </p>
         <p style={{ 
           color: isOpen() ? '#38a169' : '#e53e3e',
