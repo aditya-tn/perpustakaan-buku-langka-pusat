@@ -1,8 +1,8 @@
-// components/profil/TimKami.js - UPDATED
+// components/profil/TimKami.js - OPTIMIZED
 import { useState } from 'react'
 import StaffCard from './StaffCard'
 
-export default function TimKami() {
+export default function TimKami({ isMobile }) {
   const [selectedDept, setSelectedDept] = useState('semua')
   
   const staffData = [
@@ -78,25 +78,26 @@ export default function TimKami() {
 
   return (
     <section style={{ 
-      padding: '3rem 2rem',
-      backgroundColor: '#f7fafc',
-      minHeight: '60vh'
+      padding: isMobile ? '2rem 1rem' : '3rem 2rem',
+      backgroundColor: '#f8fafc',
+      minHeight: '80vh'
     }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: isMobile ? '2rem' : '3rem' }}>
           <h2 style={{ 
             color: '#2d3748', 
-            marginBottom: '1rem',
-            fontSize: '2rem',
+            marginBottom: '0.75rem',
+            fontSize: isMobile ? '1.5rem' : '2rem',
             fontWeight: '700'
           }}>
             Tim Profesional Kami
           </h2>
           <p style={{ 
             color: '#718096', 
-            fontSize: '1.1rem',
+            fontSize: isMobile ? '0.9rem' : '1.1rem',
             maxWidth: '600px',
-            margin: '0 auto'
+            margin: '0 auto',
+            lineHeight: '1.5'
           }}>
             Tim yang berdedikasi melayani kebutuhan akses koleksi buku langka
           </p>
@@ -107,21 +108,23 @@ export default function TimKami() {
             justifyContent: 'center', 
             gap: '0.5rem', 
             flexWrap: 'wrap',
-            marginTop: '2rem'
+            marginTop: '1.5rem'
           }}>
             {departments.map(dept => (
               <button
                 key={dept.id}
                 onClick={() => setSelectedDept(dept.id)}
                 style={{
-                  padding: '0.75rem 1.5rem',
+                  padding: isMobile ? '0.5rem 1rem' : '0.75rem 1.5rem',
                   backgroundColor: selectedDept === dept.id ? '#4299e1' : 'white',
                   color: selectedDept === dept.id ? 'white' : '#4a5568',
                   border: '1px solid #e2e8f0',
                   borderRadius: '25px',
                   cursor: 'pointer',
                   fontWeight: '500',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  fontSize: isMobile ? '0.75rem' : '0.85rem',
+                  boxShadow: selectedDept === dept.id ? '0 2px 8px rgba(66, 153, 225, 0.3)' : '0 1px 3px rgba(0,0,0,0.1)'
                 }}
               >
                 {dept.label}
@@ -133,11 +136,11 @@ export default function TimKami() {
         {/* Staff Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-          gap: '2rem'
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
+          gap: isMobile ? '1.5rem' : '2rem'
         }}>
           {filteredStaff.map((person, index) => (
-            <StaffCard key={index} person={person} index={index} />
+            <StaffCard key={index} person={person} index={index} isMobile={isMobile} />
           ))}
         </div>
 
@@ -149,7 +152,7 @@ export default function TimKami() {
             color: '#718096'
           }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
-            <h3 style={{ color: '#4a5568' }}>Tidak ada staff di departemen ini</h3>
+            <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>Tidak ada staff di departemen ini</h3>
             <p>Silakan pilih departemen lain</p>
           </div>
         )}
