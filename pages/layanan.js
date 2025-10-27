@@ -6,12 +6,25 @@ import Layout from '../components/Layout'
 export default function Layanan() {
   const [activeTab, setActiveTab] = useState('koleksi')
   const [isMobile, setIsMobile] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
 
+  // Detect mobile screen dan scroll position
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+      setIsScrolled(scrollTop > 100)
+    }
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    window.addEventListener('scroll', handleScroll)
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+      window.removeEventListener('scroll', handleScroll)
+    }
   }, [])
 
   return (
@@ -26,7 +39,8 @@ export default function Layanan() {
         background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
         color: 'white',
         padding: isMobile ? '2rem 1rem' : '4rem 2rem',
-        textAlign: 'center'
+        textAlign: 'center',
+        marginBottom: isMobile ? '5rem' : '6rem' // Extra space for sticky nav
       }}>
         <h1 style={{
           fontSize: isMobile ? '1.75rem' : '2.5rem',
@@ -47,60 +61,74 @@ export default function Layanan() {
         </p>
       </section>
 
-      {/* Tab Navigation */}
+      {/* Sticky Tab Navigation */}
       <div style={{
-        maxWidth: '800px',
-        margin: isMobile ? '1.25rem 1rem' : '2rem auto',
-        display: 'flex',
-        gap: '0',
-        backgroundColor: '#f7fafc',
-        borderRadius: isMobile ? '8px' : '12px',
-        padding: isMobile ? '0.375rem' : '0.5rem',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        position: 'fixed',
+        top: isMobile ? '0' : '80px',
+        left: '0',
+        right: '0',
+        zIndex: 1000,
+        backgroundColor: isScrolled ? 'white' : 'transparent',
+        boxShadow: isScrolled ? '0 4px 20px rgba(0,0,0,0.1)' : 'none',
+        transition: 'all 0.3s ease',
+        padding: isMobile ? '0.5rem 1rem' : '1rem 2rem'
       }}>
-        <button
-          onClick={() => setActiveTab('koleksi')}
-          style={{
-            flex: 1,
-            padding: isMobile ? '0.625rem 0.75rem' : '1rem 2rem',
-            border: 'none',
-            borderRadius: isMobile ? '6px' : '8px',
-            backgroundColor: activeTab === 'koleksi' ? 'white' : 'transparent',
-            color: activeTab === 'koleksi' ? '#2d3748' : '#718096',
-            fontWeight: '600',
-            cursor: 'pointer',
-            boxShadow: activeTab === 'koleksi' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
-            transition: 'all 0.3s ease',
-            fontSize: isMobile ? '0.85rem' : '1rem'
-          }}
-        >
-          📚 Pemesanan Koleksi
-        </button>
-        <button
-          onClick={() => setActiveTab('ruang-baca')}
-          style={{
-            flex: 1,
-            padding: isMobile ? '0.625rem 0.75rem' : '1rem 2rem',
-            border: 'none',
-            borderRadius: isMobile ? '6px' : '8px',
-            backgroundColor: activeTab === 'ruang-baca' ? 'white' : 'transparent',
-            color: activeTab === 'ruang-baca' ? '#2d3748' : '#718096',
-            fontWeight: '600',
-            cursor: 'pointer',
-            boxShadow: activeTab === 'ruang-baca' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
-            transition: 'all 0.3s ease',
-            fontSize: isMobile ? '0.85rem' : '1rem'
-          }}
-        >
-          🏛️ Ruang Baca Khusus
-        </button>
+        <div style={{
+          maxWidth: '800px',
+          margin: '0 auto',
+          display: 'flex',
+          gap: '0',
+          backgroundColor: isScrolled ? '#f7fafc' : '#f7fafc',
+          borderRadius: isMobile ? '8px' : '12px',
+          padding: isMobile ? '0.375rem' : '0.5rem',
+          boxShadow: isScrolled ? '0 2px 8px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.1)',
+          border: isScrolled ? '1px solid #e2e8f0' : 'none'
+        }}>
+          <button
+            onClick={() => setActiveTab('koleksi')}
+            style={{
+              flex: 1,
+              padding: isMobile ? '0.625rem 0.75rem' : '1rem 2rem',
+              border: 'none',
+              borderRadius: isMobile ? '6px' : '8px',
+              backgroundColor: activeTab === 'koleksi' ? 'white' : 'transparent',
+              color: activeTab === 'koleksi' ? '#2d3748' : '#718096',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: activeTab === 'koleksi' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.3s ease',
+              fontSize: isMobile ? '0.85rem' : '1rem'
+            }}
+          >
+            📚 Pemesanan Koleksi
+          </button>
+          <button
+            onClick={() => setActiveTab('ruang-baca')}
+            style={{
+              flex: 1,
+              padding: isMobile ? '0.625rem 0.75rem' : '1rem 2rem',
+              border: 'none',
+              borderRadius: isMobile ? '6px' : '8px',
+              backgroundColor: activeTab === 'ruang-baca' ? 'white' : 'transparent',
+              color: activeTab === 'ruang-baca' ? '#2d3748' : '#718096',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: activeTab === 'ruang-baca' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.3s ease',
+              fontSize: isMobile ? '0.85rem' : '1rem'
+            }}
+          >
+            🏛️ Ruang Baca Khusus
+          </button>
+        </div>
       </div>
 
       {/* Content Area */}
       <div style={{ 
         maxWidth: '1000px', 
         margin: '0 auto', 
-        padding: isMobile ? '0 1rem 1.5rem' : '0 2rem 4rem'
+        padding: isMobile ? '0 1rem 1.5rem' : '0 2rem 4rem',
+        marginTop: isMobile ? '1rem' : '2rem'
       }}>
         {activeTab === 'koleksi' && <PemesananKoleksi isMobile={isMobile} />}
         {activeTab === 'ruang-baca' && <PemesananRuangBaca isMobile={isMobile} />}
