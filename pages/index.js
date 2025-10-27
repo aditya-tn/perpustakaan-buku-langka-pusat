@@ -657,7 +657,7 @@ export default function Home() {
           (cleanMode ? '2rem 2rem' : '4rem 2rem'),
         textAlign: 'center',
         transition: 'all 0.3s ease-in-out',
-        minHeight: cleanMode ? 'auto' : (isMobile ? '35vh' : '45vh'),
+        minHeight: cleanMode ? 'auto' : (isMobile ? '30vh' : '40vh'),
         display: 'flex',
         flexDirection: 'column',
         justifyContent: cleanMode ? 'flex-start' : 'center'
