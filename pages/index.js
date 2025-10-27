@@ -1,4 +1,4 @@
-// pages/index.js - SMOOTH CLEAN MODE SEARCH WITH FIXED SYNONYMS & ENHANCED SEARCH
+// pages/index.js - SMOOTH CLEAN MODE SEARCH WITH FIXED SYNONYMS
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -39,43 +39,6 @@ const extractYearFromString = (yearStr) => {
   }
   
   return null;
-};
-
-// ENHANCED: Fungsi normalisasi teks untuk berbagai format pencarian
-const normalizeSearchText = (text) => {
-  if (!text) return '';
-  
-  return text
-    .toLowerCase()
-    // Normalisasi berbagai jenis spasi dan karakter whitespace
-    .replace(/[ \t\n\r\f\v\u00A0\u2028\u2029]+/g, ' ')
-    // Normalisasi karakter khusus dan tanda baca
-    .replace(/[.,:;\/\\'"`~!@#$%^&*()_+={}|<>?\[\]-]+/g, ' ')
-    // Hilangkan spasi berlebih
-    .replace(/\s+/g, ' ')
-    .trim();
-};
-
-// ENHANCED: Fungsi untuk membandingkan teks dengan toleransi format
-const fuzzyMatch = (text1, text2) => {
-  const normalized1 = normalizeSearchText(text1);
-  const normalized2 = normalizeSearchText(text2);
-  
-  // Exact match setelah normalisasi
-  if (normalized1 === normalized2) return true;
-  
-  // Partial match dengan kata-kata yang sama (urutan berbeda)
-  const words1 = normalized1.split(' ').filter(word => word.length > 2);
-  const words2 = normalized2.split(' ').filter(word => word.length > 2);
-  
-  if (words1.length === 0) return false;
-  
-  // Cek jika semua kata dalam pencarian ada di teks target
-  const allWordsMatch = words1.every(word => 
-    words2.some(targetWord => targetWord.includes(word))
-  );
-  
-  return allWordsMatch;
 };
 
 // Synonyms service
@@ -155,47 +118,32 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// ENHANCED: Relevance Scoring dengan Format Toleransi
+// Enhanced Relevance Scoring dengan Synonyms Awareness
 const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = []) => {
   const lowerQuery = originalQuery.toLowerCase();
-  const normalizedQuery = normalizeSearchText(originalQuery);
   
   const scoredResults = results.map(book => {
     let score = 0;
     const lowerJudul = book.judul?.toLowerCase() || '';
     const lowerPengarang = book.pengarang?.toLowerCase() || '';
     const lowerPenerbit = book.penerbit?.toLowerCase() || '';
-    const bookText = `${lowerJudul} ${lowerPengarang} ${lowerPenerbit}`;
     
-    // Exact match setelah normalisasi
-    const normalizedJudul = normalizeSearchText(book.judul || '');
-    const normalizedPengarang = normalizeSearchText(book.pengarang || '');
+    if (lowerJudul === lowerQuery) score += 200;
+    if (lowerPengarang === lowerQuery) score += 150;
     
-    if (normalizedJudul === normalizedQuery) score += 200;
-    if (normalizedPengarang === normalizedQuery) score += 150;
-    
-    // Fuzzy matching score
-    if (fuzzyMatch(originalQuery, book.judul || '')) score += 120;
-    if (fuzzyMatch(originalQuery, book.pengarang || '')) score += 100;
-    if (fuzzyMatch(originalQuery, book.penerbit || '')) score += 80;
-    
-    // Traditional matching (tetap dipertahankan)
-    if (lowerJudul === lowerQuery) score += 100;
-    if (lowerPengarang === lowerQuery) score += 80;
-    
-    if (lowerJudul.includes(lowerQuery)) score += 60;
-    if (lowerPengarang.includes(lowerQuery)) score += 50;
-    if (lowerPenerbit.includes(lowerQuery)) score += 40;
+    if (lowerJudul.includes(lowerQuery)) score += 100;
+    if (lowerPengarang.includes(lowerQuery)) score += 80;
+    if (lowerPenerbit.includes(lowerQuery)) score += 60;
     
     searchWords.forEach(word => {
       const lowerWord = word.toLowerCase();
       
       if (lowerJudul.includes(lowerWord)) {
-        score += 30;
+        score += 40;
         if (lowerJudul.startsWith(lowerWord)) score += 20;
       }
       
-      if (lowerPengarang.includes(lowerWord)) score += 20;
+      if (lowerPengarang.includes(lowerWord)) score += 25;
       if (lowerPenerbit.includes(lowerWord)) score += 15;
     });
     
@@ -409,22 +357,68 @@ export default function Home() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  // ENHANCED: Perform SMART search dengan fuzzy matching
+  // IMPROVED Filtered Results dengan Enhanced Year Filtering
+  const getFilteredResults = useCallback(() => {
+    if (!withinSearchTerm.trim() && 
+        activeFilters.tahunRange[0] === MIN_YEAR && 
+        activeFilters.tahunRange[1] === MAX_YEAR) {
+      return searchResults
+    }
+
+    return searchResults.filter(book => {
+      if (withinSearchTerm.trim()) {
+        const searchLower = withinSearchTerm.toLowerCase()
+        const judulMatch = book.judul?.toLowerCase().includes(searchLower) || false
+        const pengarangMatch = book.pengarang?.toLowerCase().includes(searchLower) || false
+        const penerbitMatch = book.penerbit?.toLowerCase().includes(searchLower) || false
+        const deskripsiMatch = book.deskripsi_fisik?.toLowerCase().includes(searchLower) || false
+        
+        if (!judulMatch && !pengarangMatch && !penerbitMatch && !deskripsiMatch) {
+          return false
+        }
+      }
+
+      if (book.tahun_terbit) {
+        const yearStr = book.tahun_terbit.toString().trim();
+        const extractedYear = extractYearFromString(yearStr);
+        
+        if (extractedYear !== null) {
+          const [minYear, maxYear] = activeFilters.tahunRange;
+          if (extractedYear < minYear || extractedYear > maxYear) {
+            return false;
+          }
+        } else {
+          if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
+            return false;
+          }
+        }
+      } else {
+        if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
+          return false;
+        }
+      }
+
+      return true
+    })
+  }, [searchResults, withinSearchTerm, activeFilters.tahunRange])
+
+  // Get current filtered results dengan useMemo untuk optimasi
+  const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
+
+  // Perform SMART search dengan atau tanpa synonyms
   const performSmartSearch = async (searchQuery, useSynonyms = true) => {
     const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
-    const normalizedQuery = normalizeSearchText(searchQuery);
     
     try {
-      let searchTerms = [searchQuery, normalizedQuery];
+      let searchTerms = [searchQuery];
       let detectedSynonyms = [];
 
       if (useSynonyms) {
         const expandedData = await expandSearchWithSynonyms(searchQuery);
-        searchTerms = [...new Set([...searchTerms, ...expandedData.terms])];
+        searchTerms = expandedData.terms;
         detectedSynonyms = expandedData.synonyms;
       }
 
-      // Buat query untuk semua term
       const searchPromises = searchTerms.map(term => 
         supabase
           .from('books')
@@ -448,18 +442,7 @@ export default function Home() {
         }
       });
 
-      // Tambahkan fuzzy matching untuk hasil yang lebih baik
-      const fuzzyMatchedResults = combinedResults.filter(book => {
-        const bookText = `${book.judul || ''} ${book.pengarang || ''} ${book.penerbit || ''}`.toLowerCase();
-        return fuzzyMatch(searchQuery, bookText);
-      });
-
-      const finalResults = rankSearchResults(
-        fuzzyMatchedResults.length > 0 ? fuzzyMatchedResults : combinedResults, 
-        searchWords, 
-        searchQuery, 
-        searchTerms
-      );
+      const finalResults = rankSearchResults(combinedResults, searchWords, searchQuery, searchTerms);
       
       return {
         results: finalResults,
@@ -528,54 +511,6 @@ export default function Home() {
       setLoading(false);
     }
   };
-
-  // IMPROVED Filtered Results dengan Enhanced Year Filtering
-  const getFilteredResults = useCallback(() => {
-    if (!withinSearchTerm.trim() && 
-        activeFilters.tahunRange[0] === MIN_YEAR && 
-        activeFilters.tahunRange[1] === MAX_YEAR) {
-      return searchResults
-    }
-
-    return searchResults.filter(book => {
-      if (withinSearchTerm.trim()) {
-        const searchLower = withinSearchTerm.toLowerCase()
-        const judulMatch = book.judul?.toLowerCase().includes(searchLower) || false
-        const pengarangMatch = book.pengarang?.toLowerCase().includes(searchLower) || false
-        const penerbitMatch = book.penerbit?.toLowerCase().includes(searchLower) || false
-        const deskripsiMatch = book.deskripsi_fisik?.toLowerCase().includes(searchLower) || false
-        
-        if (!judulMatch && !pengarangMatch && !penerbitMatch && !deskripsiMatch) {
-          return false
-        }
-      }
-
-      if (book.tahun_terbit) {
-        const yearStr = book.tahun_terbit.toString().trim();
-        const extractedYear = extractYearFromString(yearStr);
-        
-        if (extractedYear !== null) {
-          const [minYear, maxYear] = activeFilters.tahunRange;
-          if (extractedYear < minYear || extractedYear > maxYear) {
-            return false;
-          }
-        } else {
-          if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
-            return false;
-          }
-        }
-      } else {
-        if (activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) {
-          return false;
-        }
-      }
-
-      return true
-    })
-  }, [searchResults, withinSearchTerm, activeFilters.tahunRange])
-
-  // Get current filtered results dengan useMemo untuk optimasi
-  const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
   // FIXED: Toggle Synonyms - Proper toggle dengan persistence
   const toggleSynonyms = () => {
@@ -722,7 +657,7 @@ export default function Home() {
           (cleanMode ? '2rem 2rem' : '4rem 2rem'),
         textAlign: 'center',
         transition: 'all 0.3s ease-in-out',
-        minHeight: cleanMode ? 'auto' : (isMobile ? '30vh' : '40vh'),
+        minHeight: cleanMode ? 'auto' : (isMobile ? '35vh' : '45vh'),
         display: 'flex',
         flexDirection: 'column',
         justifyContent: cleanMode ? 'flex-start' : 'center'
@@ -1192,8 +1127,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ENHANCED: Search Results Section dengan No Results Handling */}
-      {searchResults.length > 0 ? (
+      {/* Search Results Section */}
+      {searchResults.length > 0 && (
         <section style={{ 
           maxWidth: '1400px', 
           margin: isMobile ? '2rem auto' : '3rem auto',
@@ -1845,174 +1780,7 @@ export default function Home() {
             </div>
           )}
         </section>
-      ) : searchTerm && !loading && !isTyping ? (
-        // ENHANCED: TAMPILAN KETIKA TIDAK ADA HASIL
-        <section style={{ 
-          maxWidth: '800px', 
-          margin: '3rem auto',
-          padding: isMobile ? '0 1rem' : '0 2rem',
-          textAlign: 'center'
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '3rem 2rem',
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            border: '1px solid #e2e8f0'
-          }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔍</div>
-            
-            <h3 style={{ 
-              fontSize: '1.5rem', 
-              fontWeight: '700',
-              color: '#2d3748',
-              marginBottom: '1rem'
-            }}>
-              Hasil Pencarian Tidak Ditemukan
-            </h3>
-            
-            <p style={{ 
-              color: '#718096',
-              marginBottom: '2rem',
-              lineHeight: '1.6'
-            }}>
-              Maaf, tidak ada koleksi yang ditemukan untuk <strong>"{searchTerm}"</strong>.
-              <br />
-              Coba gunakan kata kunci yang lebih umum atau periksa ejaan pencarian Anda.
-            </p>
-
-            {/* Tips Pencarian */}
-            <div style={{
-              backgroundColor: '#f7fafc',
-              padding: '1.5rem',
-              borderRadius: '8px',
-              marginBottom: '2rem',
-              textAlign: 'left'
-            }}>
-              <h4 style={{ 
-                fontSize: '1rem', 
-                fontWeight: '600',
-                color: '#2d3748',
-                marginBottom: '1rem'
-              }}>
-                💡 Tips Pencarian:
-              </h4>
-              <ul style={{ 
-                color: '#4a5568',
-                paddingLeft: '1.5rem',
-                margin: 0
-              }}>
-                <li>Gunakan kata kunci yang lebih umum</li>
-                <li>Coba sinonim atau ejaan alternatif</li>
-                <li>Pastikan tidak ada typo dalam pencarian</li>
-                <li>Gunakan fitur synonyms (🌐) untuk pencarian yang lebih luas</li>
-              </ul>
-            </div>
-
-            {/* Redirect ke OPAC Perpusnas */}
-            <div style={{
-              backgroundColor: '#fffaf0',
-              border: '1px solid #fed7d7',
-              padding: '1.5rem',
-              borderRadius: '8px',
-              marginBottom: '2rem'
-            }}>
-              <h4 style={{ 
-                fontSize: '1rem', 
-                fontWeight: '600',
-                color: '#744210',
-                marginBottom: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                justifyContent: 'center'
-              }}>
-                🌐 Coba Pencarian di OPAC Perpusnas
-              </h4>
-              
-              <p style={{ 
-                color: '#744210',
-                marginBottom: '1.5rem'
-              }}>
-                Untuk pencarian yang lebih komprehensif, Anda dapat mencoba mencari di katalog utama Perpustakaan Nasional:
-              </p>
-              
-              <a 
-                href={`https://opac.perpusnas.go.id/Home/Result?keyword=${encodeURIComponent(searchTerm)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-block',
-                  backgroundColor: '#dd6b20',
-                  color: 'white',
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: '6px',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: '0.9rem',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#c05621';
-                  e.target.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#dd6b20';
-                  e.target.style.transform = 'translateY(0)';
-                }}
-              >
-                🔍 Cari di OPAC Perpusnas
-              </a>
-            </div>
-
-            {/* Tombol Aksi */}
-            <div style={{ 
-              display: 'flex', 
-              gap: '1rem', 
-              justifyContent: 'center',
-              flexWrap: 'wrap'
-            }}>
-              <button
-                onClick={clearSearch}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#f7fafc',
-                  color: '#4a5568',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                ✕ Hapus Pencarian
-              </button>
-              
-              <button
-                onClick={() => {
-                  setSynonymsEnabled(true);
-                  executeSearch(searchTerm);
-                }}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#4299e1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                🌐 Coba dengan Synonyms
-              </button>
-            </div>
-          </div>
-        </section>
-      ) : null}
+      )}
 
       <style jsx>{`
         @keyframes pulse {
