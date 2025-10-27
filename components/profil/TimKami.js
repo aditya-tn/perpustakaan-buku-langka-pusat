@@ -1,4 +1,4 @@
-// components/profil/TimKami.js
+// components/profil/TimKami.js - FIXED VERSION
 import { useState } from 'react'
 import StaffCard from './StaffCard'
 
@@ -143,6 +143,19 @@ export default function TimKami() {
             <StaffCard key={person.email} person={person} index={index} />
           ))}
         </div>
+
+        {/* Empty State */}
+        {filteredStaff.length === 0 && (
+          <div style={{
+            textAlign: 'center',
+            padding: '3rem',
+            color: '#718096'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
+            <h3 style={{ color: '#4a5568' }}>Tidak ada staff di departemen ini</h3>
+            <p>Silakan pilih departemen lain</p>
+          </div>
+        )}
       </div>
     </section>
   )
