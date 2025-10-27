@@ -224,30 +224,30 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-// Load preferences - FIX: ADD SYNONYMS PREFERENCE
-useEffect(() => {
-  const savedHistory = localStorage.getItem('searchHistory')
-  const savedLiveSearch = localStorage.getItem('liveSearchEnabled')
-  const savedSynonymsEnabled = localStorage.getItem('synonymsEnabled')
-  
-  if (savedHistory) setSearchHistory(JSON.parse(savedHistory))
-  if (savedLiveSearch !== null) setLiveSearchEnabled(JSON.parse(savedLiveSearch))
-  if (savedSynonymsEnabled !== null) {
-    const synonymsSetting = JSON.parse(savedSynonymsEnabled)
-    setSynonymsEnabled(synonymsSetting)
-    console.log('🔧 Loaded synonyms preference:', synonymsSetting)
-  }
-}, [])
+  // Load preferences - FIX: ADD SYNONYMS PREFERENCE
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('searchHistory')
+    const savedLiveSearch = localStorage.getItem('liveSearchEnabled')
+    const savedSynonymsEnabled = localStorage.getItem('synonymsEnabled')
+    
+    if (savedHistory) setSearchHistory(JSON.parse(savedHistory))
+    if (savedLiveSearch !== null) setLiveSearchEnabled(JSON.parse(savedLiveSearch))
+    if (savedSynonymsEnabled !== null) {
+      const synonymsSetting = JSON.parse(savedSynonymsEnabled)
+      setSynonymsEnabled(synonymsSetting)
+      console.log('🔧 Loaded synonyms preference:', synonymsSetting)
+    }
+  }, [])
 
-// Save preferences - FIX: ENSURE SYNONYMS IS SAVED
-useEffect(() => {
-  localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
-  localStorage.setItem('synonymsEnabled', JSON.stringify(synonymsEnabled))
-  console.log('💾 Saved synonyms preference:', synonymsEnabled)
-  if (searchHistory.length > 0) {
-    localStorage.setItem('searchHistory', JSON.stringify(searchHistory))
-  }
-}, [searchHistory, liveSearchEnabled, synonymsEnabled])
+  // Save preferences - FIX: ENSURE SYNONYMS IS SAVED
+  useEffect(() => {
+    localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
+    localStorage.setItem('synonymsEnabled', JSON.stringify(synonymsEnabled))
+    console.log('💾 Saved synonyms preference:', synonymsEnabled)
+    if (searchHistory.length > 0) {
+      localStorage.setItem('searchHistory', JSON.stringify(searchHistory))
+    }
+  }, [searchHistory, liveSearchEnabled, synonymsEnabled])
   
   // REAL-TIME SEARCH EFFECT
   useEffect(() => {
@@ -435,104 +435,91 @@ useEffect(() => {
     }
   };
 
-// FIXED: SMART SEARCH EXECUTION - PROPER SYNONYMS TOGGLE
-const executeSearch = async (searchQuery) => {
-  if (!searchQuery.trim()) return;
-  
-  // Reset states
-  setActiveSynonyms([]);
-  setOriginalSearchResults([]);
-  
-  // Detect language
-  const lang = detectLanguage(searchQuery);
-  setDetectedLanguage(lang);
-  
-  if (abortControllerRef.current) {
-    abortControllerRef.current.abort();
-  }
-  
-  abortControllerRef.current = new AbortController();
-  setLoading(true);
-  setCurrentPage(1);
+  // FIXED: SMART SEARCH EXECUTION - PROPER SYNONYMS TOGGLE
+  const executeSearch = async (searchQuery) => {
+    if (!searchQuery.trim()) return;
+    
+    // Reset states
+    setActiveSynonyms([]);
+    setOriginalSearchResults([]);
+    
+    // Detect language
+    const lang = detectLanguage(searchQuery);
+    setDetectedLanguage(lang);
+    
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    setLoading(true);
+    setCurrentPage(1);
 
-  try {
-    const startTime = performance.now();
-    
-    // LAKUKAN DUA KALI SEARCH: DENGAN DAN TANPA SYNONYMS
-    const [searchWithSynonyms, searchWithoutSynonyms] = await Promise.all([
-      performSmartSearch(searchQuery, true),
-      performSmartSearch(searchQuery, false)
-    ]);
-    
-    // SET RESULTS BERDASARKAN SYNONYMS ENABLED
-    if (synonymsEnabled) {
-      setSearchResults(searchWithSynonyms.results);
-      setSearchMethod(searchWithSynonyms.method);
-      setActiveSynonyms(searchWithSynonyms.synonyms);
-    } else {
-      setSearchResults(searchWithoutSynonyms.results);
-      setSearchMethod('Exact Match Only');
-      setActiveSynonyms([]);
+    try {
+      const startTime = performance.now();
+      
+      // LAKUKAN DUA KALI SEARCH: DENGAN DAN TANPA SYNONYMS
+      const [searchWithSynonyms, searchWithoutSynonyms] = await Promise.all([
+        performSmartSearch(searchQuery, true),
+        performSmartSearch(searchQuery, false)
+      ]);
+      
+      // SET RESULTS BERDASARKAN SYNONYMS ENABLED
+      if (synonymsEnabled) {
+        setSearchResults(searchWithSynonyms.results);
+        setSearchMethod(searchWithSynonyms.method);
+        setActiveSynonyms(searchWithSynonyms.synonyms);
+      } else {
+        setSearchResults(searchWithoutSynonyms.results);
+        setSearchMethod('Exact Match Only');
+        setActiveSynonyms([]);
+      }
+      
+      // SIMPAN KEDUA RESULTS UNTUK TOGGLE
+      setOriginalSearchResults(searchWithoutSynonyms.results);
+      
+      const endTime = performance.now();
+      console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms`, {
+        withSynonyms: searchWithSynonyms.results.length,
+        withoutSynonyms: searchWithoutSynonyms.results.length,
+        synonymsEnabled: synonymsEnabled,
+        method: synonymsEnabled ? searchWithSynonyms.method : 'Exact Match Only'
+      });
+      
+      if (searchResults.length > 0) {
+        saveToSearchHistory(searchQuery, searchResults.length);
+      }
+      
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Search error:', err);
+        setSearchResults([]);
+        setOriginalSearchResults([]);
+        setActiveSynonyms([]);
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    // SIMPAN KEDUA RESULTS UNTUK TOGGLE
-    setOriginalSearchResults(searchWithoutSynonyms.results);
-    
-    const endTime = performance.now();
-    console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms`, {
-      withSynonyms: searchWithSynonyms.results.length,
-      withoutSynonyms: searchWithoutSynonyms.results.length,
-      synonymsEnabled: synonymsEnabled,
-      method: synonymsEnabled ? searchWithSynonyms.method : 'Exact Match Only'
-    });
-    
-    if (searchResults.length > 0) {
-      saveToSearchHistory(searchQuery, searchResults.length);
-    }
-    
-  } catch (err) {
-    if (err.name !== 'AbortError') {
-      console.error('Search error:', err);
-      setSearchResults([]);
-      setOriginalSearchResults([]);
-      setActiveSynonyms([]);
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-// FIXED: Toggle Synonyms - SWITCH BETWEEN PRE-COMPUTED RESULTS
-const toggleSynonyms = () => {
-  const newSynonymsEnabled = !synonymsEnabled;
-  setSynonymsEnabled(newSynonymsEnabled);
-  
-  // JIKA SUDAH ADA HASIL SEARCH, GUNAKAN HASIL YANG SUDAH DIKOMPUTASI
-  if (searchTerm.trim() && originalSearchResults.length > 0) {
-    if (newSynonymsEnabled) {
-      // RELOAD SEARCH DENGAN SYNONYMS
-      executeSearch(searchTerm);
-    } else {
-      // GUNAKAN HASIL EXACT MATCH YANG SUDAH DISIMPAN
-      setSearchResults(originalSearchResults);
-      setSearchMethod('Exact Match Only');
-      setActiveSynonyms([]);
-      setCurrentPage(1);
-    }
-  }
-};
-
-  // Toggle Synonyms - RELOAD SEARCH DENGAN SETTING BARU
+  // FIXED: Toggle Synonyms - SWITCH BETWEEN PRE-COMPUTED RESULTS
   const toggleSynonyms = () => {
     const newSynonymsEnabled = !synonymsEnabled;
     setSynonymsEnabled(newSynonymsEnabled);
     
-    // RELOAD SEARCH DENGAN SETTING BARU
-    if (searchTerm.trim()) {
-      executeSearch(searchTerm);
+    // JIKA SUDAH ADA HASIL SEARCH, GUNAKAN HASIL YANG SUDAH DIKOMPUTASI
+    if (searchTerm.trim() && originalSearchResults.length > 0) {
+      if (newSynonymsEnabled) {
+        // RELOAD SEARCH DENGAN SYNONYMS
+        executeSearch(searchTerm);
+      } else {
+        // GUNAKAN HASIL EXACT MATCH YANG SUDAH DISIMPAN
+        setSearchResults(originalSearchResults);
+        setSearchMethod('Exact Match Only');
+        setActiveSynonyms([]);
+        setCurrentPage(1);
+      }
     }
-    
-    setCurrentPage(1);
   };
 
   // Save to search history
@@ -1367,34 +1354,34 @@ const toggleSynonyms = () => {
                 Hasil Pencarian
               </h3>
               
-<p style={{ 
-  color: '#718096',
-  margin: '0.5rem 0 0 0',
-  fontSize: isMobile ? '0.9rem' : '1rem'
-}}>
-  {isWithinSearchActive ? (
-    <>
-      <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
-      {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
-      {` untuk "${searchTerm}"`}
-      {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
-      {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-        ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
-    </>
-  ) : (
-    <>
-      <strong>{searchResults.length}</strong> buku ditemukan
-      {synonymsEnabled && activeSynonyms.length > 0 ? ' dengan synonyms' : ''}
-      {!synonymsEnabled && activeSynonyms.length > 0 ? ' (exact match only)' : ''}
-      {` untuk "${searchTerm}"`}
-      {activeSynonyms.length > 0 && synonymsEnabled && (
-        <span style={{color: '#4299e1', fontWeight: '600'}}>
-          {' '}• {activeSynonyms.length} synonyms
-        </span>
-      )}
-    </>
-  )}
-</p>
+              <p style={{ 
+                color: '#718096',
+                margin: '0.5rem 0 0 0',
+                fontSize: isMobile ? '0.9rem' : '1rem'
+              }}>
+                {isWithinSearchActive ? (
+                  <>
+                    <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
+                    {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
+                    {` untuk "${searchTerm}"`}
+                    {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
+                    {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+                      ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
+                  </>
+                ) : (
+                  <>
+                    <strong>{searchResults.length}</strong> buku ditemukan
+                    {synonymsEnabled && activeSynonyms.length > 0 ? ' dengan synonyms' : ''}
+                    {!synonymsEnabled && activeSynonyms.length > 0 ? ' (exact match only)' : ''}
+                    {` untuk "${searchTerm}"`}
+                    {activeSynonyms.length > 0 && synonymsEnabled && (
+                      <span style={{color: '#4299e1', fontWeight: '600'}}>
+                        {' '}• {activeSynonyms.length} synonyms
+                      </span>
+                    )}
+                  </>
+                )}
+              </p>
             </div>
             
             <div style={{ 
@@ -1595,146 +1582,146 @@ const toggleSynonyms = () => {
             </div>
           )}
 
-{/* FIXED: Enhanced Pagination */}
-{totalPages > 1 && filteredResults.length > 0 && (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '0.5rem',
-    marginTop: '3rem',
-    flexWrap: 'wrap'
-  }}>
-    {/* Previous Button */}
-    <button
-      onClick={() => paginate(Math.max(1, currentPage - 1))}
-      disabled={currentPage === 1}
-      style={{
-        padding: '0.75rem 1rem',
-        border: '1px solid #e2e8f0',
-        backgroundColor: 'white',
-        color: currentPage === 1 ? '#cbd5e0' : '#4a5568',
-        borderRadius: '8px',
-        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-        fontWeight: '500'
-      }}
-    >
-      ← Prev
-    </button>
+          {/* FIXED: Enhanced Pagination */}
+          {totalPages > 1 && filteredResults.length > 0 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginTop: '3rem',
+              flexWrap: 'wrap'
+            }}>
+              {/* Previous Button */}
+              <button
+                onClick={() => paginate(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: 'white',
+                  color: currentPage === 1 ? '#cbd5e0' : '#4a5568',
+                  borderRadius: '8px',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                ← Prev
+              </button>
 
-    {/* Page Numbers */}
-    {(() => {
-      const pages = [];
-      const maxVisiblePages = isMobile ? 3 : 5;
-      
-      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-      
-      // Adjust if we're near the end
-      if (endPage - startPage + 1 < maxVisiblePages) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-      }
-      
-      // First page and ellipsis
-      if (startPage > 1) {
-        pages.push(
-          <button
-            key={1}
-            onClick={() => paginate(1)}
-            style={{
-              padding: '0.75rem 1rem',
-              border: '1px solid #e2e8f0',
-              backgroundColor: currentPage === 1 ? '#4299e1' : 'white',
-              color: currentPage === 1 ? 'white' : '#4a5568',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500'
-            }}
-          >
-            1
-          </button>
-        );
-        
-        if (startPage > 2) {
-          pages.push(
-            <span key="ellipsis1" style={{ padding: '0.75rem 0.5rem', color: '#718096' }}>
-              ...
-            </span>
-          );
-        }
-      }
-      
-      // Page numbers
-      for (let i = startPage; i <= endPage; i++) {
-        pages.push(
-          <button
-            key={i}
-            onClick={() => paginate(i)}
-            style={{
-              padding: '0.75rem 1rem',
-              border: '1px solid #e2e8f0',
-              backgroundColor: currentPage === i ? '#4299e1' : 'white',
-              color: currentPage === i ? 'white' : '#4a5568',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500'
-            }}
-          >
-            {i}
-          </button>
-        );
-      }
-      
-      // Last page and ellipsis
-      if (endPage < totalPages) {
-        if (endPage < totalPages - 1) {
-          pages.push(
-            <span key="ellipsis2" style={{ padding: '0.75rem 0.5rem', color: '#718096' }}>
-              ...
-            </span>
-          );
-        }
-        
-        pages.push(
-          <button
-            key={totalPages}
-            onClick={() => paginate(totalPages)}
-            style={{
-              padding: '0.75rem 1rem',
-              border: '1px solid #e2e8f0',
-              backgroundColor: currentPage === totalPages ? '#4299e1' : 'white',
-              color: currentPage === totalPages ? 'white' : '#4a5568',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '500'
-            }}
-          >
-            {totalPages}
-          </button>
-        );
-      }
-      
-      return pages;
-    })()}
+              {/* Page Numbers */}
+              {(() => {
+                const pages = [];
+                const maxVisiblePages = isMobile ? 3 : 5;
+                
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                
+                // Adjust if we're near the end
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+                
+                // First page and ellipsis
+                if (startPage > 1) {
+                  pages.push(
+                    <button
+                      key={1}
+                      onClick={() => paginate(1)}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: currentPage === 1 ? '#4299e1' : 'white',
+                        color: currentPage === 1 ? 'white' : '#4a5568',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                    >
+                      1
+                    </button>
+                  );
+                  
+                  if (startPage > 2) {
+                    pages.push(
+                      <span key="ellipsis1" style={{ padding: '0.75rem 0.5rem', color: '#718096' }}>
+                        ...
+                      </span>
+                    );
+                  }
+                }
+                
+                // Page numbers
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => paginate(i)}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: currentPage === i ? '#4299e1' : 'white',
+                        color: currentPage === i ? 'white' : '#4a5568',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                
+                // Last page and ellipsis
+                if (endPage < totalPages) {
+                  if (endPage < totalPages - 1) {
+                    pages.push(
+                      <span key="ellipsis2" style={{ padding: '0.75rem 0.5rem', color: '#718096' }}>
+                        ...
+                      </span>
+                    );
+                  }
+                  
+                  pages.push(
+                    <button
+                      key={totalPages}
+                      onClick={() => paginate(totalPages)}
+                      style={{
+                        padding: '0.75rem 1rem',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: currentPage === totalPages ? '#4299e1' : 'white',
+                        color: currentPage === totalPages ? 'white' : '#4a5568',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                    >
+                      {totalPages}
+                    </button>
+                  );
+                }
+                
+                return pages;
+              })()}
 
-    {/* Next Button */}
-    <button
-      onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
-      disabled={currentPage === totalPages}
-      style={{
-        padding: '0.75rem 1rem',
-        border: '1px solid #e2e8f0',
-        backgroundColor: 'white',
-        color: currentPage === totalPages ? '#cbd5e0' : '#4a5568',
-        borderRadius: '8px',
-        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-        fontWeight: '500'
-      }}
-    >
-      Next →
-    </button>
-  </div>
-)}
+              {/* Next Button */}
+              <button
+                onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: 'white',
+                  color: currentPage === totalPages ? '#cbd5e0' : '#4a5568',
+                  borderRadius: '8px',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </section>
       )}
 
