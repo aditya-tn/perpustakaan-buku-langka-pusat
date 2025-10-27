@@ -726,7 +726,7 @@ export default function Home() {
                   Live Search
                 </button>
 
-                {/* Synonyms Toggle - HANYA MUNCUL KETIKA ADA SYNONYMS */}
+                {/* HANYA TAMPILKAN TOMBOL SYNONYMS KETIKA ADA ACTIVE SYNONYMS */}
                 {activeSynonyms.length > 0 && (
                   <button
                     type="button"
@@ -750,26 +750,6 @@ export default function Home() {
                     </span>
                     {synonymsEnabled ? 'With Synonyms' : 'Exact Match'}
                   </button>
-                )}
-
-                {/* FIXED: Show synonyms status even when no active synonyms */}
-                {!activeSynonyms.length > 0 && (
-                  <div style={{
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: synonymsEnabled ? '#4299e1' : '#e2e8f0',
-                    color: synonymsEnabled ? 'white' : '#4a5568',
-                    borderRadius: '15px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem'
-                  }}>
-                    <span style={{ fontSize: '0.8rem' }}>
-                      {synonymsEnabled ? '🌐' : '🔤'}
-                    </span>
-                    {synonymsEnabled ? 'Synonyms ON' : 'Exact Match'}
-                  </div>
                 )}
 
                 {(loading || isTyping) && (
