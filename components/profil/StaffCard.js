@@ -1,4 +1,4 @@
-// components/profil/StaffCard.js - OPTIMIZED
+// components/profil/StaffCard.js - SIMPLER VERSION
 export default function StaffCard({ person, index, isMobile }) {
   const departmentColors = {
     manajemen: '#4299e1',
@@ -8,6 +8,18 @@ export default function StaffCard({ person, index, isMobile }) {
   const departmentLabels = {
     manajemen: 'Manajemen',
     layanan: 'Layanan Pengguna'
+  }
+
+  // Simple function to get first two letters of first name
+  const getSimpleInitials = (fullName) => {
+    // Take only the first two words (first name and last name)
+    const nameParts = fullName.split(' ').slice(0, 2);
+    if (nameParts.length >= 2) {
+      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    } else if (nameParts.length === 1) {
+      return nameParts[0][0].toUpperCase();
+    }
+    return 'US';
   }
 
   return (
@@ -50,9 +62,10 @@ export default function StaffCard({ person, index, isMobile }) {
           fontSize: isMobile ? '1.5rem' : '2rem',
           color: departmentColors[person.department],
           fontWeight: 'bold',
-          flexShrink: 0
+          flexShrink: 0,
+          border: `2px solid ${departmentColors[person.department]}20`
         }}>
-          {person.name.split(' ').map(n => n[0]).join('')}
+          {getSimpleInitials(person.name)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ 
@@ -60,8 +73,7 @@ export default function StaffCard({ person, index, isMobile }) {
             margin: '0 0 0.5rem 0',
             fontSize: isMobile ? '1rem' : '1.25rem',
             fontWeight: '600',
-            lineHeight: '1.3',
-            wordWrap: 'break-word'
+            lineHeight: '1.3'
           }}>
             {person.name}
           </h3>
