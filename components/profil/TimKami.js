@@ -1,4 +1,4 @@
-// components/profil/TimKami.js - FIXED VERSION
+// components/profil/TimKami.js - UPDATED
 import { useState } from 'react'
 import StaffCard from './StaffCard'
 
@@ -6,72 +6,69 @@ export default function TimKami() {
   const [selectedDept, setSelectedDept] = useState('semua')
   
   const staffData = [
+    // Manajemen
     {
-      name: "Dr. Sari Dewi, M.Hum.",
-      position: "Kepala Layanan Koleksi Buku Langka",
+      name: "Yeri Nurita, S.S",
+      position: "Plt. Kepala Pusat Jasa Informasi dan Pengelolaan Naskah Nusantara",
       department: "manajemen",
-      email: "sari.dewi@perpusnas.go.id",
-      expertise: "Filologi, Konservasi Naskah Kuno, Manajemen Koleksi",
-      education: "S3 Filologi - Universitas Indonesia",
-      experience: "15 tahun",
-      image: null
+      education: "S-1 Sastra Indonesia - Universitas Indonesia",
+      experience: "32 tahun"
     },
     {
-      name: "Budi Santoso, S.S.",
-      position: "Koordinator Preservasi",
-      department: "konservasi", 
-      email: "budi.santoso@perpusnas.go.id",
-      expertise: "Konservasi Kertas, Restorasi Dokumen, Digital Preservation",
-      education: "S1 Ilmu Perpustakaan - Universitas Indonesia",
-      experience: "12 tahun",
-      image: null
+      name: "Hety Setiawati, S.E., M.P.",
+      position: "Ketua Kelompok Substansi Layanan Koleksi Langka", 
+      department: "manajemen",
+      education: "S-1 Ekonomi, S-2 Manajemen",
+      experience: "20 tahun"
     },
+    // Layanan Pengguna
     {
-      name: "Maya Sari, M.Lib.",
-      position: "Pustakawan Spesialis",
+      name: "Aditya Taufik Nugraha, S.Hum",
+      position: "Ketua Tim Layanan Koleksi Buku Langka, Pustakawan Ahli Muda",
       department: "layanan",
-      email: "maya.sari@perpusnas.go.id",
-      expertise: "Layanan Referensi, Katalogisasi Khusus, Research Assistance",
-      education: "S2 Library Science - Universitas Gadjah Mada", 
-      experience: "8 tahun",
-      image: null
+      education: "S-1 Ilmu Perpustakaan - Universitas Indonesia", 
+      experience: "6 tahun"
     },
     {
-      name: "Ahmad Rizki, S.T.",
-      position: "Spesialis Digitalisasi",
-      department: "konservasi",
-      email: "ahmad.rizki@perpusnas.go.id", 
-      expertise: "Digital Imaging, Metadata Management, System Administration",
-      education: "S1 Teknik Informatika - Institut Teknologi Bandung",
-      experience: "6 tahun",
-      image: null
-    },
-    {
-      name: "Dewi Anggraeni, S.Sos.",
-      position: "Pustakawan Layanan",
+      name: "Dian Soni Amellia, S.Hum., M.Hum.",
+      position: "Pustakawan Ahli Madya",
       department: "layanan",
-      email: "dewi.anggraeni@perpusnas.go.id",
-      expertise: "User Service, Collection Access, Research Guidance", 
-      education: "S1 Ilmu Perpustakaan - Universitas Padjadjaran",
-      experience: "7 tahun",
-      image: null
+      education: "S-1 Program Studi Belanda - Universitas Indonesia, S-2 Ilmu Perpustakaan - Universitas Indonesia",
+      experience: "17 tahun"
     },
     {
-      name: "Dr. Hendra Wijaya, M.A.",
-      position: "Konservator Senior",
-      department: "konservasi",
-      email: "hendra.wijaya@perpusnas.go.id",
-      expertise: "Chemical Conservation, Material Science, Preventive Conservation",
-      education: "S3 Material Science - Universitas Indonesia",
-      experience: "18 tahun", 
-      image: null
+      name: "Katolo Gowani, S.S., MTCSOL",
+      position: "Pustakawan Ahli Muda",
+      department: "layanan",
+      education: "S-1 Sastra Cina - Universitas Bina Nusantara, S-2 Magister Pengajaran Bahasa Tionghoa untuk Penutur Bahasa Lain",
+      experience: "6 tahun"
+    },
+    {
+      name: "Kharissa Putri, S.Hum",
+      position: "Pustakawan Ahli Pertama",
+      department: "layanan",
+      education: "S-1 Program Studi Belanda - Universitas Indonesia",
+      experience: "6 tahun"
+    },
+    {
+      name: "Regina Savitri, S.S.I",
+      position: "Pustakawan Ahli Pertama",
+      department: "layanan",
+      education: "S-1 Ilmu Perpustakaan dan Informasi - Universitas Padjajaran",
+      experience: "1 tahun"
+    },
+    {
+      name: "Dinda Ayumanda, A.Md",
+      position: "Asisten Perpustakaan Terampil",
+      department: "layanan",
+      education: "D-III Ilmu Perpustakaan dan Kearsipan - Universitas Negeri Padang",
+      experience: "2 tahun"
     }
   ]
 
   const departments = [
-    { id: 'semua', label: 'Semua Departemen' },
+    { id: 'semua', label: 'Semua Tim' },
     { id: 'manajemen', label: 'Manajemen' },
-    { id: 'konservasi', label: 'Konservasi & Digitalisasi' },
     { id: 'layanan', label: 'Layanan Pengguna' }
   ]
 
@@ -101,7 +98,7 @@ export default function TimKami() {
             maxWidth: '600px',
             margin: '0 auto'
           }}>
-            Bertugas melayani kebutuhan penelitian, preservasi, dan akses koleksi langka
+            Tim yang berdedikasi melayani kebutuhan akses koleksi buku langka
           </p>
           
           {/* Department Filter */}
@@ -140,7 +137,7 @@ export default function TimKami() {
           gap: '2rem'
         }}>
           {filteredStaff.map((person, index) => (
-            <StaffCard key={person.email} person={person} index={index} />
+            <StaffCard key={index} person={person} index={index} />
           ))}
         </div>
 
