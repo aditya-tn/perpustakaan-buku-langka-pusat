@@ -1,4 +1,4 @@
-// components/profil/TentangKami.js
+// components/profil/TentangKami.js - UPDATED
 const StatItem = ({ number, label }) => (
   <div style={{
     display: 'flex',
@@ -47,19 +47,24 @@ export default function TentangKami() {
           </h2>
           <div style={{ lineHeight: '1.8', color: '#4a5568', fontSize: '1.1rem' }}>
             <p style={{ marginBottom: '1.5rem' }}>
-              <strong>Layanan Koleksi Buku Langka Perpustakaan Nasional RI</strong> didirikan 
-              pada tahun 1980 dengan misi melestarikan khazanah literatur Nusantara yang 
-              tak ternilai harganya.
+              <strong>Layanan Koleksi Buku Langka</strong> merupakan unit layanan di bawah 
+              Perpustakaan Nasional Republik Indonesia yang memberikan akses langsung bagi 
+              masyarakat terhadap koleksi buku langka yang bernilai historis dan ilmiah.
             </p>
             <p style={{ marginBottom: '1.5rem' }}>
-              Kami bertanggung jawab atas preservasi, konservasi, dan akses terhadap 
-              lebih dari 85.000 koleksi buku langka, naskah kuno, dan dokumen bersejarah 
-              yang mencakup periode dari abad ke-16 hingga modern.
+              Melalui layanan ini, pengguna dapat menelusuri informasi koleksi, mengajukan 
+              permohonan baca di tempat, serta memperoleh pendampingan dari pustakawan 
+              dalam meneliti atau menelaah isi buku langka.
+            </p>
+            <p style={{ marginBottom: '1.5rem' }}>
+              Kami berkomitmen memberikan pelayanan yang profesional, ramah, dan tertib, 
+              agar masyarakat dapat memanfaatkan khazanah pustaka nasional dengan nyaman, 
+              tanpa mengurangi keamanan dan keutuhan fisik koleksi.
             </p>
             <p>
-              Layanan kami tidak hanya terbatas pada preservasi fisik, tetapi juga 
-              digitalisasi dan aksesibilitas untuk peneliti, akademisi, dan masyarakat 
-              umum yang tertarik dengan warisan literasi Indonesia.
+              Layanan ini menjadi jembatan antara warisan pengetahuan masa lalu dan 
+              kebutuhan informasi masa kini — menghadirkan kembali nilai-nilai literasi 
+              yang abadi untuk generasi penerus bangsa.
             </p>
           </div>
         </div>
@@ -71,15 +76,15 @@ export default function TentangKami() {
             fontSize: '1.5rem',
             fontWeight: '600'
           }}>
-            Statistik Koleksi
+            Statistik Layanan
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <StatItem number="85,000+" label="Total Koleksi Buku Langka" />
             <StatItem number="200+" label="Tahun Sejarah Tercakup" />
             <StatItem number="50+" label="Bahasa yang Tersedia" />
-            <StatItem number="15,000+" label="Naskah Kuno Digital" />
             <StatItem number="1,200+" label="Peneliti per Tahun" />
-            <StatItem number="500+" label="Koleksi Baru per Tahun" />
+            <StatItem number="500+" label="Kunjungan per Tahun" />
+            <StatItem number="7" label="Tim Profesional" />
           </div>
         </div>
       </div>
