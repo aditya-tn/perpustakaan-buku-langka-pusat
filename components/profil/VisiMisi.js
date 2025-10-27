@@ -1,159 +1,109 @@
-// components/profil/VisiMisi.js - OPTIMIZED
+// components/profil/VisiMisi.js - UPDATED
 export default function VisiMisi({ isMobile }) {
   return (
     <section style={{ 
       padding: isMobile ? '2rem 1rem' : '3rem 2rem', 
       maxWidth: '1000px', 
       margin: '0 auto',
-      minHeight: '60vh'
+      minHeight: '60vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
     }}>
       <div style={{
-        display: 'grid',
-        gap: isMobile ? '2rem' : '3rem'
-      }}>
-        {/* Visi */}
+        backgroundColor: 'white',
+        padding: isMobile ? '2rem 1.5rem' : '3rem 2.5rem',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+        border: '1px solid #f1f5f9',
+        textAlign: 'center',
+        maxWidth: '800px',
+        width: '100%',
+        transition: 'all 0.3s ease'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-4px)'
+        e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.15)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.1)'
+      }}
+      >
+        {/* Header */}
         <div style={{
-          backgroundColor: 'white',
-          padding: isMobile ? '1.5rem' : '2.5rem',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          borderLeft: '4px solid #4299e1',
-          transition: 'transform 0.3s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'translateY(0)'
-        }}
-        >
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '1rem',
+          marginBottom: '2rem'
+        }}>
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            marginBottom: '1.5rem'
+            fontSize: isMobile ? '3rem' : '4rem',
+            color: '#4299e1',
+            marginBottom: '0.5rem'
           }}>
-            <div style={{
-              fontSize: isMobile ? '1.5rem' : '2rem',
-              backgroundColor: '#4299e1',
-              color: 'white',
-              width: isMobile ? '50px' : '60px',
-              height: isMobile ? '50px' : '60px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              👁️
-            </div>
-            <h2 style={{ 
-              color: '#2d3748',
-              fontSize: isMobile ? '1.25rem' : '1.75rem',
-              fontWeight: '700',
-              margin: 0,
-              lineHeight: '1.3'
-            }}>
-              Visi
-            </h2>
+            🎯
           </div>
-          <p style={{
-            fontSize: isMobile ? '0.9rem' : '1.1rem',
-            lineHeight: '1.7',
-            color: '#4a5568',
+          <h2 style={{ 
+            color: '#2d3748',
+            fontSize: isMobile ? '1.5rem' : '2rem',
+            fontWeight: '700',
             margin: 0,
-            fontStyle: 'italic'
+            lineHeight: '1.3'
           }}>
-            "Menjadi pusat preservasi dan akses koleksi buku langka terdepan di Asia Tenggara 
-            yang melestarikan memori kolektif bangsa Indonesia untuk generasi sekarang dan mendatang."
+            Visi Perpustakaan Nasional
+          </h2>
+          <div style={{
+            display: 'inline-block',
+            backgroundColor: '#4299e1',
+            color: 'white',
+            padding: '0.5rem 1.5rem',
+            borderRadius: '25px',
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
+            fontWeight: '600',
+            letterSpacing: '0.5px'
+          }}>
+            2025 – 2029
+          </div>
+        </div>
+
+        {/* Visi Content */}
+        <div style={{
+          padding: isMobile ? '1.5rem' : '2rem',
+          backgroundColor: '#f8fafc',
+          borderRadius: '12px',
+          border: '2px solid #e2e8f0'
+        }}>
+          <p style={{
+            fontSize: isMobile ? '1rem' : '1.25rem',
+            lineHeight: '1.7',
+            color: '#2d3748',
+            margin: 0,
+            fontStyle: 'italic',
+            fontWeight: '500'
+          }}>
+            "Menjadi perpustakaan yang transformatif dalam meningkatkan budaya baca dan literasi untuk mewujudkan bangsa bermartabat bersama Indonesia Maju menuju Indonesia Emas 2045."
           </p>
         </div>
 
-        {/* Misi */}
+        {/* Additional Info */}
         <div style={{
-          backgroundColor: 'white',
-          padding: isMobile ? '1.5rem' : '2.5rem',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          borderLeft: '4px solid #48bb78',
-          transition: 'transform 0.3s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'translateY(-2px)'
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'translateY(0)'
-        }}
-        >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            marginBottom: '1.5rem'
+          marginTop: '2rem',
+          padding: '1rem',
+          backgroundColor: '#f0fff4',
+          borderRadius: '8px',
+          border: '1px solid #c6f6d5'
+        }}>
+          <p style={{
+            margin: 0,
+            color: '#22543d',
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
+            lineHeight: '1.5',
+            fontWeight: '500'
           }}>
-            <div style={{
-              fontSize: isMobile ? '1.5rem' : '2rem',
-              backgroundColor: '#48bb78',
-              color: 'white',
-              width: isMobile ? '50px' : '60px',
-              height: isMobile ? '50px' : '60px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              🎯
-            </div>
-            <h2 style={{ 
-              color: '#2d3748',
-              fontSize: isMobile ? '1.25rem' : '1.75rem',
-              fontWeight: '700',
-              margin: 0,
-              lineHeight: '1.3'
-            }}>
-              Misi
-            </h2>
-          </div>
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '0.75rem' 
-          }}>
-            {[
-              "Melestarikan dan mengonservasi koleksi buku langka melalui standar preservasi internasional",
-              "Mendigitalisasi koleksi untuk memastikan aksesibilitas dan keberlanjutan",
-              "Menyediakan akses penelitian yang komprehensif bagi akademisi dan masyarakat",
-              "Mengembangkan sistem manajemen koleksi yang terintegrasi dan modern",
-              "Mempromosikan warisan literasi Indonesia melalui pameran dan publikasi"
-            ].map((misi, index) => (
-              <div key={index} style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '0.75rem',
-                padding: '0.75rem',
-                backgroundColor: '#f0fff4',
-                borderRadius: '6px',
-                border: '1px solid #c6f6d5'
-              }}>
-                <span style={{
-                  color: '#48bb78',
-                  fontWeight: 'bold',
-                  minWidth: '20px',
-                  fontSize: isMobile ? '0.8rem' : '0.9rem'
-                }}>
-                  {index + 1}.
-                </span>
-                <span style={{ 
-                  color: '#22543d', 
-                  lineHeight: '1.5',
-                  fontSize: isMobile ? '0.8rem' : '0.9rem'
-                }}>
-                  {misi}
-                </span>
-              </div>
-            ))}
-          </div>
+            🌟 <strong>Fokus Transformasi:</strong> Penguatan budaya baca, literasi digital, dan preservasi khazanah nusantara
+          </p>
         </div>
       </div>
     </section>
