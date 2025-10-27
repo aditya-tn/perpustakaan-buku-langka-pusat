@@ -1,4 +1,4 @@
-// pages/index.js - SMOOTH CLEAN MODE SEARCH WITH FIXED SYNONYMS & IMPROVED SEARCH
+// pages/index.js - PERBAIKAN PENCARIAN DAN NOTIFIKASI
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -41,13 +41,27 @@ const extractYearFromString = (yearStr) => {
   return null;
 };
 
+// PERBAIKAN: Fungsi untuk membersihkan dan menormalisasi query pencarian
+const normalizeSearchQuery = (query) => {
+  if (!query) return '';
+  
+  // Hilangkan karakter khusus yang mengganggu pencarian Supabase
+  let normalized = query
+    .replace(/[\/\\]/g, ' ') // Ganti / dan \ dengan spasi
+    .replace(/\s+/g, ' ') // Normalisasi multiple spaces
+    .trim();
+  
+  return normalized;
+};
+
 // Synonyms service
 const fetchSynonyms = async (searchTerm) => {
   try {
+    const normalizedTerm = normalizeSearchQuery(searchTerm);
     const { data, error } = await supabase
       .from('search_synonyms')
       .select('term, synonyms, weight, language')
-      .or(`term.ilike.%${searchTerm}%,synonyms.cs.{${searchTerm}}`)
+      .or(`term.ilike.%${normalizedTerm}%,synonyms.cs.{${normalizedTerm}}`)
       .order('weight', { ascending: false });
 
     if (error) throw error;
@@ -74,13 +88,14 @@ const detectLanguage = (text) => {
 
 // Enhanced synonyms expansion dengan context awareness
 const expandSearchWithSynonyms = async (searchQuery) => {
-  const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 1);
+  const normalizedQuery = normalizeSearchQuery(searchQuery);
+  const searchWords = normalizedQuery.split(/\s+/).filter(word => word.length > 1);
   
-  if (searchWords.length === 0) return { terms: [searchQuery], synonyms: [] };
+  if (searchWords.length === 0) return { terms: [normalizedQuery], synonyms: [] };
 
   const allSynonyms = [];
   const detectedSynonyms = [];
-  const primaryLanguage = detectLanguage(searchQuery);
+  const primaryLanguage = detectLanguage(normalizedQuery);
 
   for (const word of searchWords) {
     const synonymsData = await fetchSynonyms(word);
@@ -112,89 +127,15 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   }
 
   const uniqueSynonyms = [...new Set(allSynonyms)].slice(0, 10);
-  const expandedTerms = [searchQuery, ...uniqueSynonyms];
+  const expandedTerms = [normalizedQuery, ...uniqueSynonyms];
   const finalSynonyms = detectedSynonyms.slice(0, 6);
   
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// FUNGSI BARU: Normalisasi teks pencarian
-const normalizeSearchText = (text) => {
-  if (!text) return '';
-  
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s:/.,-]/g, ' ') // Hapus karakter khusus kecuali yang umum
-    .replace(/\s+/g, ' ') // Normalisasi spasi ganda
-    .replace(/\s*[/:,.-]\s*/g, ' ') // Normalisasi pemisah
-    .trim();
-};
-
-// FUNGSI BARU: Membangun query pencarian yang lebih robust
-const buildSearchQuery = (searchTerm) => {
-  const normalizedTerm = normalizeSearchText(searchTerm);
-  const words = normalizedTerm.split(/\s+/).filter(word => word.length > 0);
-  
-  if (words.length === 0) return null;
-
-  // Build conditions untuk setiap kata
-  const conditions = words.map(word => 
-    `judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`
-  );
-
-  return conditions.join(',');
-};
-
-// FUNGSI BARU: Alternative Search Methods untuk handle berbagai format pencarian
-const performAlternativeSearch = async (searchQuery) => {
-  try {
-    const alternatives = [];
-    
-    // 1. Coba dengan menghilangkan karakter khusus
-    const cleanQuery = searchQuery.replace(/[/:,.-]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (cleanQuery !== searchQuery) {
-      const { data } = await supabase
-        .from('books')
-        .select('*')
-        .or(`judul.ilike.%${cleanQuery}%,pengarang.ilike.%${cleanQuery}%,penerbit.ilike.%${cleanQuery}%`);
-      
-      if (data && data.length > 0) {
-        alternatives.push(...data);
-      }
-    }
-    
-    // 2. Coba dengan partial matching yang lebih agresif
-    const words = searchQuery.split(/\s+/).filter(word => word.length > 2);
-    if (words.length > 1) {
-      for (const word of words) {
-        const { data } = await supabase
-          .from('books')
-          .select('*')
-          .or(`judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`);
-        
-        if (data) {
-          alternatives.push(...data);
-        }
-      }
-    }
-    
-    // 3. Remove duplicate results
-    const uniqueResults = alternatives.filter((book, index, self) => 
-      index === self.findIndex(b => b.id === book.id)
-    );
-    
-    return rankSearchResults(uniqueResults, searchQuery.split(/\s+/), searchQuery);
-    
-  } catch (error) {
-    console.error('Alternative search error:', error);
-    return [];
-  }
-};
-
-// Enhanced Relevance Scoring dengan Better Partial Matching
+// Enhanced Relevance Scoring dengan Synonyms Awareness
 const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = []) => {
   const lowerQuery = originalQuery.toLowerCase();
-  const normalizedQuery = normalizeSearchText(originalQuery);
   
   const scoredResults = results.map(book => {
     let score = 0;
@@ -202,52 +143,34 @@ const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = 
     const lowerPengarang = book.pengarang?.toLowerCase() || '';
     const lowerPenerbit = book.penerbit?.toLowerCase() || '';
     
-    const normalizedJudul = normalizeSearchText(book.judul);
-    const normalizedPengarang = normalizeSearchText(book.pengarang);
-    
-    // Exact match scoring
     if (lowerJudul === lowerQuery) score += 200;
-    if (normalizedJudul === normalizedQuery) score += 180;
     if (lowerPengarang === lowerQuery) score += 150;
     
-    // Partial match scoring
     if (lowerJudul.includes(lowerQuery)) score += 100;
-    if (normalizedJudul.includes(normalizedQuery)) score += 90;
     if (lowerPengarang.includes(lowerQuery)) score += 80;
     if (lowerPenerbit.includes(lowerQuery)) score += 60;
     
-    // Word-by-word matching dengan flexible spacing
     searchWords.forEach(word => {
       const lowerWord = word.toLowerCase();
-      const normalizedWord = normalizeSearchText(word);
       
       if (lowerJudul.includes(lowerWord)) {
         score += 40;
         if (lowerJudul.startsWith(lowerWord)) score += 20;
       }
       
-      if (normalizedJudul.includes(normalizedWord)) {
-        score += 35;
-      }
-      
       if (lowerPengarang.includes(lowerWord)) score += 25;
       if (lowerPenerbit.includes(lowerWord)) score += 15;
     });
     
-    // Expanded terms scoring
     expandedTerms.forEach(term => {
       if (term.toLowerCase() !== lowerQuery) {
         const lowerTerm = term.toLowerCase();
-        const normalizedTerm = normalizeSearchText(term);
-        
         if (lowerJudul.includes(lowerTerm)) score += 15;
-        if (normalizedJudul.includes(normalizedTerm)) score += 12;
         if (lowerPengarang.includes(lowerTerm)) score += 10;
         if (lowerPenerbit.includes(lowerTerm)) score += 8;
       }
     });
     
-    // Quality bonuses
     if (book.judul && book.judul.length < 60) score += 10;
     if (book.tahun_terbit && extractYearFromString(book.tahun_terbit) > 1900) score += 5;
     
@@ -266,70 +189,154 @@ const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = 
   });
 };
 
-// IMPROVED SMART SEARCH dengan handling yang lebih baik
-const performSmartSearch = async (searchQuery, useSynonyms = true) => {
-  const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
-  
-  if (searchWords.length === 0) {
-    return {
-      results: [],
-      synonyms: [],
-      method: 'Empty Search'
-    };
-  }
-  
-  try {
-    let searchTerms = [searchQuery];
-    let detectedSynonyms = [];
+// KOMPONEN UNTUK HASIL TIDAK DITEMUKAN
+const NoResultsFound = ({ searchTerm, isMobile }) => {
+  return (
+    <section style={{ 
+      maxWidth: '800px', 
+      margin: '3rem auto',
+      padding: isMobile ? '0 1rem' : '0 2rem',
+      textAlign: 'center'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        padding: '3rem 2rem',
+        borderRadius: '16px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        border: '1px solid #e2e8f0'
+      }}>
+        <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🔍</div>
+        
+        <h3 style={{
+          fontSize: isMobile ? '1.5rem' : '1.75rem',
+          fontWeight: '700',
+          color: '#2d3748',
+          marginBottom: '1rem'
+        }}>
+          Hasil Tidak Ditemukan
+        </h3>
+        
+        <p style={{
+          fontSize: isMobile ? '1rem' : '1.1rem',
+          color: '#718096',
+          marginBottom: '2rem',
+          lineHeight: '1.6'
+        }}>
+          Maaf, tidak ada koleksi yang ditemukan untuk pencarian:<br />
+          <strong style={{ color: '#4a5568' }}>"{searchTerm}"</strong>
+        </p>
 
-    if (useSynonyms) {
-      const expandedData = await expandSearchWithSynonyms(searchQuery);
-      searchTerms = expandedData.terms;
-      detectedSynonyms = expandedData.synonyms;
-    }
+        <div style={{
+          backgroundColor: '#fffaf0',
+          border: '1px solid #fed7d7',
+          borderRadius: '12px',
+          padding: '1.5rem',
+          marginBottom: '2rem'
+        }}>
+          <h4 style={{
+            color: '#c53030',
+            fontSize: '1.1rem',
+            fontWeight: '600',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem'
+          }}>
+            💡 Tips Pencarian
+          </h4>
+          <ul style={{
+            textAlign: 'left',
+            color: '#744210',
+            fontSize: '0.95rem',
+            lineHeight: '1.6',
+            paddingLeft: '1.5rem',
+            margin: 0
+          }}>
+            <li>Gunakan kata kunci yang lebih umum</li>
+            <li>Coba penulisan alternatif atau ejaan lain</li>
+            <li>Periksa apakah pencarian dengan synonyms aktif</li>
+            <li>Pastikan tidak ada typo dalam pencarian</li>
+          </ul>
+        </div>
 
-    const searchPromises = searchTerms.map(term => {
-      const query = buildSearchQuery(term);
-      if (!query) return { data: [] };
-      
-      return supabase
-        .from('books')
-        .select('*')
-        .or(query);
-    });
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: '1rem',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <a
+            href="https://opac.perpusnas.go.id"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              backgroundColor: '#4299e1',
+              color: 'white',
+              padding: '1rem 2rem',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontWeight: '600',
+              fontSize: '1rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#3182ce';
+              e.target.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#4299e1';
+              e.target.style.transform = 'translateY(0)';
+            }}
+          >
+            🌐 Cari di OPAC Perpusnas
+          </a>
+          
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              backgroundColor: '#e2e8f0',
+              color: '#4a5568',
+              padding: '1rem 2rem',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '1rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#cbd5e0';
+              e.target.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#e2e8f0';
+              e.target.style.transform = 'translateY(0)';
+            }}
+          >
+            🔄 Coba Lagi
+          </button>
+        </div>
 
-    const allResults = await Promise.all(searchPromises);
-    
-    const combinedResults = [];
-    const seenIds = new Set();
-    
-    allResults.forEach(({ data }) => {
-      if (data) {
-        data.forEach(item => {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            combinedResults.push(item);
-          }
-        });
-      }
-    });
-
-    const finalResults = rankSearchResults(combinedResults, searchWords, searchQuery, searchTerms);
-    
-    return {
-      results: finalResults,
-      synonyms: detectedSynonyms,
-      method: useSynonyms && detectedSynonyms.length > 0 ? 'Smart Search + Synonyms' : 'Smart Search'
-    };
-
-  } catch (error) {
-    console.error('Smart search error:', error);
-    return {
-      results: [],
-      synonyms: [],
-      method: 'Error'
-    };
-  }
+        <p style={{
+          marginTop: '2rem',
+          fontSize: '0.9rem',
+          color: '#a0aec0',
+          fontStyle: 'italic'
+        }}>
+          Jika buku yang Anda cari tidak ditemukan, silakan gunakan layanan OPAC Perpustakaan Nasional 
+          untuk pencarian yang lebih komprehensif.
+        </p>
+      </div>
+    </section>
+  );
 };
 
 export default function Home() {
@@ -342,6 +349,9 @@ export default function Home() {
   const [showStats, setShowStats] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
   
+  // PERBAIKAN: State untuk menangani kasus tidak ada hasil
+  const [searchAttempted, setSearchAttempted] = useState(false)
+  
   // Search Intelligence States
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -351,7 +361,7 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState('')
 
-  // Synonyms Filter States - FIX: Proper initialization
+  // Synonyms Filter States
   const [synonymsEnabled, setSynonymsEnabled] = useState(true)
   const [activeSynonyms, setActiveSynonyms] = useState([])
 
@@ -385,7 +395,7 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // FIXED: Load preferences dengan proper initialization
+  // Load preferences
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedHistory = localStorage.getItem('searchHistory')
@@ -401,7 +411,6 @@ export default function Home() {
       if (savedHistory) setSearchHistory(JSON.parse(savedHistory))
       if (savedLiveSearch !== null) setLiveSearchEnabled(JSON.parse(savedLiveSearch))
       
-      // FIX: Proper synonyms loading dengan fallback ke true
       if (savedSynonymsEnabled !== null) {
         try {
           const synonymsSetting = JSON.parse(savedSynonymsEnabled)
@@ -412,14 +421,13 @@ export default function Home() {
           setSynonymsEnabled(true)
         }
       } else {
-        // DEFAULT: Synonyms ON
         setSynonymsEnabled(true)
         console.log('🔧 Using default synonyms: ON')
       }
     }
   }, [])
 
-  // FIXED: Save preferences
+  // Save preferences
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
@@ -431,13 +439,13 @@ export default function Home() {
     }
   }, [searchHistory, liveSearchEnabled, synonymsEnabled])
   
-  // Clean Mode Effect - Trigger ketika typing/search aktif
+  // Clean Mode Effect
   useEffect(() => {
     const shouldActivateCleanMode = searchTerm.trim().length > 0 || isTyping || searchResults.length > 0
     setCleanMode(shouldActivateCleanMode)
   }, [searchTerm, isTyping, searchResults.length])
   
-  // REAL-TIME SEARCH EFFECT
+  // REAL-TIME SEARCH EFFECT - DIPERBAIKI
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
@@ -451,6 +459,7 @@ export default function Home() {
         setWithinSearchTerm('')
         setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
         setActiveSynonyms([])
+        setSearchAttempted(false) // Reset search attempted
       }
       return
     }
@@ -487,10 +496,10 @@ export default function Home() {
   }, [currentPage, searchResults.length])
 
   useEffect(() => {
-    setShowStats(searchResults.length === 0)
-  }, [searchResults])
+    setShowStats(searchResults.length === 0 && !searchAttempted)
+  }, [searchResults, searchAttempted])
 
-  // Suggestions effect
+  // Suggestions effect - DIPERBAIKI dengan normalize
   useEffect(() => {
     if (searchTerm.length < 2) {
       setSuggestions([])
@@ -499,10 +508,11 @@ export default function Home() {
 
     const timeoutId = setTimeout(async () => {
       try {
+        const normalizedTerm = normalizeSearchQuery(searchTerm);
         const { data } = await supabase
           .from('books')
           .select('judul, pengarang, penerbit, id')
-          .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%`)
+          .or(`judul.ilike.%${normalizedTerm}%,pengarang.ilike.%${normalizedTerm}%`)
           .limit(5)
 
         setSuggestions(data || [])
@@ -563,17 +573,69 @@ export default function Home() {
   // Get current filtered results dengan useMemo untuk optimasi
   const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
-  // IMPROVED SMART SEARCH EXECUTION
-  const executeSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setOriginalSearchResults([]);
-      setActiveSynonyms([]);
-      return;
+  // Perform SMART search dengan atau tanpa synonyms - DIPERBAIKI
+  const performSmartSearch = async (searchQuery, useSynonyms = true) => {
+    const normalizedQuery = normalizeSearchQuery(searchQuery);
+    const searchWords = normalizedQuery.split(/\s+/).filter(word => word.length > 0);
+    
+    try {
+      let searchTerms = [normalizedQuery];
+      let detectedSynonyms = [];
+
+      if (useSynonyms) {
+        const expandedData = await expandSearchWithSynonyms(searchQuery);
+        searchTerms = expandedData.terms;
+        detectedSynonyms = expandedData.synonyms;
+      }
+
+      const searchPromises = searchTerms.map(term => 
+        supabase
+          .from('books')
+          .select('*')
+          .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
+      );
+
+      const allResults = await Promise.all(searchPromises);
+      
+      const combinedResults = [];
+      const seenIds = new Set();
+      
+      allResults.forEach(({ data }) => {
+        if (data) {
+          data.forEach(item => {
+            if (!seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              combinedResults.push(item);
+            }
+          });
+        }
+      });
+
+      const finalResults = rankSearchResults(combinedResults, searchWords, searchQuery, searchTerms);
+      
+      return {
+        results: finalResults,
+        synonyms: detectedSynonyms,
+        method: useSynonyms && detectedSynonyms.length > 0 ? 'Smart Search + Synonyms' : 'Smart Search'
+      };
+
+    } catch (error) {
+      console.error('Smart search error:', error);
+      return {
+        results: [],
+        synonyms: [],
+        method: 'Error'
+      };
     }
+  };
+
+  // SMART SEARCH EXECUTION - DIPERBAIKI
+  const executeSearch = async (searchQuery) => {
+    if (!searchQuery.trim()) return;
     
     setActiveSynonyms([]);
     setOriginalSearchResults([]);
+    setSearchAttempted(true); // Tandai bahwa pencarian telah dilakukan
     
     const lang = detectLanguage(searchQuery);
     setDetectedLanguage(lang);
@@ -587,44 +649,25 @@ export default function Home() {
     setCurrentPage(1);
 
     try {
-      // Coba pencarian dengan normalisasi terlebih dahulu
-      const searchWithSynonyms = await performSmartSearch(searchQuery, true);
-      const searchWithoutSynonyms = await performSmartSearch(searchQuery, false);
-
-      let finalResults = [];
-      let finalMethod = '';
-      let finalSynonyms = [];
-
-      // Prioritaskan hasil dengan synonyms jika enabled
+      const [searchWithSynonyms, searchWithoutSynonyms] = await Promise.all([
+        performSmartSearch(searchQuery, true),
+        performSmartSearch(searchQuery, false)
+      ]);
+      
       if (synonymsEnabled) {
-        finalResults = searchWithSynonyms.results;
-        finalMethod = searchWithSynonyms.method;
-        finalSynonyms = searchWithSynonyms.synonyms;
+        setSearchResults(searchWithSynonyms.results);
+        setSearchMethod(searchWithSynonyms.method);
+        setActiveSynonyms(searchWithSynonyms.synonyms);
       } else {
-        finalResults = searchWithoutSynonyms.results;
-        finalMethod = 'Exact Match Only';
-        finalSynonyms = [];
+        setSearchResults(searchWithoutSynonyms.results);
+        setSearchMethod('Exact Match Only');
+        setActiveSynonyms([]);
       }
-
-      // JIKA TIDAK ADA HASIL, COBA TEKNIK PENCARIAN ALTERNATIF
-      if (finalResults.length === 0) {
-        console.log('🔄 No results found, trying alternative search methods...');
-        
-        const alternativeResults = await performAlternativeSearch(searchQuery);
-        if (alternativeResults.length > 0) {
-          finalResults = alternativeResults;
-          finalMethod = 'Alternative Search';
-          console.log('✅ Found results with alternative search:', alternativeResults.length);
-        }
-      }
-
-      setSearchResults(finalResults);
-      setSearchMethod(finalMethod);
-      setActiveSynonyms(finalSynonyms);
+      
       setOriginalSearchResults(searchWithoutSynonyms.results);
       
-      if (finalResults.length > 0) {
-        saveToSearchHistory(searchQuery, finalResults.length);
+      if (searchWithSynonyms.results.length > 0 || searchWithoutSynonyms.results.length > 0) {
+        saveToSearchHistory(searchQuery, searchWithSynonyms.results.length || searchWithoutSynonyms.results.length);
       }
       
     } catch (err) {
@@ -639,19 +682,16 @@ export default function Home() {
     }
   };
 
-  // FIXED: Toggle Synonyms - Proper toggle dengan persistence
+  // Toggle Synonyms
   const toggleSynonyms = () => {
     const newSynonymsEnabled = !synonymsEnabled;
     console.log('🔄 Toggling synonyms from', synonymsEnabled, 'to', newSynonymsEnabled);
     setSynonymsEnabled(newSynonymsEnabled);
     
-    // JIKA SUDAH ADA HASIL SEARCH, GUNAKAN HASIL YANG SUDAH DIKOMPUTASI
     if (searchTerm.trim() && originalSearchResults.length > 0) {
       if (newSynonymsEnabled) {
-        // RELOAD SEARCH DENGAN SYNONYMS
         executeSearch(searchTerm);
       } else {
-        // GUNAKAN HASIL EXACT MATCH YANG SUDAH DISIMPAN
         setSearchResults(originalSearchResults);
         setSearchMethod('Exact Match Only');
         setActiveSynonyms([]);
@@ -711,7 +751,7 @@ export default function Home() {
     setLiveSearchEnabled(prev => !prev)
   }
 
-  // Clear current search
+  // Clear current search - DIPERBAIKI
   const clearSearch = () => {
     setSearchTerm('')
     setSearchResults([])
@@ -721,6 +761,7 @@ export default function Home() {
     setWithinSearchTerm('')
     setActiveSynonyms([])
     setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
+    setSearchAttempted(false) // Reset search attempted
     
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
@@ -870,7 +911,7 @@ export default function Home() {
                   Live Search
                 </button>
 
-                {/* FIXED: Synonyms Toggle - Tampilkan selalu ketika ada hasil pencarian */}
+                {/* Synonyms Toggle */}
                 {searchResults.length > 0 && (
                   <button
                     type="button"
@@ -1254,6 +1295,11 @@ export default function Home() {
         </div>
       </section>
 
+      {/* PERBAIKAN: Tampilkan komponen NoResultsFound ketika tidak ada hasil */}
+      {searchAttempted && searchResults.length === 0 && (
+        <NoResultsFound searchTerm={searchTerm} isMobile={isMobile} />
+      )}
+
       {/* Search Results Section */}
       {searchResults.length > 0 && (
         <section style={{ 
@@ -1440,7 +1486,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* FIXED: Synonyms Filter Status - Tampilkan selalu ketika ada hasil */}
+            {/* Synonyms Filter Status */}
             {searchResults.length > 0 && (
               <div style={{
                 marginTop: '1rem',
@@ -1906,109 +1952,6 @@ export default function Home() {
               </button>
             </div>
           )}
-        </section>
-      )}
-
-      {/* KOMPONEN BARU: No Results Message dengan Link ke OPAC */}
-      {searchResults.length === 0 && searchTerm && !loading && (
-        <section style={{ 
-          maxWidth: '1400px', 
-          margin: isMobile ? '2rem auto' : '3rem auto',
-          padding: isMobile ? '0 1rem' : '0 2rem'
-        }}>
-          <div style={{
-            textAlign: 'center',
-            padding: isMobile ? '3rem 1rem' : '4rem 2rem',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-            margin: '2rem 0'
-          }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔍</div>
-            <h3 style={{ 
-              color: '#4a5568', 
-              marginBottom: '1rem',
-              fontSize: isMobile ? '1.5rem' : '1.75rem'
-            }}>
-              Tidak Ditemukan Hasil Pencarian
-            </h3>
-            <p style={{ 
-              color: '#718096', 
-              marginBottom: '2rem',
-              fontSize: isMobile ? '0.9rem' : '1rem',
-              lineHeight: '1.6'
-            }}>
-              Maaf, tidak ada koleksi yang ditemukan untuk <strong>"{searchTerm}"</strong>.
-            </p>
-            
-            <div style={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: '1rem',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginBottom: '2rem'
-            }}>
-              <button
-                onClick={clearSearch}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#4299e1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  fontSize: '0.9rem'
-                }}
-              >
-                ✕ Hapus Pencarian
-              </button>
-              
-              <a
-                href={`https://opac.perpusnas.go.id/Home/Result?keyword=${encodeURIComponent(searchTerm)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#48bb78',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  textDecoration: 'none',
-                  fontSize: '0.9rem',
-                  display: 'inline-block'
-                }}
-              >
-                🔍 Cari di OPAC Perpusnas
-              </a>
-            </div>
-            
-            <div style={{
-              backgroundColor: '#fffaf0',
-              padding: '1rem',
-              borderRadius: '8px',
-              border: '1px solid #feebc8',
-              fontSize: '0.85rem',
-              color: '#744210',
-              maxWidth: '500px',
-              margin: '0 auto'
-            }}>
-              <strong>💡 Tips Pencarian:</strong>
-              <ul style={{ 
-                textAlign: 'left', 
-                margin: '0.5rem 0 0 0',
-                paddingLeft: '1.5rem'
-              }}>
-                <li>Gunakan kata kunci yang lebih umum</li>
-                <li>Coba tanpa karakter khusus seperti <code>/</code>, <code>:</code></li>
-                <li>Periksa ejaan kata kunci</li>
-                <li>Gunakan fitur synonyms untuk pencarian yang lebih luas</li>
-              </ul>
-            </div>
-          </div>
         </section>
       )}
 
