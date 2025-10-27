@@ -127,13 +127,6 @@ export default function KontakJam({ isMobile }) {
           subtitle="Jl. Medan Merdeka Selatan No. 11, Gambir, Jakarta"
           isMobile={isMobile}
         />
-        <ContactCard 
-          icon="🕒" 
-          title="Jam Layanan" 
-          content="Senin - Minggu"
-          subtitle="Lihat jadwal detail"
-          isMobile={isMobile}
-        />
       </div>
 
       {/* Detailed Schedule */}
