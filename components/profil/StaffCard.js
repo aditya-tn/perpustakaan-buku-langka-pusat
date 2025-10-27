@@ -1,15 +1,13 @@
-// components/profil/StaffCard.js
+// components/profil/StaffCard.js - UPDATED
 export default function StaffCard({ person, index }) {
   const departmentColors = {
     manajemen: '#4299e1',
-    konservasi: '#48bb78', 
-    layanan: '#ed8936'
+    layanan: '#48bb78'
   }
 
   const departmentLabels = {
     manajemen: 'Manajemen',
-    konservasi: 'Konservasi',
-    layanan: 'Layanan'
+    layanan: 'Layanan Pengguna'
   }
 
   return (
@@ -51,7 +49,8 @@ export default function StaffCard({ person, index }) {
             color: '#2d3748',
             margin: '0 0 0.5rem 0',
             fontSize: '1.25rem',
-            fontWeight: '600'
+            fontWeight: '600',
+            lineHeight: '1.4'
           }}>
             {person.name}
           </h3>
@@ -74,7 +73,8 @@ export default function StaffCard({ person, index }) {
         color: '#4299e1',
         fontWeight: '600',
         margin: '0 0 1rem 0',
-        fontSize: '0.95rem'
+        fontSize: '0.95rem',
+        lineHeight: '1.4'
       }}>
         {person.position}
       </p>
@@ -82,15 +82,8 @@ export default function StaffCard({ person, index }) {
       {/* Details */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>
-          <strong style={{ color: '#4a5568', fontSize: '0.9rem' }}>Spesialisasi:</strong>
-          <p style={{ color: '#718096', margin: '0.25rem 0 0 0', fontSize: '0.9rem', lineHeight: '1.5' }}>
-            {person.expertise}
-          </p>
-        </div>
-
-        <div>
           <strong style={{ color: '#4a5568', fontSize: '0.9rem' }}>Pendidikan:</strong>
-          <p style={{ color: '#718096', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>
+          <p style={{ color: '#718096', margin: '0.25rem 0 0 0', fontSize: '0.9rem', lineHeight: '1.5' }}>
             {person.education}
           </p>
         </div>
@@ -101,28 +94,6 @@ export default function StaffCard({ person, index }) {
             {person.experience}
           </p>
         </div>
-      </div>
-
-      {/* Contact */}
-      <div style={{ 
-        marginTop: '1.5rem',
-        paddingTop: '1rem',
-        borderTop: '1px solid #e2e8f0'
-      }}>
-        <a 
-          href={`mailto:${person.email}`}
-          style={{
-            color: '#4299e1',
-            textDecoration: 'none',
-            fontSize: '0.9rem',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}
-        >
-          📧 {person.email}
-        </a>
       </div>
     </div>
   )
