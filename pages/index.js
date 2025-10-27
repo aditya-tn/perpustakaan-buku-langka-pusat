@@ -1,4 +1,4 @@
-// pages/index.js - FINAL OPTIMIZED SEARCH WITH SYNONYMS FILTER
+// pages/index.js - FINAL FIXED SYNONYMS SEARCH
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -370,87 +370,67 @@ export default function Home() {
   // Get current filtered results dengan useMemo untuk optimasi
   const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
-  // Perform original search (tanpa synonyms)
-  const performOriginalSearch = async (searchQuery) => {
+  // Perform SMART search dengan atau tanpa synonyms
+  const performSmartSearch = async (searchQuery, useSynonyms = true) => {
     const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
     
     try {
-      const exactMatchQuery = supabase
-        .from('books')
-        .select('*')
-        .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`);
+      let searchTerms = [searchQuery];
+      let detectedSynonyms = [];
 
-      const { data: exactMatches, error: exactError } = await exactMatchQuery;
-      if (exactError) throw exactError;
+      // JIKA SYNONYMS ENABLED, EXPAND SEARCH TERMS
+      if (useSynonyms) {
+        const expandedData = await expandSearchWithSynonyms(searchQuery);
+        searchTerms = expandedData.terms;
+        detectedSynonyms = expandedData.synonyms;
+        console.log('🔤 Expanded search terms:', searchTerms);
+      }
 
-      const wordMatchPromises = searchWords.map(word => 
-        supabase
-          .from('books')
-          .select('*')
-          .or(`judul.ilike.%${word}%,pengarang.ilike.%${word}%,penerbit.ilike.%${word}%`)
-      );
-
-      const wordResults = await Promise.all(wordMatchPromises);
-      
-      const allResults = [...(exactMatches || [])];
-      const seenIds = new Set(exactMatches?.map(item => item.id) || []);
-      
-      wordResults.forEach(({ data }) => {
-        if (data) {
-          data.forEach(item => {
-            if (!seenIds.has(item.id)) {
-              seenIds.add(item.id);
-              allResults.push(item);
-            }
-          });
-        }
-      });
-
-      return rankSearchResults(allResults, searchWords, searchQuery, []);
-
-    } catch (error) {
-      console.error('Original search error:', error);
-      return [];
-    }
-  };
-
-  // Perform expanded search dengan synonyms
-  const performExpandedSearch = async (searchQuery, expandedTerms) => {
-    const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
-    
-    try {
-      const synonymPromises = expandedTerms.map(term => 
+      // BUAT SEMUA PROMISE UNTUK SETIAP SEARCH TERM
+      const searchPromises = searchTerms.map(term => 
         supabase
           .from('books')
           .select('*')
           .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
       );
 
-      const synonymResults = await Promise.all(synonymPromises);
+      // JALANKAN SEMUA SEARCH PARALEL
+      const allResults = await Promise.all(searchPromises);
       
-      const allResults = [];
+      // COMBINE SEMUA RESULTS
+      const combinedResults = [];
       const seenIds = new Set();
       
-      synonymResults.forEach(({ data }) => {
+      allResults.forEach(({ data }) => {
         if (data) {
           data.forEach(item => {
             if (!seenIds.has(item.id)) {
               seenIds.add(item.id);
-              allResults.push(item);
+              combinedResults.push(item);
             }
           });
         }
       });
 
-      return rankSearchResults(allResults, searchWords, searchQuery, expandedTerms);
+      const finalResults = rankSearchResults(combinedResults, searchWords, searchQuery, searchTerms);
+      
+      return {
+        results: finalResults,
+        synonyms: detectedSynonyms,
+        method: useSynonyms && detectedSynonyms.length > 0 ? 'Smart Search + Synonyms' : 'Smart Search'
+      };
 
     } catch (error) {
-      console.error('Expanded search error:', error);
-      return [];
+      console.error('Smart search error:', error);
+      return {
+        results: [],
+        synonyms: [],
+        method: 'Error'
+      };
     }
   };
 
-  // FIXED: SMART SEARCH EXECUTION - SYNONYMS ON BY DEFAULT
+  // FIXED: SMART SEARCH EXECUTION - SINGLE FLOW
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return;
     
@@ -473,43 +453,33 @@ export default function Home() {
     try {
       const startTime = performance.now();
       
-      // DAPATKAN HASIL ORIGINAL (tanpa synonyms)
-      const originalResults = await performOriginalSearch(searchQuery);
-      setOriginalSearchResults(originalResults);
+      // LAKUKAN SATU KALI SEARCH SAJA DENGAN SYNONYMS SETTING YANG AKTIF
+      const searchResult = await performSmartSearch(searchQuery, synonymsEnabled);
       
-      let finalResults = originalResults;
-      let finalMethod = 'Smart Search';
-      let detectedSynonyms = [];
-
-      // JIKA SYNONYMS ENABLED, CARI SYNONYMS DAN EXPANDED RESULTS
-      if (synonymsEnabled) {
-        const expandedData = await expandSearchWithSynonyms(searchQuery);
-        detectedSynonyms = expandedData.synonyms;
-        
-        if (detectedSynonyms.length > 0) {
-          // JIKA ADA SYNONYMS, GUNAKAN EXPANDED SEARCH
-          const expandedResults = await performExpandedSearch(searchQuery, expandedData.terms);
-          finalResults = expandedResults;
-          finalMethod = 'Smart Search + Synonyms';
-          setActiveSynonyms(detectedSynonyms);
-        }
+      // SET RESULTS SEKALIGUS
+      setSearchResults(searchResult.results);
+      setSearchMethod(searchResult.method);
+      setActiveSynonyms(searchResult.synonyms);
+      
+      // SIMPAN ORIGINAL RESULTS JIKA PERLU UNTUK TOGGLE
+      if (searchResult.synonyms.length > 0) {
+        // JIKA ADA SYNONYMS, SIMPAN JUGA RESULTS TANPA SYNONYMS UNTUK COMPARISON
+        const originalResult = await performSmartSearch(searchQuery, false);
+        setOriginalSearchResults(originalResult.results);
+      } else {
+        setOriginalSearchResults(searchResult.results);
       }
-      
-      // SET FINAL RESULTS SEKALIGUS - TIDAK ADA RACE CONDITION
-      setSearchResults(finalResults);
-      setSearchMethod(finalMethod);
       
       const endTime = performance.now();
       console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms`, {
-        original: originalResults.length,
-        final: finalResults.length,
-        synonyms: detectedSynonyms.length,
-        method: finalMethod,
+        results: searchResult.results.length,
+        synonyms: searchResult.synonyms.length,
+        method: searchResult.method,
         synonymsEnabled: synonymsEnabled
       });
       
-      if (finalResults.length > 0) {
-        saveToSearchHistory(searchQuery, finalResults.length);
+      if (searchResult.results.length > 0) {
+        saveToSearchHistory(searchQuery, searchResult.results.length);
       }
       
     } catch (err) {
@@ -517,19 +487,20 @@ export default function Home() {
         console.error('Search error:', err);
         setSearchResults([]);
         setOriginalSearchResults([]);
+        setActiveSynonyms([]);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Toggle Synonyms sebagai Filter Client-Side
+  // Toggle Synonyms - RELOAD SEARCH DENGAN SETTING BARU
   const toggleSynonyms = () => {
     const newSynonymsEnabled = !synonymsEnabled;
     setSynonymsEnabled(newSynonymsEnabled);
     
-    if (originalSearchResults.length > 0 && activeSynonyms.length > 0) {
-      // Jika ada active synonyms, lakukan search ulang dengan setting baru
+    // RELOAD SEARCH DENGAN SETTING BARU
+    if (searchTerm.trim()) {
       executeSearch(searchTerm);
     }
     
@@ -1660,7 +1631,7 @@ export default function Home() {
         input[type="range"]::-moz-range-thumb {
           width: 20px;
           height: 20px;
-          border-radius: 50%;
+          border-radius: '50%';
           background: #4299e1;
           cursor: pointer;
           border: 2px solid white;
