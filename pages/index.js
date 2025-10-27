@@ -1,4 +1,4 @@
-// pages/index.js - FINAL FIXED SYNONYMS SEARCH
+// pages/index.js - SMOOTH CLEAN MODE SEARCH
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -193,7 +193,7 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState('')
 
-  // Synonyms Filter States - FIX: ON BY DEFAULT
+  // Synonyms Filter States
   const [synonymsEnabled, setSynonymsEnabled] = useState(true)
   const [activeSynonyms, setActiveSynonyms] = useState([])
 
@@ -216,6 +216,9 @@ export default function Home() {
     return books.filter(book => extractYearFromString(book.tahun_terbit) !== null).length;
   };
 
+  // NEW: Clean Mode State
+  const [cleanMode, setCleanMode] = useState(false)
+
   // Detect mobile screen
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -226,30 +229,19 @@ export default function Home() {
 
   // FIXED: Load preferences dengan DEFAULT SYNONYMS ON
   useEffect(() => {
-    // Cek jika di client side (browser)
     if (typeof window !== 'undefined') {
       const savedHistory = localStorage.getItem('searchHistory')
       const savedLiveSearch = localStorage.getItem('liveSearchEnabled')
       const savedSynonymsEnabled = localStorage.getItem('synonymsEnabled')
       
-      console.log('🔄 Loading preferences from localStorage:', {
-        savedSynonymsEnabled,
-        savedLiveSearch,
-        hasHistory: !!savedHistory
-      })
-      
       if (savedHistory) setSearchHistory(JSON.parse(savedHistory))
       if (savedLiveSearch !== null) setLiveSearchEnabled(JSON.parse(savedLiveSearch))
       
-      // FIX: Jika tidak ada saved setting, gunakan default true (ON)
       if (savedSynonymsEnabled !== null) {
         const synonymsSetting = JSON.parse(savedSynonymsEnabled)
         setSynonymsEnabled(synonymsSetting)
-        console.log('🔧 Loaded synonyms preference:', synonymsSetting)
       } else {
-        // DEFAULT: Synonyms ON
         setSynonymsEnabled(true)
-        console.log('🔧 Using default synonyms: ON')
       }
     }
   }, [])
@@ -259,16 +251,17 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
       localStorage.setItem('synonymsEnabled', JSON.stringify(synonymsEnabled))
-      console.log('💾 Saved preferences:', { 
-        synonymsEnabled, 
-        liveSearchEnabled,
-        timestamp: new Date().toISOString() 
-      })
       if (searchHistory.length > 0) {
         localStorage.setItem('searchHistory', JSON.stringify(searchHistory))
       }
     }
   }, [searchHistory, liveSearchEnabled, synonymsEnabled])
+  
+  // NEW: Clean Mode Effect - Trigger ketika typing/search aktif
+  useEffect(() => {
+    const shouldActivateCleanMode = searchTerm.trim().length > 0 || isTyping || searchResults.length > 0
+    setCleanMode(shouldActivateCleanMode)
+  }, [searchTerm, isTyping, searchResults.length])
   
   // REAL-TIME SEARCH EFFECT
   useEffect(() => {
@@ -404,15 +397,12 @@ export default function Home() {
       let searchTerms = [searchQuery];
       let detectedSynonyms = [];
 
-      // JIKA SYNONYMS ENABLED, EXPAND SEARCH TERMS
       if (useSynonyms) {
         const expandedData = await expandSearchWithSynonyms(searchQuery);
         searchTerms = expandedData.terms;
         detectedSynonyms = expandedData.synonyms;
-        console.log('🔤 Expanded search terms:', searchTerms);
       }
 
-      // BUAT SEMUA PROMISE UNTUK SETIAP SEARCH TERM
       const searchPromises = searchTerms.map(term => 
         supabase
           .from('books')
@@ -420,10 +410,8 @@ export default function Home() {
           .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
       );
 
-      // JALANKAN SEMUA SEARCH PARALEL
       const allResults = await Promise.all(searchPromises);
       
-      // COMBINE SEMUA RESULTS
       const combinedResults = [];
       const seenIds = new Set();
       
@@ -456,15 +444,13 @@ export default function Home() {
     }
   };
 
-  // FIXED: SMART SEARCH EXECUTION - PROPER SYNONYMS TOGGLE
+  // SMART SEARCH EXECUTION
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return;
     
-    // Reset states
     setActiveSynonyms([]);
     setOriginalSearchResults([]);
     
-    // Detect language
     const lang = detectLanguage(searchQuery);
     setDetectedLanguage(lang);
     
@@ -477,17 +463,11 @@ export default function Home() {
     setCurrentPage(1);
 
     try {
-      const startTime = performance.now();
-      
-      console.log('🔍 Executing search with synonyms:', synonymsEnabled);
-      
-      // LAKUKAN DUA KALI SEARCH: DENGAN DAN TANPA SYNONYMS
       const [searchWithSynonyms, searchWithoutSynonyms] = await Promise.all([
         performSmartSearch(searchQuery, true),
         performSmartSearch(searchQuery, false)
       ]);
       
-      // SET RESULTS BERDASARKAN SYNONYMS ENABLED
       if (synonymsEnabled) {
         setSearchResults(searchWithSynonyms.results);
         setSearchMethod(searchWithSynonyms.method);
@@ -498,16 +478,7 @@ export default function Home() {
         setActiveSynonyms([]);
       }
       
-      // SIMPAN KEDUA RESULTS UNTUK TOGGLE
       setOriginalSearchResults(searchWithoutSynonyms.results);
-      
-      const endTime = performance.now();
-      console.log(`🚀 Search "${searchQuery}" took ${(endTime - startTime).toFixed(2)}ms`, {
-        withSynonyms: searchWithSynonyms.results.length,
-        withoutSynonyms: searchWithoutSynonyms.results.length,
-        synonymsEnabled: synonymsEnabled,
-        method: synonymsEnabled ? searchWithSynonyms.method : 'Exact Match Only'
-      });
       
       if (searchResults.length > 0) {
         saveToSearchHistory(searchQuery, searchResults.length);
@@ -525,19 +496,15 @@ export default function Home() {
     }
   };
 
-  // FIXED: Toggle Synonyms - SWITCH BETWEEN PRE-COMPUTED RESULTS
+  // Toggle Synonyms
   const toggleSynonyms = () => {
     const newSynonymsEnabled = !synonymsEnabled;
-    console.log('🔄 Toggling synonyms from', synonymsEnabled, 'to', newSynonymsEnabled);
     setSynonymsEnabled(newSynonymsEnabled);
     
-    // JIKA SUDAH ADA HASIL SEARCH, GUNAKAN HASIL YANG SUDAH DIKOMPUTASI
     if (searchTerm.trim() && originalSearchResults.length > 0) {
       if (newSynonymsEnabled) {
-        // RELOAD SEARCH DENGAN SYNONYMS
         executeSearch(searchTerm);
       } else {
-        // GUNAKAN HASIL EXACT MATCH YANG SUDAH DISIMPAN
         setSearchResults(originalSearchResults);
         setSearchMethod('Exact Match Only');
         setActiveSynonyms([]);
@@ -661,37 +628,61 @@ export default function Home() {
         <meta name="description" content="Temukan khazanah literatur langka Indonesia dari koleksi Perpustakaan Nasional RI" />
       </Head>
 
-      {/* Hero Section */}
+      {/* Hero Section dengan Clean Mode Transition */}
       <section style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        padding: isMobile ? '2.5rem 1rem' : '4rem 2rem',
-        textAlign: 'center'
+        background: cleanMode ? 'white' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: cleanMode ? '#2d3748' : 'white',
+        padding: isMobile ? 
+          (cleanMode ? '1rem 1rem' : '2.5rem 1rem') : 
+          (cleanMode ? '2rem 2rem' : '4rem 2rem'),
+        textAlign: 'center',
+        transition: 'all 0.3s ease-in-out',
+        minHeight: cleanMode ? 'auto' : (isMobile ? '50vh' : '60vh'),
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: cleanMode ? 'flex-start' : 'center'
       }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: isMobile ? '2rem' : '3rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            lineHeight: '1.2'
+        <div style={{ 
+          maxWidth: '800px', 
+          margin: '0 auto',
+          width: '100%',
+          transition: 'all 0.3s ease-in-out'
+        }}>
+          {/* Judul Hero - Animate Out dalam Clean Mode */}
+          <div style={{
+            opacity: cleanMode ? 0 : 1,
+            height: cleanMode ? 0 : 'auto',
+            overflow: 'hidden',
+            transition: 'all 0.3s ease-in-out',
+            marginBottom: cleanMode ? 0 : '1rem'
           }}>
-            Memori Literasi Nusantara
-          </h2>
-          <p style={{
-            fontSize: isMobile ? '1rem' : '1.25rem',
-            marginBottom: isMobile ? '2rem' : '2.5rem',
-            opacity: 0.9,
-            fontWeight: '300',
-            lineHeight: '1.5'
-          }}>
-            85.000+ warisan budaya di layanan buku langka - Perpustakaan Nasional RI
-          </p>
+            <h2 style={{
+              fontSize: isMobile ? '2rem' : '3rem',
+              fontWeight: '800',
+              marginBottom: '1rem',
+              lineHeight: '1.2',
+              transition: 'all 0.3s ease-in-out'
+            }}>
+              Memori Literasi Nusantara
+            </h2>
+            <p style={{
+              fontSize: isMobile ? '1rem' : '1.25rem',
+              marginBottom: isMobile ? '2rem' : '2.5rem',
+              opacity: 0.9,
+              fontWeight: '300',
+              lineHeight: '1.5',
+              transition: 'all 0.3s ease-in-out'
+            }}>
+              85.000+ warisan budaya di layanan buku langka - Perpustakaan Nasional RI
+            </p>
+          </div>
           
-          {/* Search Form */}
+          {/* Search Form - Tetap Visible */}
           <form onSubmit={handleManualSearch} style={{ 
             maxWidth: '600px', 
-            margin: '0 auto',
-            position: 'relative'
+            margin: cleanMode ? '0 auto 1rem auto' : '0 auto',
+            position: 'relative',
+            transition: 'all 0.3s ease-in-out'
           }}>
             {/* Search Controls */}
             <div style={{
@@ -700,7 +691,8 @@ export default function Home() {
               alignItems: 'center',
               marginBottom: '0.5rem',
               flexWrap: 'wrap',
-              gap: '0.5rem'
+              gap: '0.5rem',
+              transition: 'all 0.3s ease-in-out'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
@@ -708,8 +700,12 @@ export default function Home() {
                   onClick={toggleLiveSearch}
                   style={{
                     padding: '0.3rem 0.6rem',
-                    backgroundColor: liveSearchEnabled ? '#48bb78' : '#e2e8f0',
-                    color: liveSearchEnabled ? 'white' : '#4a5568',
+                    backgroundColor: liveSearchEnabled ? 
+                      (cleanMode ? '#48bb78' : '#48bb78') : 
+                      (cleanMode ? '#e2e8f0' : 'rgba(255,255,255,0.3)'),
+                    color: liveSearchEnabled ? 
+                      (cleanMode ? 'white' : 'white') : 
+                      (cleanMode ? '#4a5568' : 'rgba(255,255,255,0.8)'),
                     border: 'none',
                     borderRadius: '15px',
                     fontSize: '0.7rem',
@@ -717,7 +713,8 @@ export default function Home() {
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.3rem'
+                    gap: '0.3rem',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   <span style={{ fontSize: '0.8rem' }}>
@@ -726,15 +723,19 @@ export default function Home() {
                   Live Search
                 </button>
 
-                {/* HANYA TAMPILKAN TOMBOL SYNONYMS KETIKA ADA ACTIVE SYNONYMS */}
+                {/* Synonyms Toggle - Hanya muncul ketika ada active synonyms */}
                 {activeSynonyms.length > 0 && (
                   <button
                     type="button"
                     onClick={toggleSynonyms}
                     style={{
                       padding: '0.3rem 0.6rem',
-                      backgroundColor: synonymsEnabled ? '#4299e1' : '#e2e8f0',
-                      color: synonymsEnabled ? 'white' : '#4a5568',
+                      backgroundColor: synonymsEnabled ? 
+                        (cleanMode ? '#4299e1' : '#4299e1') : 
+                        (cleanMode ? '#e2e8f0' : 'rgba(255,255,255,0.3)'),
+                      color: synonymsEnabled ? 
+                        (cleanMode ? 'white' : 'white') : 
+                        (cleanMode ? '#4a5568' : 'rgba(255,255,255,0.8)'),
                       border: 'none',
                       borderRadius: '15px',
                       fontSize: '0.7rem',
@@ -742,7 +743,8 @@ export default function Home() {
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.3rem'
+                      gap: '0.3rem',
+                      transition: 'all 0.2s ease'
                     }}
                   >
                     <span style={{ fontSize: '0.8rem' }}>
@@ -755,18 +757,22 @@ export default function Home() {
                 {(loading || isTyping) && (
                   <div style={{
                     padding: '0.3rem 0.6rem',
-                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    backgroundColor: cleanMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.2)',
+                    color: cleanMode ? '#4a5568' : 'rgba(255,255,255,0.9)',
                     borderRadius: '15px',
                     fontSize: '0.7rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.3rem'
+                    gap: '0.3rem',
+                    transition: 'all 0.2s ease'
                   }}>
                     <div style={{
                       width: '8px',
                       height: '8px',
                       borderRadius: '50%',
-                      backgroundColor: isTyping ? '#f6e05e' : '#4299e1',
+                      backgroundColor: isTyping ? 
+                        (cleanMode ? '#f6e05e' : '#f6e05e') : 
+                        (cleanMode ? '#4299e1' : '#4299e1'),
                       animation: 'pulse 1.5s infinite'
                     }} />
                     {isTyping ? 'Mengetik...' : 'Mencari...'}
@@ -780,12 +786,13 @@ export default function Home() {
                   onClick={clearSearch}
                   style={{
                     padding: '0.3rem 0.6rem',
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    color: 'white',
+                    backgroundColor: cleanMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.2)',
+                    color: cleanMode ? '#4a5568' : 'white',
                     border: 'none',
                     borderRadius: '15px',
                     fontSize: '0.7rem',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   ✕ Hapus
@@ -799,8 +806,9 @@ export default function Home() {
               gap: isMobile ? '0.5rem' : '0',
               borderRadius: isMobile ? '8px' : '12px',
               overflow: 'hidden',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-              position: 'relative'
+              boxShadow: cleanMode ? '0 4px 12px rgba(0,0,0,0.1)' : '0 10px 25px rgba(0,0,0,0.2)',
+              position: 'relative',
+              transition: 'all 0.3s ease-in-out'
             }}>
               <div style={{ flex: 1, position: 'relative' }}>
                 <input
@@ -821,7 +829,10 @@ export default function Home() {
                     padding: isMobile ? '1rem 1.25rem' : '1.25rem 1.5rem',
                     border: 'none',
                     fontSize: isMobile ? '1rem' : '1.1rem',
-                    outline: 'none'
+                    outline: 'none',
+                    background: 'white',
+                    color: '#2d3748',
+                    transition: 'all 0.2s ease'
                   }}
                 />
                 
@@ -1014,11 +1025,12 @@ export default function Home() {
               <div style={{
                 marginTop: '0.5rem',
                 fontSize: '0.7rem',
-                color: 'rgba(255,255,255,0.8)',
+                color: cleanMode ? '#718096' : 'rgba(255,255,255,0.8)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.3rem',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                transition: 'all 0.3s ease-in-out'
               }}>
                 <span style={{
                   width: '6px',
@@ -1040,10 +1052,12 @@ export default function Home() {
             <div style={{
               marginTop: '1rem',
               padding: '0.5rem 1rem',
-              backgroundColor: 'rgba(255,255,255,0.1)',
+              backgroundColor: cleanMode ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
+              color: cleanMode ? '#4a5568' : 'rgba(255,255,255,0.9)',
               borderRadius: '20px',
               fontSize: '0.8rem',
-              display: 'inline-block'
+              display: 'inline-block',
+              transition: 'all 0.3s ease-in-out'
             }}>
               🚀 {searchMethod} • {searchResults.length} hasil relevan
               {liveSearchEnabled && ' • 🔴 Live'} 
@@ -1055,39 +1069,43 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      {showStats && (
-        <section style={{
-          backgroundColor: 'white',
-          padding: isMobile ? '2rem 1rem' : '3rem 2rem'
+      {/* Stats Section - Animate Out dalam Clean Mode */}
+      <section style={{
+        backgroundColor: 'white',
+        padding: isMobile ? 
+          (cleanMode ? '0 1rem' : '2rem 1rem') : 
+          (cleanMode ? '0 2rem' : '3rem 2rem'),
+        opacity: cleanMode ? 0 : 1,
+        height: cleanMode ? 0 : 'auto',
+        overflow: 'hidden',
+        transition: 'all 0.3s ease-in-out'
+      }}>
+        <div style={{ 
+          maxWidth: '1200px', 
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+          gap: '2rem',
+          textAlign: 'center'
         }}>
-          <div style={{ 
-            maxWidth: '1200px', 
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-            gap: '2rem',
-            textAlign: 'center'
-          }}>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Koleksi Buku</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Tahun Sejarah</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Bahasa</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
-              <div style={{ color: '#718096', fontWeight: '500' }}>Akses Digital</div>
-            </div>
+          <div>
+            <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>85K+</div>
+            <div style={{ color: '#718096', fontWeight: '500' }}>Koleksi Buku</div>
           </div>
-        </section>
-      )}
+          <div>
+            <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>200+</div>
+            <div style={{ color: '#718096', fontWeight: '500' }}>Tahun Sejarah</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>50+</div>
+            <div style={{ color: '#718096', fontWeight: '500' }}>Bahasa</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4a5568' }}>24/7</div>
+            <div style={{ color: '#718096', fontWeight: '500' }}>Akses Digital</div>
+          </div>
+        </div>
+      </section>
 
       {/* Search Results Section */}
       {searchResults.length > 0 && (
@@ -1275,68 +1293,70 @@ export default function Home() {
               </div>
             </div>
 
-            {/* FIXED: Always show synonyms status */}
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.75rem',
-              backgroundColor: synonymsEnabled ? '#f0fff4' : '#f7fafc',
-              border: synonymsEnabled ? '1px solid #9ae6b4' : '1px solid #e2e8f0',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              color: synonymsEnabled ? '#22543d' : '#4a5568'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                marginBottom: synonymsEnabled && activeSynonyms.length > 0 ? '0.5rem' : '0',
-                fontWeight: '600'
+            {/* Synonyms Filter Status */}
+            {activeSynonyms.length > 0 && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                backgroundColor: synonymsEnabled ? '#f0fff4' : '#f7fafc',
+                border: synonymsEnabled ? '1px solid #9ae6b4' : '1px solid #e2e8f0',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                color: synonymsEnabled ? '#22543d' : '#4a5568'
               }}>
-                {synonymsEnabled ? '🌐 Pencarian dengan Synonyms' : '🔤 Pencarian Exact Match Only'}
-                <button
-                  onClick={toggleSynonyms}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: synonymsEnabled ? '#2b6cb0' : '#38a169',
-                    cursor: 'pointer',
-                    fontSize: '0.7rem',
-                    textDecoration: 'underline',
-                    marginLeft: 'auto'
-                  }}
-                >
-                  {synonymsEnabled ? 'Matikan synonyms' : 'Nyalakan synonyms'}
-                </button>
-              </div>
-              
-              {synonymsEnabled && activeSynonyms.length > 0 && (
-                <div style={{ color: '#2d3748' }}>
-                  <div style={{ marginBottom: '0.25rem' }}>Termasuk pencarian untuk:</div>
-                  <div style={{ 
-                    display: 'flex', 
-                    flexWrap: 'wrap', 
-                    gap: '0.5rem',
-                    alignItems: 'center'
-                  }}>
-                    {activeSynonyms.map((synonym, index) => (
-                      <span
-                        key={index}
-                        style={{
-                          backgroundColor: '#e6fffa',
-                          color: '#234e52',
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          border: '1px solid #81e6d9'
-                        }}
-                      >
-                        {synonym}
-                      </span>
-                    ))}
-                  </div>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  marginBottom: synonymsEnabled ? '0.5rem' : '0',
+                  fontWeight: '600'
+                }}>
+                  {synonymsEnabled ? '🌐 Dengan Synonyms' : '🔤 Exact Match Only'}
+                  <button
+                    onClick={toggleSynonyms}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: synonymsEnabled ? '#2b6cb0' : '#38a169',
+                      cursor: 'pointer',
+                      fontSize: '0.7rem',
+                      textDecoration: 'underline',
+                      marginLeft: 'auto'
+                    }}
+                  >
+                    {synonymsEnabled ? 'Matikan' : 'Nyalakan'} synonyms
+                  </button>
                 </div>
-              )}
-            </div>
+                
+                {synonymsEnabled && (
+                  <div style={{ color: '#2d3748' }}>
+                    <div style={{ marginBottom: '0.25rem' }}>Termasuk pencarian untuk:</div>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '0.5rem',
+                      alignItems: 'center'
+                    }}>
+                      {activeSynonyms.map((synonym, index) => (
+                        <span
+                          key={index}
+                          style={{
+                            backgroundColor: '#e6fffa',
+                            color: '#234e52',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            border: '1px solid #81e6d9'
+                          }}
+                        >
+                          {synonym}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Filter Status */}
             {isWithinSearchActive && (
@@ -1606,7 +1626,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* FIXED: Enhanced Pagination */}
+          {/* Enhanced Pagination */}
           {totalPages > 1 && filteredResults.length > 0 && (
             <div style={{
               display: 'flex',
@@ -1616,7 +1636,6 @@ export default function Home() {
               marginTop: '3rem',
               flexWrap: 'wrap'
             }}>
-              {/* Previous Button */}
               <button
                 onClick={() => paginate(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
@@ -1633,7 +1652,6 @@ export default function Home() {
                 ← Prev
               </button>
 
-              {/* Page Numbers */}
               {(() => {
                 const pages = [];
                 const maxVisiblePages = isMobile ? 3 : 5;
@@ -1641,12 +1659,10 @@ export default function Home() {
                 let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
                 let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
                 
-                // Adjust if we're near the end
                 if (endPage - startPage + 1 < maxVisiblePages) {
                   startPage = Math.max(1, endPage - maxVisiblePages + 1);
                 }
                 
-                // First page and ellipsis
                 if (startPage > 1) {
                   pages.push(
                     <button
@@ -1675,7 +1691,6 @@ export default function Home() {
                   }
                 }
                 
-                // Page numbers
                 for (let i = startPage; i <= endPage; i++) {
                   pages.push(
                     <button
@@ -1696,7 +1711,6 @@ export default function Home() {
                   );
                 }
                 
-                // Last page and ellipsis
                 if (endPage < totalPages) {
                   if (endPage < totalPages - 1) {
                     pages.push(
@@ -1728,7 +1742,6 @@ export default function Home() {
                 return pages;
               })()}
 
-              {/* Next Button */}
               <button
                 onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
