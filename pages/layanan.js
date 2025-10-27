@@ -14,7 +14,12 @@ export default function Layanan() {
     
     const handleScroll = () => {
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-      setIsScrolled(scrollTop > 100)
+      // Hitung kapan tab navigation mencapai top of viewport
+      const heroSection = document.getElementById('hero-section')
+      if (heroSection) {
+        const heroBottom = heroSection.offsetTop + heroSection.offsetHeight
+        setIsScrolled(scrollTop > heroBottom - 100)
+      }
     }
 
     checkMobile()
@@ -35,15 +40,14 @@ export default function Layanan() {
       </Head>
 
       {/* Hero Section Layanan */}
-      <section style={{
+      <section id="hero-section" style={{
         background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
         color: 'white',
-        padding: isMobile ? '2rem 1rem' : '4rem 2rem',
-        textAlign: 'center',
-        marginBottom: isMobile ? '5rem' : '6rem' // Extra space for sticky nav
+        padding: isMobile ? '2.5rem 1rem' : '4rem 2rem',
+        textAlign: 'center'
       }}>
         <h1 style={{
-          fontSize: isMobile ? '1.75rem' : '2.5rem',
+          fontSize: isMobile ? '2rem' : '2.5rem',
           fontWeight: '800',
           marginBottom: '1rem',
           lineHeight: '1.2'
@@ -51,7 +55,7 @@ export default function Layanan() {
           Layanan Perpustakaan
         </h1>
         <p style={{
-          fontSize: isMobile ? '0.9rem' : '1.2rem',
+          fontSize: isMobile ? '1rem' : '1.2rem',
           opacity: 0.9,
           maxWidth: '600px',
           margin: '0 auto',
@@ -61,28 +65,81 @@ export default function Layanan() {
         </p>
       </section>
 
-      {/* Sticky Tab Navigation */}
+      {/* Tab Navigation - POSISI AWAL */}
+      <div style={{
+        maxWidth: '800px',
+        margin: isMobile ? '1.5rem 1rem' : '2rem auto',
+        display: 'flex',
+        gap: '0',
+        backgroundColor: '#f7fafc',
+        borderRadius: '12px',
+        padding: '0.5rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <button
+          onClick={() => setActiveTab('koleksi')}
+          style={{
+            flex: 1,
+            padding: isMobile ? '0.75rem 1rem' : '1rem 2rem',
+            border: 'none',
+            borderRadius: '8px',
+            backgroundColor: activeTab === 'koleksi' ? 'white' : 'transparent',
+            color: activeTab === 'koleksi' ? '#2d3748' : '#718096',
+            fontWeight: '600',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'koleksi' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+            transition: 'all 0.3s ease',
+            fontSize: isMobile ? '0.9rem' : '1rem'
+          }}
+        >
+          📚 Pemesanan Koleksi
+        </button>
+        <button
+          onClick={() => setActiveTab('ruang-baca')}
+          style={{
+            flex: 1,
+            padding: isMobile ? '0.75rem 1rem' : '1rem 2rem',
+            border: 'none',
+            borderRadius: '8px',
+            backgroundColor: activeTab === 'ruang-baca' ? 'white' : 'transparent',
+            color: activeTab === 'ruang-baca' ? '#2d3748' : '#718096',
+            fontWeight: '600',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'ruang-baca' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+            transition: 'all 0.3s ease',
+            fontSize: isMobile ? '0.9rem' : '1rem'
+          }}
+        >
+          🏛️ Ruang Baca Khusus
+        </button>
+      </div>
+
+      {/* Sticky Tab Navigation - MUNCUL SAAT SCROLL */}
       <div style={{
         position: 'fixed',
-        top: isMobile ? '0' : '80px',
+        top: '0',
         left: '0',
         right: '0',
         zIndex: 1000,
-        backgroundColor: isScrolled ? 'white' : 'transparent',
-        boxShadow: isScrolled ? '0 4px 20px rgba(0,0,0,0.1)' : 'none',
+        backgroundColor: 'white',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
         transition: 'all 0.3s ease',
-        padding: isMobile ? '0.5rem 1rem' : '1rem 2rem'
+        padding: isMobile ? '0.75rem 1rem' : '1rem 2rem',
+        transform: isScrolled ? 'translateY(0)' : 'translateY(-100%)',
+        opacity: isScrolled ? 1 : 0,
+        visibility: isScrolled ? 'visible' : 'hidden'
       }}>
         <div style={{
           maxWidth: '800px',
           margin: '0 auto',
           display: 'flex',
           gap: '0',
-          backgroundColor: isScrolled ? '#f7fafc' : '#f7fafc',
+          backgroundColor: '#f7fafc',
           borderRadius: isMobile ? '8px' : '12px',
           padding: isMobile ? '0.375rem' : '0.5rem',
-          boxShadow: isScrolled ? '0 2px 8px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.1)',
-          border: isScrolled ? '1px solid #e2e8f0' : 'none'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}>
           <button
             onClick={() => setActiveTab('koleksi')}
@@ -127,8 +184,7 @@ export default function Layanan() {
       <div style={{ 
         maxWidth: '1000px', 
         margin: '0 auto', 
-        padding: isMobile ? '0 1rem 1.5rem' : '0 2rem 4rem',
-        marginTop: isMobile ? '1rem' : '2rem'
+        padding: isMobile ? '0 1rem 2rem' : '0 2rem 4rem'
       }}>
         {activeTab === 'koleksi' && <PemesananKoleksi isMobile={isMobile} />}
         {activeTab === 'ruang-baca' && <PemesananRuangBaca isMobile={isMobile} />}
@@ -137,28 +193,28 @@ export default function Layanan() {
   )
 }
 
-// Komponen Pemesanan Koleksi - HEIGHT ADJUSTED FOR MOBILE
+// Komponen Pemesanan Koleksi - TETAP SAMA
 function PemesananKoleksi({ isMobile }) {
   return (
     <div style={{
       backgroundColor: 'white',
-      padding: isMobile ? '1.25rem' : '2rem',
-      borderRadius: isMobile ? '8px' : '12px',
+      padding: isMobile ? '1.5rem' : '2rem',
+      borderRadius: '12px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
       marginBottom: '2rem'
     }}>
       <h2 style={{ 
         color: '#2d3748', 
-        marginBottom: '0.875rem',
-        fontSize: isMobile ? '1.375rem' : '1.75rem'
+        marginBottom: '1rem',
+        fontSize: isMobile ? '1.5rem' : '1.75rem'
       }}>
         Pemesanan Koleksi Buku Langka
       </h2>
       <p style={{ 
         color: '#718096', 
-        marginBottom: '1.5rem',
+        marginBottom: '2rem',
         lineHeight: '1.6',
-        fontSize: isMobile ? '0.85rem' : '1rem'
+        fontSize: isMobile ? '0.9rem' : '1rem'
       }}>
         Untuk mengakses koleksi buku langka, silakan isi formulir pemesanan berikut. 
         Tim kami akan memanggil Anda untuk menyerahkan koleksi.
@@ -167,11 +223,11 @@ function PemesananKoleksi({ isMobile }) {
       {/* Google Form Embed - HEIGHT ADJUSTED +60px for mobile */}
       <div style={{
         width: '100%',
-        height: isMobile ? '1960px' : '1900px', // +60px for mobile
-        borderRadius: isMobile ? '6px' : '8px',
+        height: isMobile ? '1960px' : '1900px',
+        borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        marginBottom: '1.5rem',
+        marginBottom: '2rem',
         border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0'
       }}>
         <iframe 
@@ -192,15 +248,15 @@ function PemesananKoleksi({ isMobile }) {
 
       {/* Informasi Penting - BORDER ADJUSTED for mobile */}
       <div style={{
-        padding: isMobile ? '1rem' : '1.5rem',
+        padding: isMobile ? '1.25rem' : '1.5rem',
         backgroundColor: '#f0fff4',
-        borderRadius: isMobile ? '6px' : '8px',
+        borderRadius: '8px',
         border: isMobile ? '1px solid #c6f6d5' : '2px solid #c6f6d5'
       }}>
         <h4 style={{ 
           color: '#2f855a', 
-          marginBottom: '0.875rem',
-          fontSize: isMobile ? '1rem' : '1.25rem',
+          marginBottom: '1rem',
+          fontSize: isMobile ? '1.1rem' : '1.25rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem'
@@ -269,28 +325,28 @@ function PemesananKoleksi({ isMobile }) {
   )
 }
 
-// Komponen Pemesanan Ruang Baca - HEIGHT ADJUSTED +60px for mobile
+// Komponen Pemesanan Ruang Baca - TETAP SAMA
 function PemesananRuangBaca({ isMobile }) {
   return (
     <div style={{
       backgroundColor: 'white',
-      padding: isMobile ? '1.25rem' : '2rem',
-      borderRadius: isMobile ? '8px' : '12px',
+      padding: isMobile ? '1.5rem' : '2rem',
+      borderRadius: '12px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
       marginBottom: '2rem'
     }}>
       <h2 style={{ 
         color: '#2d3748', 
-        marginBottom: '0.875rem',
-        fontSize: isMobile ? '1.375rem' : '1.75rem'
+        marginBottom: '1rem',
+        fontSize: isMobile ? '1.5rem' : '1.75rem'
       }}>
         Pemesanan Ruang Baca Khusus
       </h2>
       <p style={{ 
         color: '#718096', 
-        marginBottom: '1.5rem',
+        marginBottom: '2rem',
         lineHeight: '1.6',
-        fontSize: isMobile ? '0.85rem' : '1rem'
+        fontSize: isMobile ? '0.9rem' : '1rem'
       }}>
         Reservasi ruang baca khusus untuk penelitian dan studi mendalam. 
         Tersedia fasilitas lengkap dengan atmosfer yang kondusif.
@@ -300,11 +356,11 @@ function PemesananRuangBaca({ isMobile }) {
       {/* Google Form Embed - HEIGHT ADJUSTED +60px for mobile */}
       <div style={{
         width: '100%',
-        height: isMobile ? '1800px' : '1740px', // +60px for mobile
-        borderRadius: isMobile ? '6px' : '8px',
+        height: isMobile ? '1800px' : '1740px',
+        borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        marginBottom: '1.5rem',
+        marginBottom: '2rem',
         border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0'
       }}>
         <iframe 
@@ -325,123 +381,74 @@ function PemesananRuangBaca({ isMobile }) {
 
       {/* Fasilitas - BORDER ADJUSTED for mobile */}
       <div style={{
-        marginTop: '1.5rem',
-        padding: isMobile ? '1.25rem' : '2rem',
-        backgroundColor: '#f7fafc',
-        borderRadius: isMobile ? '8px' : '12px',
-        border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0'
+        marginTop: '2rem'
       }}>
         <h3 style={{
           color: '#2d3748',
-          marginBottom: '1.25rem',
+          marginBottom: '1.5rem',
           textAlign: 'center',
-          fontSize: isMobile ? '1.125rem' : '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem'
+          fontSize: isMobile ? '1.25rem' : '1.5rem'
         }}>
-          <span>🏆</span>
-          Fasilitas Unggulan
+          🏆 Fasilitas Unggulan
         </h3>
         
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: isMobile ? '1rem' : '1.5rem'
+          gap: '1rem'
         }}>
           <div style={{
-            padding: isMobile ? '1.25rem' : '1.5rem',
-            backgroundColor: 'white',
-            borderRadius: isMobile ? '6px' : '8px',
+            padding: '1.5rem',
+            backgroundColor: '#f7fafc',
+            borderRadius: '8px',
             textAlign: 'center',
-            border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0'
           }}>
-            <div style={{ fontSize: isMobile ? '2rem' : '2.5rem', marginBottom: isMobile ? '0.75rem' : '1rem' }}>🪑</div>
-            <h4 style={{ 
-              margin: '0 0 0.5rem 0', 
-              color: '#2d3748',
-              fontSize: isMobile ? '0.95rem' : '1rem'
-            }}>Kursi Ergonomis</h4>
-            <p style={{ 
-              margin: 0, 
-              color: '#718096', 
-              fontSize: isMobile ? '0.8rem' : '0.9rem', 
-              lineHeight: '1.5' 
-            }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🪑</div>
+            <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>Kursi Ergonomis</h4>
+            <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem', lineHeight: '1.5' }}>
               Desain ergonomis dengan pencahayaan optimal untuk kenyamanan membaca berjam-jam
             </p>
           </div>
           
           <div style={{
-            padding: isMobile ? '1.25rem' : '1.5rem',
-            backgroundColor: 'white',
-            borderRadius: isMobile ? '6px' : '8px',
+            padding: '1.5rem',
+            backgroundColor: '#f7fafc',
+            borderRadius: '8px',
             textAlign: 'center',
-            border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0'
           }}>
-            <div style={{ fontSize: isMobile ? '2rem' : '2.5rem', marginBottom: isMobile ? '0.75rem' : '1rem' }}>🔌</div>
-            <h4 style={{ 
-              margin: '0 0 0.5rem 0', 
-              color: '#2d3748',
-              fontSize: isMobile ? '0.95rem' : '1rem'
-            }}>Stop Kontak</h4>
-            <p style={{ 
-              margin: 0, 
-              color: '#718096', 
-              fontSize: isMobile ? '0.8rem' : '0.9rem', 
-              lineHeight: '1.5' 
-            }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔌</div>
+            <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>Stop Kontak</h4>
+            <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem', lineHeight: '1.5' }}>
               Akses listrik lengkap untuk laptop, tablet, dan perangkat penelitian lainnya
             </p>
           </div>
           
           <div style={{
-            padding: isMobile ? '1.25rem' : '1.5rem',
-            backgroundColor: 'white',
-            borderRadius: isMobile ? '6px' : '8px',
+            padding: '1.5rem',
+            backgroundColor: '#f7fafc',
+            borderRadius: '8px',
             textAlign: 'center',
-            border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0'
           }}>
-            <div style={{ fontSize: isMobile ? '2rem' : '2.5rem', marginBottom: isMobile ? '0.75rem' : '1rem' }}>📶</div>
-            <h4 style={{ 
-              margin: '0 0 0.5rem 0', 
-              color: '#2d3748',
-              fontSize: isMobile ? '0.95rem' : '1rem'
-            }}>WiFi Cepat</h4>
-            <p style={{ 
-              margin: 0, 
-              color: '#718096', 
-              fontSize: isMobile ? '0.8rem' : '0.9rem', 
-              lineHeight: '1.5' 
-            }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📶</div>
+            <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>WiFi Cepat</h4>
+            <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem', lineHeight: '1.5' }}>
               Internet berkecepatan tinggi untuk penelitian dan akses database e-resources Perpustakaan Nasional RI
             </p>
           </div>
 
           <div style={{
-            padding: isMobile ? '1.25rem' : '1.5rem',
-            backgroundColor: 'white',
-            borderRadius: isMobile ? '6px' : '8px',
+            padding: '1.5rem',
+            backgroundColor: '#f7fafc',
+            borderRadius: '8px',
             textAlign: 'center',
-            border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            border: isMobile ? '1px solid #e2e8f0' : '2px solid #e2e8f0'
           }}>
-            <div style={{ fontSize: isMobile ? '2rem' : '2.5rem', marginBottom: isMobile ? '0.75rem' : '1rem' }}>🔇</div>
-            <h4 style={{ 
-              margin: '0 0 0.5rem 0', 
-              color: '#2d3748',
-              fontSize: isMobile ? '0.95rem' : '1rem'
-            }}>Atmosfer Tenang</h4>
-            <p style={{ 
-              margin: 0, 
-              color: '#718096', 
-              fontSize: isMobile ? '0.8rem' : '0.9rem', 
-              lineHeight: '1.5' 
-            }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔇</div>
+            <h4 style={{ margin: '0 0 0.5rem 0', color: '#2d3748' }}>Atmosfer Tenang</h4>
+            <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem', lineHeight: '1.5' }}>
               Lingkungan yang kondusif dan bebas gangguan untuk konsentrasi maksimal
             </p>
           </div>
