@@ -28,56 +28,177 @@ export default function KritikSaran() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Enhanced sentiment analysis dengan vocabulary yang lebih kaya
+  // Enhanced sentiment analysis dengan konteks bahasa Indonesia
   const analyzeSentiment = (text) => {
+    // Expanded positive words dengan konteks layanan
     const positiveWords = [
+      // Service quality
       'bagus', 'baik', 'mantap', 'puas', 'cepat', 'mudah', 'helpful', 'excellent', 
       'terima kasih', 'keren', 'luar biasa', 'memuaskan', 'profesional', 'responsif',
-      'bermanfaat', 'inovasi', 'recommended', 'wow', 'keren', 'sangat baik'
-    ]
+      'bermanfaat', 'inovasi', 'recommended', 'wow', 'sangat baik', 'istimewa',
+      'memukau', 'fantastis', 'hebat', 'unggul', 'berkualitas', 'premium',
+      
+      // Staff & service attitude
+      'ramah', 'sopan', 'ganteng', 'cantik', 'murah senyum', 'penuh perhatian',
+      'responsif', 'sigap', 'tanggap', 'solutif', 'kooperatif', 'friendly',
+      'helpful', 'supportive', 'care', 'peduli', 'baik hati',
+      
+      // Facility & experience
+      'nyaman', 'rapi', 'bersih', 'teratur', 'modern', 'canggih', 'lengkap',
+      'akses mudah', 'user friendly', 'intuitif', 'efisien', 'efektif',
+      
+      // Collection & content
+      'lengkap', 'bervariasi', 'bermanfaat', 'relevan', 'update', 'terkini',
+      'komprehensif', 'detail', 'akurat', 'reliable'
+    ];
     
+    // Expanded negative words dengan konteks
     const negativeWords = [
+      // Service issues
       'buruk', 'jelek', 'lambat', 'sulit', 'ribet', 'error', 'gagal', 'kecewa',
       'tidak bisa', 'tidak ada', 'kosong', 'rusak', 'bug', 'masalah', 'komplain',
-      'protes', 'mengecewakan', 'seharusnya', 'kurang', 'perlu perbaikan'
-    ]
+      'protes', 'mengecewakan', 'seharusnya', 'kurang', 'perlu perbaikan',
+      
+      // Staff & attitude issues
+      'tidak ramah', 'kasar', 'cuek', 'acuh', 'tidak sopan', 'marah', 'kesal',
+      'emosi', 'tidak membantu', 'malas', 'lamban', 'tidak responsif',
+      
+      // Technical & facility issues
+      'hang', 'crash', 'down', 'maintenance', 'gangguan', 'trouble', 'error',
+      'blank', 'kosong', 'tidak muncul', 'loading', 'lemot', 'lelet',
+      
+      // Collection & content issues
+      'terbatas', 'sedikit', 'tidak lengkap', 'kadaluarsa', 'usang', 'basil',
+      'tidak update', 'tidak relevan', 'tidak akurat', 'salah'
+    ];
     
-    const words = text.toLowerCase().split(/\s+/)
-    const positiveCount = words.filter(word => 
-      positiveWords.some(positive => word.includes(positive))
-    ).length
+    // Negation words yang membalikkan makna
+    const negationWords = ['tidak', 'bukan', 'jangan', 'tanpa', 'kurang', 'belum'];
     
-    const negativeCount = words.filter(word => 
-      negativeWords.some(negative => word.includes(negative))
-    ).length
+    const words = text.toLowerCase().split(/\s+/);
+    let positiveScore = 0;
+    let negativeScore = 0;
+    let negationContext = false;
     
-    const totalRelevant = positiveCount + negativeCount
-    
-    if (totalRelevant === 0) return { 
-      sentiment: 'neutral', 
-      confidence: 30,
-      reasons: ['Pesan netral tanpa kata kunci sentiment spesifik']
+    // Advanced scoring dengan konteks negasi
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      
+      // Check for negation words
+      if (negationWords.includes(word)) {
+        negationContext = true;
+        continue;
+      }
+      
+      // Check for positive words
+      const isPositive = positiveWords.some(positive => {
+        return word.includes(positive) || positive.includes(word);
+      });
+      
+      // Check for negative words  
+      const isNegative = negativeWords.some(negative => {
+        return word.includes(negative) || negative.includes(word);
+      });
+      
+      if (isPositive) {
+        if (negationContext) {
+          negativeScore += 2; // "tidak baik" = negative
+        } else {
+          positiveScore += 1;
+        }
+        negationContext = false;
+      }
+      
+      if (isNegative) {
+        if (negationContext) {
+          positiveScore += 2; // "tidak buruk" = positive  
+        } else {
+          negativeScore += 1;
+        }
+        negationContext = false;
+      }
+      
+      // Reset negation context setelah beberapa kata
+      if (i > 0 && negationContext && !negationWords.includes(words[i-1])) {
+        negationContext = false;
+      }
     }
     
-    let sentiment, confidence
-    if (positiveCount > negativeCount) {
-      sentiment = 'positive'
-      confidence = (positiveCount / totalRelevant) * 100
-    } else if (negativeCount > positiveCount) {
-      sentiment = 'negative' 
-      confidence = (negativeCount / totalRelevant) * 100
+    // Additional scoring untuk intensifier
+    const intensifiers = ['sangat', 'sekali', 'banget', 'amat', 'benar', 'sungguh'];
+    words.forEach((word, i) => {
+      if (intensifiers.includes(word) && i < words.length - 1) {
+        const nextWord = words[i + 1];
+        if (positiveWords.some(p => nextWord.includes(p))) {
+          positiveScore += 0.5;
+        }
+        if (negativeWords.some(n => nextWord.includes(n))) {
+          negativeScore += 0.5;
+        }
+      }
+    });
+    
+    const totalRelevant = positiveScore + negativeScore;
+    const reasons = [];
+    
+    if (totalRelevant === 0) {
+      return { 
+        sentiment: 'neutral', 
+        confidence: 30,
+        reasons: ['Pesan netral tanpa kata kunci sentiment spesifik'],
+        scores: { positive: 0, negative: 0 }
+      };
+    }
+    
+    let sentiment, confidence;
+    
+    if (positiveScore > negativeScore) {
+      sentiment = 'positive';
+      confidence = Math.min(95, (positiveScore / totalRelevant) * 100 + 20);
+      reasons.push(`Ditemukan ${positiveScore.toFixed(1)} poin positif`);
+      if (negativeScore > 0) reasons.push(`Dengan ${negativeScore.toFixed(1)} catatan`);
+    } else if (negativeScore > positiveScore) {
+      sentiment = 'negative';
+      confidence = Math.min(95, (negativeScore / totalRelevant) * 100 + 20);
+      reasons.push(`Ditemukan ${negativeScore.toFixed(1)} poin perlu perbaikan`);
+      if (positiveScore > 0) reasons.push(`Dengan ${positiveScore.toFixed(1)} aspek positif`);
     } else {
-      sentiment = 'neutral'
-      confidence = 50
+      sentiment = 'neutral';
+      confidence = 50;
+      reasons.push('Balance antara aspek positif dan perlu perbaikan');
     }
     
-    // Analyze reasons
-    const reasons = []
-    if (positiveCount > 0) reasons.push(`Ditemukan ${positiveCount} kata positif`)
-    if (negativeCount > 0) reasons.push(`Ditemukan ${negativeCount} kata perlu perbaikan`)
+    // Special cases detection
+    const lowerText = text.toLowerCase();
     
-    return { sentiment, confidence: Math.min(95, confidence), reasons }
-  }
+    // Thankful messages biasanya positive
+    if (lowerText.includes('terima kasih') && positiveScore === 0) {
+      sentiment = 'positive';
+      confidence = 70;
+      reasons.push('Mengungkapkan rasa terima kasih');
+    }
+    
+    // Apology messages biasanya negative  
+    if (lowerText.includes('maaf') && negativeScore === 0 && lowerText.includes('tidak')) {
+      sentiment = 'negative';
+      confidence = 65;
+      reasons.push('Mengungkapkan permintaan maaf atau ketidaknyamanan');
+    }
+    
+    // Question marks netral jika tidak ada sentiment jelas
+    if ((text.includes('?') || lowerText.includes('apakah') || lowerText.includes('bagaimana')) && totalRelevant === 0) {
+      sentiment = 'neutral';
+      confidence = 40;
+      reasons.push('Pesan bersifat pertanyaan atau netral');
+    }
+    
+    return { 
+      sentiment, 
+      confidence: Math.round(confidence),
+      reasons,
+      scores: { positive: positiveScore, negative: negativeScore }
+    };
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -222,139 +343,20 @@ export default function KritikSaran() {
         </div>
       </section>
 
-      {/* Analytics Dashboard */}
-      {analysis && analysis.total > 0 && (
-        <section style={{
-          backgroundColor: 'white',
-          padding: isMobile ? '1.5rem 1rem' : '2rem',
-          margin: isMobile ? '1rem auto' : '2rem auto',
-          maxWidth: '1200px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-        }}>
-          <h3 style={{ 
-            marginBottom: '1.5rem', 
-            color: '#2d3748',
-            fontSize: isMobile ? '1.25rem' : '1.5rem'
-          }}>
-            📊 Dashboard Analisis Feedback
-          </h3>
-          
-          {/* Main Stats */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-            gap: '1rem',
-            marginBottom: '2rem'
-          }}>
-            <div style={{ 
-              padding: '1rem', 
-              backgroundColor: '#ebf8ff', 
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#4299e1' }}>
-                {analysis.total}
-              </div>
-              <div style={{ color: '#718096', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>Total Feedback</div>
-            </div>
-            <div style={{ 
-              padding: '1rem', 
-              backgroundColor: '#f0fff4', 
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#48bb78' }}>
-                {analysis.satisfaction}%
-              </div>
-              <div style={{ color: '#718096', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>Kepuasan</div>
-            </div>
-            <div style={{ 
-              padding: '1rem', 
-              backgroundColor: '#fffaf0', 
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#ed8936' }}>
-                {analysis.averageRating}/5
-              </div>
-              <div style={{ color: '#718096', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>Rating Rata-rata</div>
-            </div>
-            <div style={{ 
-              padding: '1rem', 
-              backgroundColor: '#fff5f5', 
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#f56565' }}>
-                {analysis.negative}
-              </div>
-              <div style={{ color: '#718096', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>Perlu Perhatian</div>
-            </div>
-          </div>
-
-          {/* Sentiment Breakdown */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-            gap: '1rem',
-            marginBottom: '1rem'
-          }}>
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#f0fff4',
-              border: '2px solid #9ae6b4',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>😊</div>
-              <div style={{ fontWeight: 'bold', color: '#22543d' }}>{analysis.positive} Positif</div>
-              <div style={{ fontSize: '0.8rem', color: '#38a169' }}>
-                {Math.round((analysis.positive / analysis.total) * 100)}%
-              </div>
-            </div>
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#fffaf0',
-              border: '2px solid #fbd38d',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>😐</div>
-              <div style={{ fontWeight: 'bold', color: '#744210' }}>{analysis.neutral} Netral</div>
-              <div style={{ fontSize: '0.8rem', color: '#dd6b20' }}>
-                {Math.round((analysis.neutral / analysis.total) * 100)}%
-              </div>
-            </div>
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#fff5f5',
-              border: '2px solid #fc8181',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>😔</div>
-              <div style={{ fontWeight: 'bold', color: '#742a2a' }}>{analysis.negative} Perlu Perbaikan</div>
-              <div style={{ fontSize: '0.8rem', color: '#e53e3e' }}>
-                {Math.round((analysis.negative / analysis.total) * 100)}%
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Main Content */}
+      {/* Main Content dengan Layout Baru */}
       <div style={{
-        maxWidth: '1200px',
+        maxWidth: '1400px',
         margin: '2rem auto',
         padding: isMobile ? '0 1rem' : '0 2rem',
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-        gap: isMobile ? '2rem' : '3rem'
+        gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+        gap: isMobile ? '2rem' : '3rem',
+        alignItems: 'start'
       }}>
         
-        {/* Form Section */}
+        {/* Left Column - Form & Feedback List */}
         <div>
+          {/* Form Section */}
           <div style={{
             backgroundColor: 'white',
             padding: isMobile ? '1.5rem' : '2rem',
@@ -558,12 +560,29 @@ export default function KritikSaran() {
                         fontSize: '0.8rem',
                         color: '#718096'
                       }}>
-                        Confidence: {Math.round(previewSentiment.confidence)}%
+                        Confidence: {previewSentiment.confidence}%
                       </span>
                     </div>
+                    
+                    {/* Detailed Scores */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      marginBottom: '0.5rem',
+                      fontSize: '0.8rem'
+                    }}>
+                      <span style={{ color: '#48bb78' }}>
+                        👍 {previewSentiment.scores.positive.toFixed(1)} positif
+                      </span>
+                      <span style={{ color: '#f56565' }}>
+                        👎 {previewSentiment.scores.negative.toFixed(1)} perbaikan
+                      </span>
+                    </div>
+                    
                     {previewSentiment.reasons && (
                       <div style={{ fontSize: '0.8rem', color: '#4a5568' }}>
-                        {previewSentiment.reasons.join(', ')}
+                        <strong>Analisis: </strong>
+                        {previewSentiment.reasons.join(' • ')}
                       </div>
                     )}
                   </div>
@@ -604,10 +623,8 @@ export default function KritikSaran() {
               </button>
             </form>
           </div>
-        </div>
 
-        {/* Feedback List Section */}
-        <div>
+          {/* Feedback List Section */}
           <div style={{
             backgroundColor: 'white',
             padding: isMobile ? '1.5rem' : '2rem',
@@ -791,6 +808,175 @@ export default function KritikSaran() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Right Column - Analytics Dashboard Compact */}
+        <div>
+          <div style={{
+            backgroundColor: 'white',
+            padding: isMobile ? '1.5rem' : '2rem',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            position: isMobile ? 'static' : 'sticky',
+            top: '2rem'
+          }}>
+            <h3 style={{ 
+              marginBottom: '1.5rem', 
+              color: '#2d3748',
+              fontSize: isMobile ? '1.25rem' : '1.5rem',
+              textAlign: 'center'
+            }}>
+              📊 Dashboard Feedback
+            </h3>
+            
+            {analysis ? (
+              <div>
+                {/* Main Stats Grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '1rem',
+                  marginBottom: '1.5rem'
+                }}>
+                  <div style={{ 
+                    padding: '1rem', 
+                    backgroundColor: '#ebf8ff', 
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#4299e1' }}>
+                      {analysis.total}
+                    </div>
+                    <div style={{ color: '#718096', fontSize: '0.8rem' }}>Total</div>
+                  </div>
+                  <div style={{ 
+                    padding: '1rem', 
+                    backgroundColor: '#f0fff4', 
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#48bb78' }}>
+                      {analysis.satisfaction}%
+                    </div>
+                    <div style={{ color: '#718096', fontSize: '0.8rem' }}>Kepuasan</div>
+                  </div>
+                </div>
+
+                {/* Sentiment Breakdown */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  marginBottom: '1.5rem'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.75rem',
+                    backgroundColor: '#f0fff4',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid #48bb78'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>😊</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Positif</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#22543d' }}>
+                      {analysis.positive}
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.75rem',
+                    backgroundColor: '#fffaf0',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid #ed8936'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>😐</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Netral</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#744210' }}>
+                      {analysis.neutral}
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.75rem',
+                    backgroundColor: '#fff5f5',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid '#f56565'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>😔</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Perbaikan</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#742a2a' }}>
+                      {analysis.negative}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rating Summary */}
+                {analysis.averageRating > 0 && (
+                  <div style={{
+                    padding: '1rem',
+                    backgroundColor: '#fffaf0',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    marginBottom: '1rem'
+                  }}>
+                    <div style={{ fontSize: '0.9rem', color: '#744210', marginBottom: '0.5rem' }}>
+                      Rating Rata-rata
+                    </div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#d69e2e' }}>
+                      {analysis.averageRating}/5
+                    </div>
+                    <div style={{ color: '#f6e05e', fontSize: '1rem', marginTop: '0.25rem' }}>
+                      {'⭐'.repeat(Math.round(analysis.averageRating))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Stats */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '0.5rem',
+                  fontSize: '0.7rem',
+                  color: '#718096'
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: '600' }}>📈 Response Rate</div>
+                    <div>{analysis.total > 0 ? '100%' : '0%'}</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: '600' }}>🕒 Latest</div>
+                    <div>{feedbacks.length > 0 ? 
+                      new Date(feedbacks[0].created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) 
+                      : '-'
+                    }</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '2rem', 
+                color: '#718096' 
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📊</div>
+                <div>Memuat analisis...</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
