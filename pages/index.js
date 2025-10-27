@@ -45,26 +45,41 @@ const extractYearFromString = (yearStr) => {
 const normalizeSearchQuery = (query) => {
   if (!query) return '';
   
-  // Hilangkan karakter khusus yang mengganggu pencarian Supabase
+  // Normalisasi karakter khusus dan spasi
   let normalized = query
     .replace(/[\/\\]/g, ' ') // Ganti / dan \ dengan spasi
+    .replace(/\s*\/\s*/g, ' ') // Tangani kasus spasi + / + spasi
     .replace(/\s+/g, ' ') // Normalisasi multiple spaces
     .trim();
   
+  console.log('🔍 Query normalization:', { original: query, normalized });
   return normalized;
 };
 
-// Synonyms service
+// PERBAIKAN: Fetch Synonyms dengan handling yang lebih baik
 const fetchSynonyms = async (searchTerm) => {
   try {
     const normalizedTerm = normalizeSearchQuery(searchTerm);
+    
+    // Cari dengan berbagai approach
     const { data, error } = await supabase
       .from('search_synonyms')
       .select('term, synonyms, weight, language')
       .or(`term.ilike.%${normalizedTerm}%,synonyms.cs.{${normalizedTerm}}`)
+      .or(`term.ilike.%${searchTerm}%,synonyms.cs.{${searchTerm}}`) // Juga cari dengan term asli
       .order('weight', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Synonyms fetch error:', error);
+      return [];
+    }
+    
+    console.log('🔍 Synonyms found:', { 
+      term: searchTerm, 
+      normalized: normalizedTerm,
+      count: data?.length || 0 
+    });
+    
     return data || [];
   } catch (error) {
     console.error('Synonyms fetch error:', error);
@@ -86,7 +101,7 @@ const detectLanguage = (text) => {
   return 'en';
 };
 
-// Enhanced synonyms expansion dengan context awareness
+// PERBAIKAN: Enhanced synonyms expansion dengan context awareness
 const expandSearchWithSynonyms = async (searchQuery) => {
   const normalizedQuery = normalizeSearchQuery(searchQuery);
   const searchWords = normalizedQuery.split(/\s+/).filter(word => word.length > 1);
@@ -97,13 +112,19 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   const detectedSynonyms = [];
   const primaryLanguage = detectLanguage(normalizedQuery);
 
-  for (const word of searchWords) {
+  // TAMBAHKAN: Juga cari dengan query asli (tanpa normalisasi) untuk kasus khusus
+  const originalSearchWords = searchQuery.split(/\s+/).filter(word => word.length > 1);
+  const allSearchWords = [...new Set([...searchWords, ...originalSearchWords])];
+
+  for (const word of allSearchWords) {
+    if (word.length < 2) continue;
+    
     const synonymsData = await fetchSynonyms(word);
     
     synonymsData.forEach(item => {
       const relevantSynonyms = item.synonyms.filter(synonym => 
         synonym.toLowerCase() !== word.toLowerCase() &&
-        !searchWords.some(searchWord => 
+        !allSearchWords.some(searchWord => 
           synonym.toLowerCase().includes(searchWord.toLowerCase()) ||
           searchWord.toLowerCase().includes(synonym.toLowerCase())
         )
@@ -127,43 +148,74 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   }
 
   const uniqueSynonyms = [...new Set(allSynonyms)].slice(0, 10);
-  const expandedTerms = [normalizedQuery, ...uniqueSynonyms];
+  
+  // TAMBAHKAN: Termasuk query asli dan yang dinormalisasi
+  const expandedTerms = [
+    searchQuery, // Query asli
+    normalizedQuery, // Query yang dinormalisasi
+    ...uniqueSynonyms
+  ].filter(term => term && term.length > 0);
+  
   const finalSynonyms = detectedSynonyms.slice(0, 6);
+  
+  console.log('🔍 Search expansion:', { 
+    original: searchQuery, 
+    normalized: normalizedQuery,
+    expandedTerms,
+    synonyms: finalSynonyms 
+  });
   
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// Enhanced Relevance Scoring dengan Synonyms Awareness
+// PERBAIKAN: Enhanced Relevance Scoring dengan Synonyms Awareness
 const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = []) => {
   const lowerQuery = originalQuery.toLowerCase();
+  const normalizedQuery = normalizeSearchQuery(originalQuery).toLowerCase();
   
+  console.log('🔍 Ranking results:', {
+    originalQuery,
+    normalizedQuery,
+    searchWords,
+    expandedTerms,
+    resultCount: results.length
+  });
+
   const scoredResults = results.map(book => {
     let score = 0;
     const lowerJudul = book.judul?.toLowerCase() || '';
     const lowerPengarang = book.pengarang?.toLowerCase() || '';
     const lowerPenerbit = book.penerbit?.toLowerCase() || '';
     
+    // EXACT MATCH - Prioritas tertinggi
     if (lowerJudul === lowerQuery) score += 200;
+    if (lowerJudul === normalizedQuery) score += 180;
     if (lowerPengarang === lowerQuery) score += 150;
     
+    // CONTAINS MATCH
     if (lowerJudul.includes(lowerQuery)) score += 100;
+    if (lowerJudul.includes(normalizedQuery)) score += 90;
     if (lowerPengarang.includes(lowerQuery)) score += 80;
     if (lowerPenerbit.includes(lowerQuery)) score += 60;
     
+    // WORD BY WORD MATCH
     searchWords.forEach(word => {
       const lowerWord = word.toLowerCase();
+      if (lowerWord.length < 2) return;
       
       if (lowerJudul.includes(lowerWord)) {
         score += 40;
         if (lowerJudul.startsWith(lowerWord)) score += 20;
+        if (lowerJudul === lowerWord) score += 30;
       }
       
       if (lowerPengarang.includes(lowerWord)) score += 25;
       if (lowerPenerbit.includes(lowerWord)) score += 15;
     });
     
+    // EXPANDED TERMS MATCH
     expandedTerms.forEach(term => {
-      if (term.toLowerCase() !== lowerQuery) {
+      if (term && term.toLowerCase() !== lowerQuery && term.toLowerCase() !== normalizedQuery) {
         const lowerTerm = term.toLowerCase();
         if (lowerJudul.includes(lowerTerm)) score += 15;
         if (lowerPengarang.includes(lowerTerm)) score += 10;
@@ -171,6 +223,7 @@ const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = 
       }
     });
     
+    // BOOST UNTUK JUDUL YANG LEBIH PENDEK DAN TAHUN VALID
     if (book.judul && book.judul.length < 60) score += 10;
     if (book.tahun_terbit && extractYearFromString(book.tahun_terbit) > 1900) score += 5;
     
@@ -181,12 +234,96 @@ const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = 
     index === self.findIndex(b => b.id === book.id)
   );
   
-  return uniqueResults.sort((a, b) => {
+  const sortedResults = uniqueResults.sort((a, b) => {
     if (b._relevanceScore !== a._relevanceScore) {
       return b._relevanceScore - a._relevanceScore;
     }
     return (a.judul || '').localeCompare(b.judul || '');
   });
+
+  console.log('🔍 Top 3 ranked results:', sortedResults.slice(0, 3).map(r => ({
+    judul: r.judul,
+    score: r._relevanceScore
+  })));
+
+  return sortedResults;
+};
+
+// PERBAIKAN: Perform SMART search dengan atau tanpa synonyms
+const performSmartSearch = async (searchQuery, useSynonyms = true) => {
+  const normalizedQuery = normalizeSearchQuery(searchQuery);
+  const searchWords = [...new Set([
+    ...normalizedQuery.split(/\s+/).filter(word => word.length > 0),
+    ...searchQuery.split(/\s+/).filter(word => word.length > 0)
+  ])];
+  
+  console.log('🔍 Performing smart search:', {
+    original: searchQuery,
+    normalized: normalizedQuery,
+    searchWords,
+    useSynonyms
+  });
+
+  try {
+    let searchTerms = [searchQuery, normalizedQuery]; // Cari dengan kedua versi
+    let detectedSynonyms = [];
+
+    if (useSynonyms) {
+      const expandedData = await expandSearchWithSynonyms(searchQuery);
+      searchTerms = [...new Set([...searchTerms, ...expandedData.terms])];
+      detectedSynonyms = expandedData.synonyms;
+    }
+
+    console.log('🔍 Final search terms:', searchTerms);
+
+    // BUAT QUERY YANG LEBIH FLEKSIBEL
+    const searchPromises = searchTerms.map(term => {
+      if (!term || term.length < 2) return { data: [] };
+      
+      const searchPattern = `%${term}%`;
+      return supabase
+        .from('books')
+        .select('*')
+        .or(`judul.ilike.${searchPattern},pengarang.ilike.${searchPattern},penerbit.ilike.${searchPattern}`)
+        .limit(100); // Tambahkan limit untuk performance
+    });
+
+    const allResults = await Promise.all(searchPromises);
+    
+    const combinedResults = [];
+    const seenIds = new Set();
+    
+    allResults.forEach(({ data }) => {
+      if (data) {
+        data.forEach(item => {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            combinedResults.push(item);
+          }
+        });
+      }
+    });
+
+    console.log('🔍 Combined results before ranking:', combinedResults.length);
+
+    const finalResults = rankSearchResults(combinedResults, searchWords, searchQuery, searchTerms);
+    
+    console.log('🔍 Final ranked results:', finalResults.length);
+
+    return {
+      results: finalResults,
+      synonyms: detectedSynonyms,
+      method: useSynonyms && detectedSynonyms.length > 0 ? 'Smart Search + Synonyms' : 'Smart Search'
+    };
+
+  } catch (error) {
+    console.error('Smart search error:', error);
+    return {
+      results: [],
+      synonyms: [],
+      method: 'Error'
+    };
+  }
 };
 
 // KOMPONEN UNTUK HASIL TIDAK DITEMUKAN
@@ -573,69 +710,15 @@ export default function Home() {
   // Get current filtered results dengan useMemo untuk optimasi
   const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
-  // Perform SMART search dengan atau tanpa synonyms - DIPERBAIKI
-  const performSmartSearch = async (searchQuery, useSynonyms = true) => {
-    const normalizedQuery = normalizeSearchQuery(searchQuery);
-    const searchWords = normalizedQuery.split(/\s+/).filter(word => word.length > 0);
-    
-    try {
-      let searchTerms = [normalizedQuery];
-      let detectedSynonyms = [];
-
-      if (useSynonyms) {
-        const expandedData = await expandSearchWithSynonyms(searchQuery);
-        searchTerms = expandedData.terms;
-        detectedSynonyms = expandedData.synonyms;
-      }
-
-      const searchPromises = searchTerms.map(term => 
-        supabase
-          .from('books')
-          .select('*')
-          .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
-      );
-
-      const allResults = await Promise.all(searchPromises);
-      
-      const combinedResults = [];
-      const seenIds = new Set();
-      
-      allResults.forEach(({ data }) => {
-        if (data) {
-          data.forEach(item => {
-            if (!seenIds.has(item.id)) {
-              seenIds.add(item.id);
-              combinedResults.push(item);
-            }
-          });
-        }
-      });
-
-      const finalResults = rankSearchResults(combinedResults, searchWords, searchQuery, searchTerms);
-      
-      return {
-        results: finalResults,
-        synonyms: detectedSynonyms,
-        method: useSynonyms && detectedSynonyms.length > 0 ? 'Smart Search + Synonyms' : 'Smart Search'
-      };
-
-    } catch (error) {
-      console.error('Smart search error:', error);
-      return {
-        results: [],
-        synonyms: [],
-        method: 'Error'
-      };
-    }
-  };
-
-  // SMART SEARCH EXECUTION - DIPERBAIKI
+  // PERBAIKAN: SMART SEARCH EXECUTION dengan debug info
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return;
     
+    console.log('🚀 Starting search execution:', searchQuery);
+    
     setActiveSynonyms([]);
     setOriginalSearchResults([]);
-    setSearchAttempted(true); // Tandai bahwa pencarian telah dilakukan
+    setSearchAttempted(true);
     
     const lang = detectLanguage(searchQuery);
     setDetectedLanguage(lang);
@@ -653,6 +736,12 @@ export default function Home() {
         performSmartSearch(searchQuery, true),
         performSmartSearch(searchQuery, false)
       ]);
+      
+      console.log('🔍 Search results:', {
+        withSynonyms: searchWithSynonyms.results.length,
+        withoutSynonyms: searchWithoutSynonyms.results.length,
+        query: searchQuery
+      });
       
       if (synonymsEnabled) {
         setSearchResults(searchWithSynonyms.results);
