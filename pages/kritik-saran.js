@@ -19,6 +19,7 @@ export default function KritikSaran() {
   const [analysis, setAnalysis] = useState(null)
   const [isMobile, setIsMobile] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [dashboardFilter, setDashboardFilter] = useState('semua') // Filter untuk dashboard
 
   // Detect mobile screen
   useEffect(() => {
@@ -279,9 +280,41 @@ export default function KritikSaran() {
     loadFeedbacks()
   }, [])
 
+  // Filter feedbacks berdasarkan sentiment dan kategori dashboard
   const filteredFeedbacks = filter === 'semua' 
     ? feedbacks 
     : feedbacks.filter(f => f.sentiment === filter)
+
+  // Data untuk dashboard berdasarkan filter kategori
+  const getDashboardData = () => {
+    if (!analysis) return null
+    
+    if (dashboardFilter === 'semua') {
+      return analysis
+    }
+    
+    // Filter feedbacks berdasarkan kategori untuk dashboard
+    const filteredByKategori = feedbacks.filter(f => f.kategori === dashboardFilter)
+    const total = filteredByKategori.length
+    const positive = filteredByKategori.filter(f => f.sentiment === 'positive').length
+    const negative = filteredByKategori.filter(f => f.sentiment === 'negative').length
+    const neutral = filteredByKategori.filter(f => f.sentiment === 'neutral').length
+    const ratings = filteredByKategori.filter(f => f.rating > 0)
+    const averageRating = ratings.length > 0 
+      ? (ratings.reduce((acc, f) => acc + f.rating, 0) / ratings.length).toFixed(1)
+      : 0
+    
+    return {
+      total,
+      positive,
+      negative,
+      neutral,
+      averageRating,
+      satisfaction: total > 0 ? Math.round((positive / total) * 100) : 0
+    }
+  }
+
+  const dashboardData = getDashboardData()
 
   const getSentimentColor = (sentiment) => {
     switch(sentiment) {
@@ -349,20 +382,18 @@ export default function KritikSaran() {
         margin: '2rem auto',
         padding: isMobile ? '0 1rem' : '0 2rem',
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr',
         gap: isMobile ? '2rem' : '3rem',
         alignItems: 'start'
       }}>
         
-        {/* Left Column - Form (Sticky) & Feedback List */}
+        {/* Left Column - Form (Sticky) */}
         <div>
-          {/* Form Section - Sticky */}
           <div style={{
             backgroundColor: 'white',
             padding: isMobile ? '1.5rem' : '2rem',
             borderRadius: '12px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            marginBottom: '2rem',
             position: isMobile ? 'static' : 'sticky',
             top: '2rem'
           }}>
@@ -625,6 +656,203 @@ export default function KritikSaran() {
               </button>
             </form>
           </div>
+        </div>
+
+        {/* Right Column - Dashboard & Feedback List */}
+        <div>
+          {/* Dashboard Section */}
+          <div style={{
+            backgroundColor: 'white',
+            padding: isMobile ? '1.5rem' : '2rem',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            marginBottom: '2rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+              <h3 style={{ 
+                color: '#2d3748', 
+                margin: 0,
+                fontSize: isMobile ? '1.25rem' : '1.5rem'
+              }}>
+                📊 Dashboard Feedback
+              </h3>
+              
+              <select
+                value={dashboardFilter}
+                onChange={(e) => setDashboardFilter(e.target.value)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  backgroundColor: 'white',
+                  fontSize: '0.9rem'
+                }}
+              >
+                <option value="semua">Semua Kategori</option>
+                <option value="umum">Umum</option>
+                <option value="koleksi">Koleksi Buku</option>
+                <option value="layanan">Layanan</option>
+                <option value="website">Website</option>
+                <option value="fasilitas">Fasilitas</option>
+                <option value="staff">Staff</option>
+                <option value="lainnya">Lainnya</option>
+              </select>
+            </div>
+            
+            {dashboardData ? (
+              <div>
+                {/* Main Stats Grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '1rem',
+                  marginBottom: '1.5rem'
+                }}>
+                  <div style={{ 
+                    padding: '1rem', 
+                    backgroundColor: '#ebf8ff', 
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#4299e1' }}>
+                      {dashboardData.total}
+                    </div>
+                    <div style={{ color: '#718096', fontSize: '0.8rem' }}>Total</div>
+                  </div>
+                  <div style={{ 
+                    padding: '1rem', 
+                    backgroundColor: '#f0fff4', 
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#48bb78' }}>
+                      {dashboardData.satisfaction}%
+                    </div>
+                    <div style={{ color: '#718096', fontSize: '0.8rem' }}>Kepuasan</div>
+                  </div>
+                </div>
+
+                {/* Sentiment Breakdown */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  marginBottom: '1.5rem'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.75rem',
+                    backgroundColor: '#f0fff4',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid #48bb78'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>😊</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Positif</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#22543d' }}>
+                      {dashboardData.positive}
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.75rem',
+                    backgroundColor: '#fffaf0',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid #ed8936'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>😐</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Netral</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#744210' }}>
+                      {dashboardData.neutral}
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.75rem',
+                    backgroundColor: '#fff5f5',
+                    borderRadius: '6px',
+                    borderLeft: '4px solid #f56565'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>😔</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Perbaikan</span>
+                    </div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#742a2a' }}>
+                      {dashboardData.negative}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rating Summary */}
+                {dashboardData.averageRating > 0 && (
+                  <div style={{
+                    padding: '1rem',
+                    backgroundColor: '#fffaf0',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    marginBottom: '1rem'
+                  }}>
+                    <div style={{ fontSize: '0.9rem', color: '#744210', marginBottom: '0.5rem' }}>
+                      Rating Rata-rata
+                    </div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#d69e2e' }}>
+                      {dashboardData.averageRating}/5
+                    </div>
+                    <div style={{ color: '#f6e05e', fontSize: '1rem', marginTop: '0.25rem' }}>
+                      {'⭐'.repeat(Math.round(dashboardData.averageRating))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Filter Info */}
+                <div style={{
+                  padding: '0.75rem',
+                  backgroundColor: '#f7fafc',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  color: '#4a5568',
+                  textAlign: 'center'
+                }}>
+                  📊 Menampilkan data untuk: <strong>
+                    {dashboardFilter === 'semua' ? 'Semua Kategori' : 
+                     dashboardFilter === 'koleksi' ? 'Koleksi Buku Langka' :
+                     dashboardFilter === 'layanan' ? 'Layanan Perpustakaan' :
+                     dashboardFilter === 'website' ? 'Website & Teknologi' :
+                     dashboardFilter === 'fasilitas' ? 'Fasilitas & Ruang Baca' :
+                     dashboardFilter === 'staff' ? 'Pelayanan Staff' :
+                     dashboardFilter === 'lainnya' ? 'Lainnya' : 'Umum'}
+                  </strong>
+                </div>
+              </div>
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '2rem', 
+                color: '#718096' 
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📊</div>
+                <div>Memuat analisis...</div>
+              </div>
+            )}
+          </div>
 
           {/* Feedback List Section */}
           <div style={{
@@ -810,173 +1038,6 @@ export default function KritikSaran() {
                 ))
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Right Column - Analytics Dashboard Compact (Normal scroll) */}
-        <div>
-          <div style={{
-            backgroundColor: 'white',
-            padding: isMobile ? '1.5rem' : '2rem',
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-          }}>
-            <h3 style={{ 
-              marginBottom: '1.5rem', 
-              color: '#2d3748',
-              fontSize: isMobile ? '1.25rem' : '1.5rem',
-              textAlign: 'center'
-            }}>
-              📊 Dashboard Feedback
-            </h3>
-            
-            {analysis ? (
-              <div>
-                {/* Main Stats Grid */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '1rem',
-                  marginBottom: '1.5rem'
-                }}>
-                  <div style={{ 
-                    padding: '1rem', 
-                    backgroundColor: '#ebf8ff', 
-                    borderRadius: '8px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#4299e1' }}>
-                      {analysis.total}
-                    </div>
-                    <div style={{ color: '#718096', fontSize: '0.8rem' }}>Total</div>
-                  </div>
-                  <div style={{ 
-                    padding: '1rem', 
-                    backgroundColor: '#f0fff4', 
-                    borderRadius: '8px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#48bb78' }}>
-                      {analysis.satisfaction}%
-                    </div>
-                    <div style={{ color: '#718096', fontSize: '0.8rem' }}>Kepuasan</div>
-                  </div>
-                </div>
-
-                {/* Sentiment Breakdown */}
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem',
-                  marginBottom: '1.5rem'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.75rem',
-                    backgroundColor: '#f0fff4',
-                    borderRadius: '6px',
-                    borderLeft: '4px solid #48bb78'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>😊</span>
-                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Positif</span>
-                    </div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#22543d' }}>
-                      {analysis.positive}
-                    </div>
-                  </div>
-                  
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.75rem',
-                    backgroundColor: '#fffaf0',
-                    borderRadius: '6px',
-                    borderLeft: '4px solid #ed8936'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>😐</span>
-                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Netral</span>
-                    </div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#744210' }}>
-                      {analysis.neutral}
-                    </div>
-                  </div>
-                  
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.75rem',
-                    backgroundColor: '#fff5f5',
-                    borderRadius: '6px',
-                    borderLeft: '4px solid #f56565'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>😔</span>
-                      <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Perbaikan</span>
-                    </div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#742a2a' }}>
-                      {analysis.negative}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rating Summary */}
-                {analysis.averageRating > 0 && (
-                  <div style={{
-                    padding: '1rem',
-                    backgroundColor: '#fffaf0',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                    marginBottom: '1rem'
-                  }}>
-                    <div style={{ fontSize: '0.9rem', color: '#744210', marginBottom: '0.5rem' }}>
-                      Rating Rata-rata
-                    </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#d69e2e' }}>
-                      {analysis.averageRating}/5
-                    </div>
-                    <div style={{ color: '#f6e05e', fontSize: '1rem', marginTop: '0.25rem' }}>
-                      {'⭐'.repeat(Math.round(analysis.averageRating))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Quick Stats */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '0.5rem',
-                  fontSize: '0.7rem',
-                  color: '#718096'
-                }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: '600' }}>📈 Response Rate</div>
-                    <div>{analysis.total > 0 ? '100%' : '0%'}</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: '600' }}>🕒 Latest</div>
-                    <div>{feedbacks.length > 0 ? 
-                      new Date(feedbacks[0].created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) 
-                      : '-'
-                    }</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '2rem', 
-                color: '#718096' 
-              }}>
-                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📊</div>
-                <div>Memuat analisis...</div>
-              </div>
-            )}
           </div>
         </div>
       </div>
