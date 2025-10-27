@@ -1,23 +1,32 @@
-// components/profil/VisiMisi.js
-export default function VisiMisi() {
+// components/profil/VisiMisi.js - OPTIMIZED
+export default function VisiMisi({ isMobile }) {
   return (
     <section style={{ 
-      padding: '3rem 2rem', 
+      padding: isMobile ? '2rem 1rem' : '3rem 2rem', 
       maxWidth: '1000px', 
-      margin: '0 auto' 
+      margin: '0 auto',
+      minHeight: '60vh'
     }}>
       <div style={{
         display: 'grid',
-        gap: '3rem'
+        gap: isMobile ? '2rem' : '3rem'
       }}>
         {/* Visi */}
         <div style={{
           backgroundColor: 'white',
-          padding: '2.5rem',
+          padding: isMobile ? '1.5rem' : '2.5rem',
           borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          borderLeft: '4px solid #4299e1'
-        }}>
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          borderLeft: '4px solid #4299e1',
+          transition: 'transform 0.3s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.target.style.transform = 'translateY(-2px)'
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.transform = 'translateY(0)'
+        }}
+        >
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -25,29 +34,31 @@ export default function VisiMisi() {
             marginBottom: '1.5rem'
           }}>
             <div style={{
-              fontSize: '2rem',
+              fontSize: isMobile ? '1.5rem' : '2rem',
               backgroundColor: '#4299e1',
               color: 'white',
-              width: '60px',
-              height: '60px',
+              width: isMobile ? '50px' : '60px',
+              height: isMobile ? '50px' : '60px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexShrink: 0
             }}>
               👁️
             </div>
             <h2 style={{ 
               color: '#2d3748',
-              fontSize: '1.75rem',
+              fontSize: isMobile ? '1.25rem' : '1.75rem',
               fontWeight: '700',
-              margin: 0
+              margin: 0,
+              lineHeight: '1.3'
             }}>
               Visi
             </h2>
           </div>
           <p style={{
-            fontSize: '1.2rem',
+            fontSize: isMobile ? '0.9rem' : '1.1rem',
             lineHeight: '1.7',
             color: '#4a5568',
             margin: 0,
@@ -61,11 +72,19 @@ export default function VisiMisi() {
         {/* Misi */}
         <div style={{
           backgroundColor: 'white',
-          padding: '2.5rem',
+          padding: isMobile ? '1.5rem' : '2.5rem',
           borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          borderLeft: '4px solid #48bb78'
-        }}>
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          borderLeft: '4px solid #48bb78',
+          transition: 'transform 0.3s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.target.style.transform = 'translateY(-2px)'
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.transform = 'translateY(0)'
+        }}
+        >
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -73,28 +92,34 @@ export default function VisiMisi() {
             marginBottom: '1.5rem'
           }}>
             <div style={{
-              fontSize: '2rem',
+              fontSize: isMobile ? '1.5rem' : '2rem',
               backgroundColor: '#48bb78',
               color: 'white',
-              width: '60px',
-              height: '60px',
+              width: isMobile ? '50px' : '60px',
+              height: isMobile ? '50px' : '60px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexShrink: 0
             }}>
               🎯
             </div>
             <h2 style={{ 
               color: '#2d3748',
-              fontSize: '1.75rem',
+              fontSize: isMobile ? '1.25rem' : '1.75rem',
               fontWeight: '700',
-              margin: 0
+              margin: 0,
+              lineHeight: '1.3'
             }}>
               Misi
             </h2>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '0.75rem' 
+          }}>
             {[
               "Melestarikan dan mengonservasi koleksi buku langka melalui standar preservasi internasional",
               "Mendigitalisasi koleksi untuk memastikan aksesibilitas dan keberlanjutan",
@@ -105,19 +130,25 @@ export default function VisiMisi() {
               <div key={index} style={{
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: '1rem',
-                padding: '1rem',
+                gap: '0.75rem',
+                padding: '0.75rem',
                 backgroundColor: '#f0fff4',
-                borderRadius: '8px'
+                borderRadius: '6px',
+                border: '1px solid #c6f6d5'
               }}>
                 <span style={{
                   color: '#48bb78',
                   fontWeight: 'bold',
-                  minWidth: '25px'
+                  minWidth: '20px',
+                  fontSize: isMobile ? '0.8rem' : '0.9rem'
                 }}>
                   {index + 1}.
                 </span>
-                <span style={{ color: '#22543d', lineHeight: '1.6' }}>
+                <span style={{ 
+                  color: '#22543d', 
+                  lineHeight: '1.5',
+                  fontSize: isMobile ? '0.8rem' : '0.9rem'
+                }}>
                   {misi}
                 </span>
               </div>
