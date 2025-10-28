@@ -495,6 +495,33 @@ const performSmartSearch = async (searchQuery, useSynonyms = true) => {
   }
 };
 
+// Enhanced Relevance Badge Component
+const RelevanceBadge = ({ score }) => {
+  const getRelevanceLevel = (score) => {
+    if (score > 800) return { label: 'Sangat Relevan', color: '#10b981' };
+    if (score > 500) return { label: 'Relevan', color: '#3b82f6' };
+    if (score > 200) return { label: 'Cukup Relevan', color: '#f59e0b' };
+    return { label: 'Kurang Relevan', color: '#ef4444' };
+  };
+  
+  const level = getRelevanceLevel(score);
+  
+  return (
+    <div style={{
+      backgroundColor: level.color,
+      color: 'white',
+      padding: '0.3rem 0.6rem',
+      borderRadius: '12px',
+      fontSize: '0.7rem',
+      fontWeight: '600',
+      marginLeft: '0.5rem',
+      display: 'inline-block'
+    }}>
+      {level.label}
+    </div>
+  );
+};
+
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -514,7 +541,7 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState('')
 
-  // Synonyms Filter States - FIX: Proper initialization
+  // Synonyms Filter States
   const [synonymsEnabled, setSynonymsEnabled] = useState(true)
   const [activeSynonyms, setActiveSynonyms] = useState([])
 
@@ -548,53 +575,42 @@ export default function Home() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // FIXED: Load preferences dengan proper initialization
+  // Load preferences
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedHistory = localStorage.getItem('searchHistory')
       const savedLiveSearch = localStorage.getItem('liveSearchEnabled')
       const savedSynonymsEnabled = localStorage.getItem('synonymsEnabled')
       
-      console.log('🔄 Loading preferences:', {
-        savedSynonymsEnabled,
-        savedLiveSearch,
-        hasHistory: !!savedHistory
-      })
-      
       if (savedHistory) setSearchHistory(JSON.parse(savedHistory))
       if (savedLiveSearch !== null) setLiveSearchEnabled(JSON.parse(savedLiveSearch))
       
-      // FIX: Proper synonyms loading dengan fallback ke true
       if (savedSynonymsEnabled !== null) {
         try {
           const synonymsSetting = JSON.parse(savedSynonymsEnabled)
           setSynonymsEnabled(synonymsSetting)
-          console.log('🔧 Loaded synonyms preference:', synonymsSetting)
         } catch (error) {
           console.error('Error parsing synonyms setting, using default true')
           setSynonymsEnabled(true)
         }
       } else {
-        // DEFAULT: Synonyms ON
         setSynonymsEnabled(true)
-        console.log('🔧 Using default synonyms: ON')
       }
     }
   }, [])
 
-  // FIXED: Save preferences
+  // Save preferences
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('liveSearchEnabled', JSON.stringify(liveSearchEnabled))
       localStorage.setItem('synonymsEnabled', JSON.stringify(synonymsEnabled))
-      console.log('💾 Saved synonyms preference:', synonymsEnabled)
       if (searchHistory.length > 0) {
         localStorage.setItem('searchHistory', JSON.stringify(searchHistory))
       }
     }
   }, [searchHistory, liveSearchEnabled, synonymsEnabled])
   
-  // Clean Mode Effect - Trigger ketika typing/search aktif
+  // Clean Mode Effect
   useEffect(() => {
     const shouldActivateCleanMode = searchTerm.trim().length > 0 || isTyping || searchResults.length > 0
     setCleanMode(shouldActivateCleanMode)
@@ -778,19 +794,15 @@ export default function Home() {
     }
   };
 
-  // FIXED: Toggle Synonyms - Proper toggle dengan persistence
+  // Toggle Synonyms
   const toggleSynonyms = () => {
     const newSynonymsEnabled = !synonymsEnabled;
-    console.log('🔄 Toggling synonyms from', synonymsEnabled, 'to', newSynonymsEnabled);
     setSynonymsEnabled(newSynonymsEnabled);
     
-    // JIKA SUDAH ADA HASIL SEARCH, GUNAKAN HASIL YANG SUDAH DIKOMPUTASI
     if (searchTerm.trim() && originalSearchResults.length > 0) {
       if (newSynonymsEnabled) {
-        // RELOAD SEARCH DENGAN SYNONYMS
         executeSearch(searchTerm);
       } else {
-        // GUNAKAN HASIL EXACT MATCH YANG SUDAH DISIMPAN
         setSearchResults(originalSearchResults);
         setSearchMethod('Exact Match Only');
         setActiveSynonyms([]);
@@ -907,33 +919,6 @@ export default function Home() {
     activeFilters.tahunRange[0] !== MIN_YEAR || 
     activeFilters.tahunRange[1] !== MAX_YEAR
 
-  // Enhanced Relevance Badge Component
-  const RelevanceBadge = ({ score }) => {
-    const getRelevanceLevel = (score) => {
-      if (score > 800) return { label: 'Sangat Relevan', color: '#10b981' };
-      if (score > 500) return { label: 'Relevan', color: '#3b82f6' };
-      if (score > 200) return { label: 'Cukup Relevan', color: '#f59e0b' };
-      return { label: 'Kurang Relevan', color: '#ef4444' };
-    };
-    
-    const level = getRelevanceLevel(score);
-    
-    return (
-      <div style={{
-        backgroundColor: level.color,
-        color: 'white',
-        padding: '0.3rem 0.6rem',
-        borderRadius: '12px',
-        fontSize: '0.7rem',
-        fontWeight: '600',
-        marginLeft: '0.5rem',
-        display: 'inline-block'
-      }}>
-        {level.label}
-      </div>
-    );
-  };
-
   return (
     <Layout isMobile={isMobile}>
       <Head>
@@ -1036,7 +1021,7 @@ export default function Home() {
                   Live Search
                 </button>
 
-                {/* FIXED: Synonyms Toggle - Tampilkan selalu ketika ada hasil pencarian */}
+                {/* Synonyms Toggle - Tampilkan selalu ketika ada hasil pencarian */}
                 {searchResults.length > 0 && (
                   <button
                     type="button"
@@ -1607,7 +1592,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* FIXED: Synonyms Filter Status - Tampilkan selalu ketika ada hasil */}
+            {/* Synonyms Filter Status */}
             {searchResults.length > 0 && (
               <div style={{
                 marginTop: '1rem',
@@ -1702,7 +1687,7 @@ export default function Home() {
                 marginTop: '1rem',
                 padding: '0.75rem',
                 backgroundColor: '#e6fffa',
-                border: '1px solid '#81e6d9',
+                border: '1px solid #81e6d9',
                 borderRadius: '6px',
                 fontSize: '0.8rem',
                 color: '#234e52'
