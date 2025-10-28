@@ -1,4 +1,4 @@
-// pages/index.js - SMOOTH CLEAN MODE SEARCH WITH ENHANCED SCORING
+// pages/index.js - ADVANCED SEARCH WITH SYMBOL AWARENESS
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -41,341 +41,6 @@ const extractYearFromString = (yearStr) => {
   return null;
 };
 
-// Advanced text normalization untuk handling variasi penulisan
-const normalizeText = (text) => {
-  if (!text) return '';
-  
-  return text
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Hapus diakritik
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ') // Normalisasi punctuation
-    .replace(/\s+/g, ' ') // Normalisasi spasi
-    .trim();
-};
-
-// Simple language detection
-const detectLanguage = (text) => {
-  const indonesianWords = ['yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'pada', 'dengan', 'ini', 'itu'];
-  const dutchWords = ['de', 'het', 'en', 'van', 'tot', 'voor', 'met', 'zijn', 'een'];
-  
-  const words = text.toLowerCase().split(/\s+/);
-  const idCount = words.filter(word => indonesianWords.includes(word)).length;
-  const nlCount = words.filter(word => dutchWords.includes(word)).length;
-  
-  if (nlCount > idCount && nlCount > 1) return 'nl';
-  if (idCount > nlCount && idCount > 1) return 'id';
-  return 'en';
-};
-
-// Context detection untuk query
-const detectSearchContext = (query) => {
-  const context = {
-    type: 'general',
-    language: 'mixed',
-    hasAuthor: false,
-    isPhrase: false
-  };
-  
-  // Deteksi format judul/author
-  if (query.includes('/')) {
-    context.type = 'title_author';
-    context.hasAuthor = true;
-  }
-  
-  // Deteksi bahasa dominan
-  const dutchIndicators = ['van', 'de', 'het', 'en', 'voor'];
-  const indonesianIndicators = ['yang', 'dan', 'di', 'ke', 'dari'];
-  
-  const dutchCount = dutchIndicators.filter(word => query.toLowerCase().includes(word)).length;
-  const indonesianCount = indonesianIndicators.filter(word => query.toLowerCase().includes(word)).length;
-  
-  if (dutchCount > indonesianCount) context.language = 'dutch';
-  else if (indonesianCount > dutchCount) context.language = 'indonesian';
-  
-  // Deteksi apakah ini phrase search
-  if (query.split(' ').length >= 3) {
-    context.isPhrase = true;
-  }
-  
-  return context;
-};
-
-// Enhanced proximity scoring dengan phrase detection
-const calculatePhraseProximity = (query, judul) => {
-  const queryWords = query.toLowerCase().split(' ');
-  const judulWords = judul.toLowerCase().split(' ');
-  
-  let totalProximityScore = 0;
-  
-  // Cari phrase yang sama berurutan
-  for (let i = 0; i <= queryWords.length - 2; i++) {
-    const phrase = queryWords.slice(i, i + 2).join(' ');
-    const judulText = judulWords.join(' ');
-    
-    if (judulText.includes(phrase)) {
-      totalProximityScore += 100; // Bonus besar untuk phrase match
-    }
-  }
-  
-  // Hitung jarak rata-rata antara kata-kata query dalam judul
-  const positions = [];
-  queryWords.forEach(word => {
-    const pos = judulWords.findIndex(jWord => jWord.includes(word));
-    if (pos !== -1) positions.push(pos);
-  });
-  
-  if (positions.length > 1) {
-    positions.sort((a, b) => a - b);
-    let totalDistance = 0;
-    for (let i = 1; i < positions.length; i++) {
-      totalDistance += positions[i] - positions[i - 1];
-    }
-    const avgDistance = totalDistance / (positions.length - 1);
-    
-    // Bonus untuk kata-kata yang berdekatan
-    if (avgDistance <= 3) {
-      totalProximityScore += (4 - avgDistance) * 25;
-    }
-  }
-  
-  return totalProximityScore;
-};
-
-// Field-specific boosting coefficients
-const FIELD_BOOST = {
-  judul: {
-    exact: 5.0,
-    partial: 2.0,
-    synonym: 1.5,
-    consecutive: 3.0
-  },
-  pengarang: {
-    exact: 3.0,
-    partial: 1.5,
-    synonym: 1.2
-  },
-  penerbit: {
-    exact: 2.0,
-    partial: 1.2,
-    synonym: 1.0
-  }
-};
-
-// Enhanced Relevance Scoring dengan optimasi untuk judul panjang dan kompleks
-const rankSearchResults = (results, searchWords, originalQuery, expandedTerms = []) => {
-  const context = detectSearchContext(originalQuery);
-  const lowerQuery = originalQuery.toLowerCase().trim();
-  const queryWords = lowerQuery.split(/\s+/);
-  
-  const scoredResults = results.map(book => {
-    let score = 0;
-    
-    // Normalisasi field
-    const normJudul = normalizeText(book.judul);
-    const normPengarang = normalizeText(book.pengarang);
-    const normPenerbit = normalizeText(book.penerbit);
-    const normQuery = normalizeText(lowerQuery);
-    
-    // 1. EXACT MATCH BONUS - 1000 points untuk judul yang persis sama
-    if (normJudul === normQuery) {
-      score += 1000;
-    }
-    
-    // 2. FORMAT "Judul / Author" BONUS
-    const authorFormatMatch = lowerQuery.match(/(.+)\s+\/\s*(.+)/);
-    if (authorFormatMatch) {
-      const titlePart = authorFormatMatch[1].trim();
-      const authorPart = authorFormatMatch[2].trim();
-      
-      if (normJudul.includes(normalizeText(titlePart))) {
-        score += 300;
-        
-        // Bonus jika format judul/author terdeteksi dalam data
-        if (normJudul.includes('/') && normPengarang.includes(normalizeText(authorPart))) {
-          score += 400;
-        }
-      }
-    }
-    
-    // 3. CONTEXT-AWARE BOOSTING
-    if (context.type === 'title_author') {
-      const [titlePart, authorPart] = normQuery.split('/').map(s => s.trim());
-      
-      if (normJudul.includes(titlePart)) {
-        score += 300;
-        
-        // Bonus besar jika author juga match
-        if (authorPart && normPengarang.includes(authorPart)) {
-          score += 400;
-        }
-      }
-    }
-    
-    // 4. PHRASE SEARCH OPTIMIZATION
-    if (context.isPhrase) {
-      const phraseBonus = calculatePhraseProximity(lowerQuery, book.judul || '');
-      score += phraseBonus;
-    }
-    
-    // 5. LANGUAGE-SPECIFIC BOOSTING
-    if (context.language === 'dutch') {
-      // Boost untuk buku dengan judul Dutch
-      if (normJudul.split(' ').some(word => 
-        ['van', 'de', 'het', 'en'].includes(word)
-      )) {
-        score += 50;
-      }
-    }
-    
-    // 6. WORD POSITION WEIGHT - Kata pertama lebih penting
-    searchWords.forEach((word, index) => {
-      const lowerWord = word.toLowerCase();
-      const positionWeight = Math.max(1.5 - (index * 0.2), 0.8); // 1.5 untuk kata pertama, berkurang bertahap
-      
-      // Judul matches dengan field-specific boost
-      if (normJudul.includes(lowerWord)) {
-        let wordScore = 40 * positionWeight * FIELD_BOOST.judul.partial;
-        
-        // Bonus jika kata di awal judul
-        if (normJudul.startsWith(lowerWord)) {
-          wordScore += 30;
-        }
-        
-        // Bonus tambahan untuk kata pertama query di posisi mana pun
-        if (index === 0) {
-          wordScore += 25;
-        }
-        
-        score += wordScore;
-      }
-      
-      // Pengarang matches
-      if (normPengarang.includes(lowerWord)) {
-        score += 25 * positionWeight * FIELD_BOOST.pengarang.partial;
-      }
-      
-      // Penerbit matches
-      if (normPenerbit.includes(lowerWord)) {
-        score += 15 * positionWeight * FIELD_BOOST.penerbit.partial;
-      }
-    });
-    
-    // 7. CONSECUTIVE WORDS BONUS - Kata berurutan dapat bonus besar
-    for (let i = 0; i < queryWords.length - 1; i++) {
-      const consecutivePhrase = queryWords.slice(i, i + 2).join(' ');
-      const threeWordPhrase = queryWords.slice(i, i + 3).join(' ');
-      
-      if (normJudul.includes(consecutivePhrase)) {
-        score += 80 * FIELD_BOOST.judul.consecutive; // Bonus untuk 2 kata berurutan
-        
-        // Bonus progresif untuk urutan yang lebih panjang
-        if (normJudul.includes(threeWordPhrase)) {
-          score += 120 * FIELD_BOOST.judul.consecutive; // Bonus tambahan untuk 3 kata berurutan
-        }
-      }
-    }
-    
-    // Bonus untuk seluruh frase query
-    if (normJudul.includes(normQuery)) {
-      score += 150;
-    }
-    
-    // 8. PROXIMITY BONUS - Kata berdekatan dalam query juga berdekatan di judul
-    const judulWords = normJudul.split(/\s+/);
-    queryWords.forEach((queryWord, queryIndex) => {
-      const judulIndex = judulWords.findIndex(word => word.includes(queryWord));
-      
-      if (judulIndex !== -1 && queryIndex < queryWords.length - 1) {
-        const nextQueryWord = queryWords[queryIndex + 1];
-        const nextJudulIndex = judulWords.findIndex(word => word.includes(nextQueryWord));
-        
-        if (nextJudulIndex !== -1) {
-          const distance = Math.abs(nextJudulIndex - judulIndex);
-          if (distance <= 2) { // Kata berdekatan dalam 2 posisi
-            score += 40 - (distance * 10);
-          }
-        }
-      }
-    });
-    
-    // 9. PARTIAL MATCH - Untuk kata yang panjang (fuzzy matching)
-    queryWords.forEach(queryWord => {
-      if (queryWord.length >= 6) { // Hanya untuk kata yang cukup panjang
-        judulWords.forEach(judulWord => {
-          // Hitung kemiripan substring
-          let maxMatchLength = 0;
-          for (let i = 0; i <= queryWord.length - 4; i++) {
-            for (let j = 4; j <= queryWord.length - i; j++) {
-              const substring = queryWord.substring(i, i + j);
-              if (judulWord.includes(substring)) {
-                maxMatchLength = Math.max(maxMatchLength, j);
-              }
-            }
-          }
-          
-          if (maxMatchLength >= 4) {
-            score += maxMatchLength * 3; // 3 points per karakter yang match
-          }
-        });
-      }
-    });
-    
-    // 10. SYNONYMS AWARENESS
-    expandedTerms.forEach(term => {
-      if (term.toLowerCase() !== lowerQuery) {
-        const lowerTerm = term.toLowerCase();
-        if (normJudul.includes(lowerTerm)) score += 25 * FIELD_BOOST.judul.synonym;
-        if (normPengarang.includes(lowerTerm)) score += 15 * FIELD_BOOST.pengarang.synonym;
-        if (normPenerbit.includes(lowerTerm)) score += 8 * FIELD_BOOST.penerbit.synonym;
-      }
-    });
-    
-    // 11. FIELD LENGTH AND QUALITY BONUS
-    const judulLength = normJudul.length;
-    if (judulLength > 20 && judulLength < 150) {
-      score += 30; // Bonus untuk judul dengan panjang optimal
-    }
-    
-    const year = extractYearFromString(book.tahun_terbit);
-    if (year && year > 1800 && year <= 2024) score += 15; // Tahun valid dan masuk akal
-    
-    // 12. DATA COMPLETENESS BONUS
-    if (book.judul && book.pengarang) score += 15; // Data lengkap
-    
-    // 13. COMPREHENSIVE MATCH BONUS
-    const matchRatio = queryWords.filter(qw => 
-      normJudul.includes(qw) || normPengarang.includes(qw)
-    ).length / queryWords.length;
-    
-    if (matchRatio >= 0.8) {
-      score += 100 * matchRatio; // Bonus untuk kecocokan komprehensif
-    }
-    
-    // 14. AUTHOR SPECIFIC BONUS untuk format "Judul / Author"
-    if (lowerQuery.includes('/')) {
-      const authorPart = lowerQuery.split('/')[1]?.trim();
-      if (authorPart && normPengarang.includes(authorPart)) {
-        score += 120;
-      }
-    }
-
-    return { ...book, _relevanceScore: Math.round(score) };
-  });
-  
-  // Remove duplicates berdasarkan ID
-  const uniqueResults = scoredResults.filter((book, index, self) => 
-    index === self.findIndex(b => b.id === book.id)
-  );
-  
-  // Sort by relevance score, lalu oleh judul
-  return uniqueResults.sort((a, b) => {
-    if (b._relevanceScore !== a._relevanceScore) {
-      return b._relevanceScore - a._relevanceScore;
-    }
-    return (a.judul || '').localeCompare(b.judul || '');
-  });
-};
-
 // Synonyms service
 const fetchSynonyms = async (searchTerm) => {
   try {
@@ -391,6 +56,20 @@ const fetchSynonyms = async (searchTerm) => {
     console.error('Synonyms fetch error:', error);
     return [];
   }
+};
+
+// Simple language detection
+const detectLanguage = (text) => {
+  const indonesianWords = ['yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'pada', 'dengan', 'ini', 'itu'];
+  const dutchWords = ['de', 'het', 'en', 'van', 'tot', 'voor', 'met', 'zijn', 'een'];
+  
+  const words = text.toLowerCase().split(/\s+/);
+  const idCount = words.filter(word => indonesianWords.includes(word)).length;
+  const nlCount = words.filter(word => dutchWords.includes(word)).length;
+  
+  if (nlCount > idCount && nlCount > 1) return 'nl';
+  if (idCount > nlCount && idCount > 1) return 'id';
+  return 'en';
 };
 
 // Enhanced synonyms expansion dengan context awareness
@@ -439,87 +118,132 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// Perform SMART search dengan algoritma scoring yang ditingkatkan
-const performSmartSearch = async (searchQuery, useSynonyms = true) => {
-  const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
+// Smart Title-Author Parsing
+const parseTitleAndAuthor = (judul) => {
+  if (!judul) return { title: '', author: null };
   
-  try {
-    let searchTerms = [searchQuery];
-    let detectedSynonyms = [];
-
-    if (useSynonyms) {
-      const expandedData = await expandSearchWithSynonyms(searchQuery);
-      searchTerms = expandedData.terms;
-      detectedSynonyms = expandedData.synonyms;
-    }
-
-    const searchPromises = searchTerms.map(term => 
-      supabase
-        .from('books')
-        .select('*')
-        .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
-    );
-
-    const allResults = await Promise.all(searchPromises);
-    
-    const combinedResults = [];
-    const seenIds = new Set();
-    
-    allResults.forEach(({ data }) => {
-      if (data) {
-        data.forEach(item => {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            combinedResults.push(item);
-          }
-        });
-      }
-    });
-
-    // Gunakan algoritma ranking yang ditingkatkan
-    const finalResults = rankSearchResults(combinedResults, searchWords, searchQuery, searchTerms);
-    
+  // Pattern untuk "Judul /Pengarang" 
+  const slashMatch = judul.match(/^(.*?)\s*\/([^\/]+)$/);
+  if (slashMatch) {
     return {
-      results: finalResults,
-      synonyms: detectedSynonyms,
-      method: useSynonyms && detectedSynonyms.length > 0 ? 'Enhanced Search + Synonyms' : 'Enhanced Search'
-    };
-
-  } catch (error) {
-    console.error('Enhanced search error:', error);
-    return {
-      results: [],
-      synonyms: [],
-      method: 'Error'
+      title: slashMatch[1].trim(),
+      author: slashMatch[2].trim()
     };
   }
+  
+  return { title: judul, author: null };
 };
 
-// Enhanced Relevance Badge Component
-const RelevanceBadge = ({ score }) => {
-  const getRelevanceLevel = (score) => {
-    if (score > 800) return { label: 'Sangat Relevan', color: '#10b981' };
-    if (score > 500) return { label: 'Relevan', color: '#3b82f6' };
-    if (score > 200) return { label: 'Cukup Relevan', color: '#f59e0b' };
-    return { label: 'Kurang Relevan', color: '#ef4444' };
-  };
+// Advanced Ranking dengan Title-Author Awareness
+const advancedRankingWithTitleAuthor = (results, searchQuery) => {
+  const searchLower = searchQuery.toLowerCase();
+  const normalizedSearch = searchLower.replace(/[.,\/]/g, ' ').replace(/\s+/g, ' ').trim();
   
-  const level = getRelevanceLevel(score);
+  return results.map(book => {
+    let score = 0;
+    const { title: bookTitle, author: bookAuthor } = parseTitleAndAuthor(book.judul);
+    
+    const titleLower = bookTitle.toLowerCase();
+    const authorLower = bookAuthor?.toLowerCase() || '';
+    
+    // CRITICAL: Exact title match (dengan/tanpa simbol)
+    const normalizedTitle = titleLower.replace(/[.,\/]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (normalizedTitle === normalizedSearch) {
+      score += 1000; // Highest priority
+    }
+    
+    // Title contains entire query
+    if (titleLower.includes(searchLower)) {
+      score += 300;
+    }
+    
+    // Author exact match
+    if (bookAuthor) {
+      const normalizedAuthor = authorLower.replace(/[.,\/]/g, ' ').replace(/\s+/g, ' ').trim();
+      const normalizedSearchForAuthor = normalizedSearch.replace(/\s+/g, ' ');
+      
+      if (normalizedAuthor.includes(normalizedSearchForAuthor)) {
+        score += 400; // High priority untuk author match
+      }
+    }
+    
+    // Word-by-word matching dengan priority
+    const searchWords = normalizedSearch.split(/\s+/).filter(w => w.length > 2);
+    const titleWords = normalizedTitle.split(/\s+/);
+    
+    let matchedWords = 0;
+    let positionBonus = 0;
+    
+    searchWords.forEach((word, wordIndex) => {
+      const titleWordIndex = titleWords.findIndex(tw => tw.includes(word));
+      if (titleWordIndex >= 0) {
+        matchedWords++;
+        score += 40; // Base score
+        
+        // Position bonus - kata di awal judul & query lebih penting
+        if (titleWordIndex < 3) positionBonus += 20;
+        if (wordIndex < 2) positionBonus += 15;
+      }
+    });
+    
+    score += positionBonus;
+    
+    // Completeness bonus
+    const matchRatio = matchedWords / Math.max(searchWords.length, 1);
+    if (matchRatio > 0.8) score += 150;
+    if (matchRatio === 1) score += 200;
+    
+    return { 
+      ...book, 
+      _relevanceScore: score,
+      _matchedWords: matchedWords,
+      _parsedTitle: bookTitle,
+      _parsedAuthor: bookAuthor
+    };
+    
+  }).sort((a, b) => b._relevanceScore - a._relevanceScore);
+};
+
+// Advanced Symbol-Aware Search
+const performAdvancedSearch = async (searchQuery) => {
+  const searchWords = searchQuery.toLowerCase().split(/\s+/).filter(w => w.length > 2);
   
-  return (
-    <div style={{
-      backgroundColor: level.color,
-      color: 'white',
-      padding: '0.3rem 0.6rem',
-      borderRadius: '12px',
-      fontSize: '0.7rem',
-      fontWeight: '600',
-      marginLeft: '0.5rem',
-      display: 'inline-block'
-    }}>
-      {level.label}
-    </div>
-  );
+  // Build multiple query strategies
+  const queries = [];
+  
+  // Strategy 1: Exact phrase matching
+  queries.push(`judul.ilike.%${searchQuery}%`);
+  
+  // Strategy 2: Symbol-normalized matching
+  const symbolNormalized = searchQuery.toLowerCase().replace(/[.,\/]/g, '%');
+  queries.push(`judul.ilike.%${symbolNormalized}%`);
+  
+  // Strategy 3: Word-by-word matching
+  if (searchWords.length > 1) {
+    searchWords.forEach(word => {
+      queries.push(`judul.ilike.%${word}%`);
+    });
+  }
+  
+  // Include author search
+  queries.push(`pengarang.ilike.%${searchQuery}%`);
+  
+  try {
+    // Gunakan OR query dengan index optimization
+    const { data, error } = await supabase
+      .from('books')
+      .select('*')
+      .or(queries.join(','))
+      .limit(100);
+    
+    if (error) throw error;
+    
+    // Apply advanced ranking
+    return advancedRankingWithTitleAuthor(data || [], searchQuery);
+  } catch (error) {
+    console.error('Advanced search error:', error);
+    return [];
+  }
 };
 
 export default function Home() {
@@ -587,10 +311,8 @@ export default function Home() {
       
       if (savedSynonymsEnabled !== null) {
         try {
-          const synonymsSetting = JSON.parse(savedSynonymsEnabled)
-          setSynonymsEnabled(synonymsSetting)
+          setSynonymsEnabled(JSON.parse(savedSynonymsEnabled))
         } catch (error) {
-          console.error('Error parsing synonyms setting, using default true')
           setSynonymsEnabled(true)
         }
       } else {
@@ -742,12 +464,11 @@ export default function Home() {
   // Get current filtered results dengan useMemo untuk optimasi
   const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
-  // SMART SEARCH EXECUTION
+  // ADVANCED SEARCH EXECUTION
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return;
     
     setActiveSynonyms([]);
-    setOriginalSearchResults([]);
     
     const lang = detectLanguage(searchQuery);
     setDetectedLanguage(lang);
@@ -761,25 +482,43 @@ export default function Home() {
     setCurrentPage(1);
 
     try {
-      const [searchWithSynonyms, searchWithoutSynonyms] = await Promise.all([
-        performSmartSearch(searchQuery, true),
-        performSmartSearch(searchQuery, false)
-      ]);
+      // PHASE 1: Advanced exact matching dengan index optimization
+      const exactResults = await performAdvancedSearch(searchQuery);
       
-      if (synonymsEnabled) {
-        setSearchResults(searchWithSynonyms.results);
-        setSearchMethod(searchWithSynonyms.method);
-        setActiveSynonyms(searchWithSynonyms.synonyms);
-      } else {
-        setSearchResults(searchWithoutSynonyms.results);
-        setSearchMethod('Exact Match Only');
-        setActiveSynonyms([]);
+      // PHASE 2: Synonyms expansion
+      const synonymData = await expandSearchWithSynonyms(searchQuery);
+      let synonymResults = [];
+      
+      if (synonymsEnabled && synonymData.terms.length > 1) {
+        const synonymPromises = synonymData.terms.slice(1).map(term => 
+          performAdvancedSearch(term)
+        );
+        const allSynonymResults = await Promise.all(synonymPromises);
+        synonymResults = allSynonymResults.flat();
       }
       
-      setOriginalSearchResults(searchWithoutSynonyms.results);
+      // COMBINE & DEDUPLICATE
+      const allResults = [...exactResults, ...synonymResults];
+      const uniqueResults = [];
+      const seenIds = new Set();
       
-      if (searchResults.length > 0) {
-        saveToSearchHistory(searchQuery, searchResults.length);
+      allResults.forEach(book => {
+        if (!seenIds.has(book.id)) {
+          seenIds.add(book.id);
+          uniqueResults.push(book);
+        }
+      });
+      
+      // FINAL SORTING
+      const finalResults = uniqueResults.sort((a, b) => b._relevanceScore - a._relevanceScore);
+      
+      setSearchResults(finalResults);
+      setOriginalSearchResults(exactResults);
+      setSearchMethod(synonymsEnabled ? 'Advanced Search + Synonyms' : 'Advanced Exact Match');
+      setActiveSynonyms(synonymData.synonyms);
+      
+      if (finalResults.length > 0) {
+        saveToSearchHistory(searchQuery, finalResults.length);
       }
       
     } catch (err) {
@@ -804,7 +543,7 @@ export default function Home() {
         executeSearch(searchTerm);
       } else {
         setSearchResults(originalSearchResults);
-        setSearchMethod('Exact Match Only');
+        setSearchMethod('Advanced Exact Match');
         setActiveSynonyms([]);
         setCurrentPage(1);
       }
@@ -1021,7 +760,7 @@ export default function Home() {
                   Live Search
                 </button>
 
-                {/* Synonyms Toggle - Tampilkan selalu ketika ada hasil pencarian */}
+                {/* Synonyms Toggle */}
                 {searchResults.length > 0 && (
                   <button
                     type="button"
@@ -1231,7 +970,7 @@ export default function Home() {
                             padding: '0.2rem 0.4rem',
                             borderRadius: '10px'
                           }}>
-                            +Enhanced Scoring
+                            +Synonyms
                           </span>
                         </div>
                         {suggestions.map((item, index) => (
@@ -1340,7 +1079,6 @@ export default function Home() {
                 {isTyping ? 'Mengetik...' : loading ? 'Mencari...' : 'Live search aktif'}
                 <span style={{ marginLeft: '0.5rem' }}>
                   • {synonymsEnabled ? '🌐 Synonyms ON' : '🔤 Exact Match'}
-                  • 🚀 Enhanced Scoring
                 </span>
               </div>
             )}
@@ -1360,7 +1098,7 @@ export default function Home() {
             }}>
               🚀 {searchMethod} • {searchResults.length} hasil relevan
               {liveSearchEnabled && ' • 🔴 Live'} 
-              • 📊 Enhanced Scoring
+              • 📊 Index Optimized
               • {synonymsEnabled ? '🌐 Synonyms ON' : '🔤 Synonyms OFF'}
               {detectedLanguage && ` • ${detectedLanguage.toUpperCase()}`}
             </div>
@@ -1657,30 +1395,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Enhanced Scoring Info */}
-            <div style={{
-              marginTop: '1rem',
-              padding: '0.75rem',
-              backgroundColor: '#e6f7ff',
-              border: '1px solid #91d5ff',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              color: '#0050b3'
-            }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                fontWeight: '600',
-                marginBottom: '0.25rem'
-              }}>
-                🚀 Enhanced Scoring Active
-              </div>
-              <div style={{ color: '#0050b3', fontSize: '0.75rem' }}>
-                Exact Match + Position Weight + Consecutive Words + Proximity Bonus + Partial Match
-              </div>
-            </div>
-
             {/* Filter Status */}
             {isWithinSearchActive && (
               <div style={{
@@ -1720,17 +1434,6 @@ export default function Home() {
                 margin: 0
               }}>
                 Hasil Pencarian
-                <span style={{
-                  fontSize: '0.9rem',
-                  backgroundColor: '#4299e1',
-                  color: 'white',
-                  padding: '0.3rem 0.6rem',
-                  borderRadius: '12px',
-                  marginLeft: '1rem',
-                  fontWeight: '600'
-                }}>
-                  Enhanced Scoring
-                </span>
               </h3>
               
               <p style={{ 
@@ -1811,15 +1514,20 @@ export default function Home() {
                 transition: 'all 0.2s ease',
                 position: 'relative'
               }}>
-                {/* Enhanced Relevance Indicator */}
-                {book._relevanceScore && (
+                {/* Relevance Indicator */}
+                {book._relevanceScore > 100 && (
                   <div style={{
                     position: 'absolute',
                     top: '-8px',
                     right: '-8px',
-                    zIndex: 10
+                    backgroundColor: '#48bb78',
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '12px',
+                    fontWeight: '600'
                   }}>
-                    <RelevanceBadge score={book._relevanceScore} />
+                    🔥 Relevan
                   </div>
                 )}
                 
@@ -1828,11 +1536,21 @@ export default function Home() {
                   color: '#2d3748',
                   marginBottom: '0.75rem',
                   fontSize: isMobile ? '1rem' : '1.1rem',
-                  lineHeight: '1.4',
-                  paddingRight: '80px' // Space untuk relevance badge
+                  lineHeight: '1.4'
                 }}>
-                  {book.judul}
+                  {book._parsedTitle || book.judul}
                 </h4>
+                
+                {book._parsedAuthor && (
+                  <div style={{ 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                    color: '#4299e1', 
+                    marginBottom: '0.5rem',
+                    fontWeight: '500'
+                  }}>
+                    ✍️ {book._parsedAuthor}
+                  </div>
+                )}
                 
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ 
@@ -1924,22 +1642,6 @@ export default function Home() {
                     </a>
                   )}
                 </div>
-
-                {/* Debug Score (optional - bisa dihilangkan di production) */}
-                {process.env.NODE_ENV === 'development' && book._relevanceScore && (
-                  <div style={{
-                    marginTop: '0.5rem',
-                    padding: '0.25rem 0.5rem',
-                    backgroundColor: '#f7fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '4px',
-                    fontSize: '0.7rem',
-                    color: '#718096',
-                    fontFamily: 'monospace'
-                  }}>
-                    Score: {book._relevanceScore}
-                  </div>
-                )}
               </div>
             ))}
           </div>
