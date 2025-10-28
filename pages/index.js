@@ -1,4 +1,4 @@
-// pages/index.js - EXACT MATCH PRIORITY SEARCH
+// pages/index.js - SYMBOL-AWARE EXACT MATCH SEARCH
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -118,7 +118,64 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// Enhanced ranking dengan exact match priority
+// Symbol-aware search terms generator
+const createSymbolAwareSearchTerms = (searchQuery) => {
+  const terms = [searchQuery]; // Term asli selalu prioritas pertama
+  
+  // Buat variasi dengan/symbol untuk exact matching
+  const withSymbolVariations = [];
+  
+  // Handle titik
+  if (searchQuery.includes('.')) {
+    // Jika query mengandung titik, buat versi tanpa titik
+    const withoutDot = searchQuery.replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+    if (withoutDot && withoutDot !== searchQuery) {
+      withSymbolVariations.push(withoutDot);
+    }
+  } else {
+    // Jika query tanpa titik, coba tambahkan titik setelah kata pertama
+    const words = searchQuery.split(' ');
+    if (words.length > 1) {
+      const withDot = words[0] + '. ' + words.slice(1).join(' ');
+      withSymbolVariations.push(withDot);
+      
+      // Juga coba dengan titik tanpa spasi
+      const withDotNoSpace = words[0] + '.' + words.slice(1).join(' ');
+      if (!withSymbolVariations.includes(withDotNoSpace)) {
+        withSymbolVariations.push(withDotNoSpace);
+      }
+    }
+  }
+  
+  // Handle kasus khusus: "Java Beelden" -> cari juga "Java. Beelden"
+  const words = searchQuery.split(' ');
+  if (words.length >= 2) {
+    const firstWordWithDot = words[0] + '.';
+    const withFirstWordDot = [firstWordWithDot, ...words.slice(1)].join(' ');
+    if (!withSymbolVariations.includes(withFirstWordDot)) {
+      withSymbolVariations.push(withFirstWordDot);
+    }
+    
+    // Juga coba dengan huruf kapital untuk kata pertama
+    const capitalizedFirst = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+    if (capitalizedFirst !== words[0]) {
+      const withCapitalized = [capitalizedFirst, ...words.slice(1)].join(' ');
+      if (!withSymbolVariations.includes(withCapitalized)) {
+        withSymbolVariations.push(withCapitalized);
+      }
+      
+      // Dengan titik dan kapital
+      const withCapitalizedDot = capitalizedFirst + '. ' + words.slice(1).join(' ');
+      if (!withSymbolVariations.includes(withCapitalizedDot)) {
+        withSymbolVariations.push(withCapitalizedDot);
+      }
+    }
+  }
+  
+  return [...terms, ...withSymbolVariations];
+};
+
+// Enhanced ranking dengan symbol variation boost
 const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery, expandedTerms = []) => {
   const lowerQuery = originalQuery.toLowerCase();
   
@@ -129,19 +186,26 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
     const lowerPenerbit = book.penerbit?.toLowerCase() || '';
     
     // BOOST BESAR UNTUK EXACT MATCH
-    if (lowerJudul === lowerQuery) score += 500; // Boost sangat besar untuk judul exact
-    if (lowerPengarang === lowerQuery) score += 300;
+    if (lowerJudul === lowerQuery) score += 1000; // Boost sangat besar untuk judul exact
+    
+    // Boost untuk symbol variations
+    if (book._matchType === 'symbol-variation') score += 800;
     
     // Boost untuk judul yang mengandung query persis (dengan titik/koma dll)
-    if (lowerJudul.includes(lowerQuery)) score += 200;
+    if (lowerJudul.includes(lowerQuery)) score += 500;
     
     // Boost untuk match type
-    if (book._matchType === 'exact') score += 150;
+    if (book._matchType === 'exact') score += 400;
     
-    // Character-by-character matching untuk judul (tanpa spasi)
-    const judulChars = lowerJudul.replace(/\s+/g, '');
-    const queryChars = lowerQuery.replace(/\s+/g, '');
-    if (judulChars.includes(queryChars)) score += 100;
+    // Character-by-character matching untuk judul (tanpa spasi dan simbol)
+    const judulChars = lowerJudul.replace(/[^\w]/g, '');
+    const queryChars = lowerQuery.replace(/[^\w]/g, '');
+    if (judulChars.includes(queryChars)) score += 300;
+    
+    // Exact word matching tanpa simbol
+    const judulWords = lowerJudul.replace(/[^\w\s]/g, '');
+    const queryWords = lowerQuery.replace(/[^\w\s]/g, '');
+    if (judulWords.includes(queryWords)) score += 250;
     
     // Traditional word matching
     searchWords.forEach(word => {
@@ -183,7 +247,7 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
   });
 };
 
-// EXACT MATCH PRIORITY SEARCH
+// Enhanced exact match search dengan symbol handling
 const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
   const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
   
@@ -191,56 +255,72 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
     let searchTerms = [];
     let detectedSynonyms = [];
 
+    // BUAT TERMS DENGAN SYMBOL AWARENESS
+    const symbolAwareTerms = createSymbolAwareSearchTerms(searchQuery);
+    searchTerms = [...symbolAwareTerms];
+
     if (useSynonyms) {
       const expandedData = await expandSearchWithSynonyms(searchQuery);
-      searchTerms = expandedData.terms;
+      searchTerms = [...new Set([...symbolAwareTerms, ...expandedData.terms])];
       detectedSynonyms = expandedData.synonyms;
     }
 
-    // BUAT DUA JENIS QUERY: EXACT MATCH & FUZZY MATCH
+    console.log('🔍 Symbol-aware search terms:', searchTerms);
+
+    // BUAT MULTI-LEVEL QUERY: Exact Match -> Symbol Variations -> Fuzzy Match
     const exactMatchPromise = supabase
       .from('books')
       .select('*')
       .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%`);
 
-    const fuzzyMatchPromises = searchTerms.map(term => 
-      supabase
-        .from('books')
-        .select('*')
-        .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
-    );
+    // Symbol variations search
+    const symbolVariationsPromises = symbolAwareTerms
+      .filter(term => term !== searchQuery)
+      .map(term => 
+        supabase
+          .from('books')
+          .select('*')
+          .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%`)
+      );
 
-    const [exactMatch, ...fuzzyMatches] = await Promise.all([
-      exactMatchPromise,
-      ...fuzzyMatchPromises
-    ]);
+    // Fuzzy/synonyms search
+    const fuzzyMatchPromises = searchTerms
+      .filter(term => !symbolAwareTerms.includes(term))
+      .map(term => 
+        supabase
+          .from('books')
+          .select('*')
+          .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
+      );
+
+    const allPromises = [exactMatchPromise, ...symbolVariationsPromises, ...fuzzyMatchPromises];
+    const allResults = await Promise.all(allPromises);
     
     const combinedResults = [];
     const seenIds = new Set();
     
-    // PRIORITAS 1: Exact match results
-    if (exactMatch.data) {
-      exactMatch.data.forEach(item => {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          combinedResults.push({ ...item, _matchType: 'exact' });
-        }
-      });
-    }
-    
-    // PRIORITAS 2: Fuzzy match results
-    fuzzyMatches.forEach(({ data }) => {
+    // PROCESS RESULTS WITH PRIORITY LEVELS
+    allResults.forEach(({ data }, index) => {
       if (data) {
         data.forEach(item => {
           if (!seenIds.has(item.id)) {
             seenIds.add(item.id);
-            combinedResults.push({ ...item, _matchType: 'fuzzy' });
+            
+            // Tentukan match type berdasarkan priority level
+            let matchType = 'fuzzy';
+            if (index === 0) matchType = 'exact'; // Exact match query
+            else if (index <= symbolVariationsPromises.length) matchType = 'symbol-variation';
+            
+            combinedResults.push({ 
+              ...item, 
+              _matchType: matchType
+            });
           }
         });
       }
     });
 
-    // JIKA TIDAK ADA HASIL, GUNAKAN TRADITIONAL FUZZY SEARCH
+    // Fallback jika tidak ada hasil
     if (combinedResults.length === 0) {
       const fallbackSearch = await supabase
         .from('books')
@@ -251,7 +331,10 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
         fallbackSearch.data.forEach(item => {
           if (!seenIds.has(item.id)) {
             seenIds.add(item.id);
-            combinedResults.push({ ...item, _matchType: 'fallback' });
+            combinedResults.push({ 
+              ...item, 
+              _matchType: 'fallback'
+            });
           }
         });
       }
@@ -268,7 +351,7 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       results: finalResults,
       synonyms: detectedSynonyms,
       method: useSynonyms && detectedSynonyms.length > 0 ? 
-        'Exact Match + Synonyms' : 'Exact Match Priority'
+        'Symbol-Aware + Synonyms' : 'Symbol-Aware Exact Match'
     };
 
   } catch (error) {
@@ -540,7 +623,7 @@ export default function Home() {
         setActiveSynonyms(searchWithSynonyms.synonyms);
       } else {
         setSearchResults(searchWithoutSynonyms.results);
-        setSearchMethod('Exact Match Priority');
+        setSearchMethod('Symbol-Aware Exact Match');
         setActiveSynonyms([]);
       }
       
@@ -1000,7 +1083,7 @@ export default function Home() {
                             padding: '0.2rem 0.4rem',
                             borderRadius: '10px'
                           }}>
-                            Exact Match
+                            Symbol-Aware
                           </span>
                         </div>
                         {suggestions.map((item, index) => (
@@ -1128,7 +1211,7 @@ export default function Home() {
             }}>
               🚀 {searchMethod} • {searchResults.length} hasil relevan
               {liveSearchEnabled && ' • 🔴 Live'} 
-              • 📊 Exact Match Priority
+              • 📊 Symbol-Aware
               • {synonymsEnabled ? '🌐 Synonyms ON' : '🔤 Synonyms OFF'}
               {detectedLanguage && ` • ${detectedLanguage.toUpperCase()}`}
             </div>
@@ -1558,12 +1641,30 @@ export default function Home() {
                     fontWeight: '600',
                     zIndex: 2
                   }}>
-                    EXACT
+                    EXACT MATCH
+                  </div>
+                )}
+                
+                {/* Symbol Variation Match Indicator */}
+                {book._matchType === 'symbol-variation' && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    left: '-8px',
+                    backgroundColor: '#d69e2e',
+                    color: 'white',
+                    fontSize: '0.6rem',
+                    padding: '0.2rem 0.4rem',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    zIndex: 2
+                  }}>
+                    SYMBOL MATCH
                   </div>
                 )}
                 
                 {/* Relevance Indicator */}
-                {book._relevanceScore > 100 && book._matchType !== 'exact' && (
+                {book._relevanceScore > 100 && book._matchType === 'fuzzy' && (
                   <div style={{
                     position: 'absolute',
                     top: '-8px',
