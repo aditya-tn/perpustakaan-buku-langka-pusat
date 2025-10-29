@@ -25,6 +25,13 @@ export default function Header({ isMobile }) {
     return () => document.removeEventListener('click', handleClickOutside)
   }, [isMenuOpen])
 
+ // Di components/Header.js - tambahkan menu Chatbot
+{
+  name: 'Chatbot',
+  href: '/chatbot',
+  icon: '🤖'
+}
+  
   // Toggle mobile menu
   const toggleMenu = (e) => {
     e.stopPropagation()
