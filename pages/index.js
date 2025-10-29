@@ -1,4 +1,4 @@
-// pages/index.js - SYMBOL-AWARE EXACT MATCH SEARCH
+// pages/index.js - ENHANCED SYMBOL-AWARE SEARCH
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -118,64 +118,111 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// Symbol-aware search terms generator
+// ENHANCED symbol-aware search terms generator untuk SEMUA jenis simbol
 const createSymbolAwareSearchTerms = (searchQuery) => {
   const terms = [searchQuery]; // Term asli selalu prioritas pertama
   
   // Buat variasi dengan/symbol untuk exact matching
   const withSymbolVariations = [];
   
-  // Handle titik
-  if (searchQuery.includes('.')) {
-    // Jika query mengandung titik, buat versi tanpa titik
-    const withoutDot = searchQuery.replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
-    if (withoutDot && withoutDot !== searchQuery) {
-      withSymbolVariations.push(withoutDot);
-    }
-  } else {
-    // Jika query tanpa titik, coba tambahkan titik setelah kata pertama
-    const words = searchQuery.split(' ');
-    if (words.length > 1) {
-      const withDot = words[0] + '. ' + words.slice(1).join(' ');
-      withSymbolVariations.push(withDot);
+  // Daftar simbol yang perlu ditangani
+  const symbolsToHandle = ['.', ':', ';', ',', '-', '/', '\\', '!', '?', '&', "'", '"', '(', ')', '[', ']'];
+  
+  // Handle semua simbol
+  symbolsToHandle.forEach(symbol => {
+    if (searchQuery.includes(symbol)) {
+      // Jika query mengandung simbol, buat versi tanpa simbol
+      const regex = new RegExp(`\\${symbol}`, 'g');
+      const withoutSymbol = searchQuery.replace(regex, ' ').replace(/\s+/g, ' ').trim();
+      if (withoutSymbol && withoutSymbol !== searchQuery && !withSymbolVariations.includes(withoutSymbol)) {
+        withSymbolVariations.push(withoutSymbol);
+      }
       
-      // Juga coba dengan titik tanpa spasi
-      const withDotNoSpace = words[0] + '.' + words.slice(1).join(' ');
-      if (!withSymbolVariations.includes(withDotNoSpace)) {
-        withSymbolVariations.push(withDotNoSpace);
+      // Juga buat versi dengan spasi di sekitar simbol (jika belum ada)
+      const withSpacedSymbol = searchQuery.replace(regex, ` ${symbol} `).replace(/\s+/g, ' ').trim();
+      if (withSpacedSymbol && withSpacedSymbol !== searchQuery && !withSymbolVariations.includes(withSpacedSymbol)) {
+        withSymbolVariations.push(withSpacedSymbol);
+      }
+    } else {
+      // Jika query tanpa simbol, coba tambahkan simbol setelah kata kunci
+      const words = searchQuery.split(' ');
+      if (words.length > 1) {
+        // Untuk colon/titik dua, tambahkan setelah kata pertama atau kedua
+        if (symbol === ':') {
+          const withColonAfterFirst = words[0] + ': ' + words.slice(1).join(' ');
+          if (!withSymbolVariations.includes(withColonAfterFirst)) {
+            withSymbolVariations.push(withColonAfterFirst);
+          }
+          
+          // Juga coba setelah kata kedua jika ada cukup kata
+          if (words.length > 2) {
+            const withColonAfterSecond = words[0] + ' ' + words[1] + ': ' + words.slice(2).join(' ');
+            if (!withSymbolVariations.includes(withColonAfterSecond)) {
+              withSymbolVariations.push(withColonAfterSecond);
+            }
+          }
+        }
+        
+        // Untuk simbol lainnya, tambahkan setelah kata pertama
+        const withSymbol = words[0] + symbol + ' ' + words.slice(1).join(' ');
+        if (!withSymbolVariations.includes(withSymbol)) {
+          withSymbolVariations.push(withSymbol);
+        }
+      }
+    }
+  });
+  
+  // Handle kasus khusus untuk judul dengan struktur "Kultuur Djawa : cultuurgeschiedenis"
+  const words = searchQuery.split(' ');
+  if (words.length >= 3) {
+    // Coba tambahkan colon setelah kata kedua (umum dalam format judul)
+    const withColonAfterSecond = `${words[0]} ${words[1]}: ${words.slice(2).join(' ')}`;
+    if (!withSymbolVariations.includes(withColonAfterSecond) && !searchQuery.includes(':')) {
+      withSymbolVariations.push(withColonAfterSecond);
+    }
+    
+    // Juga coba dengan semicolon untuk pemisah pengarang
+    if (searchQuery.includes('/') && searchQuery.includes(';')) {
+      // Jika sudah ada struktur pengarang, buat variasi tanpa semicolon
+      const withoutSemicolon = searchQuery.replace(/;/g, '').replace(/\s+/g, ' ').trim();
+      if (!withSymbolVariations.includes(withoutSemicolon)) {
+        withSymbolVariations.push(withoutSemicolon);
+      }
+    } else if (searchQuery.includes('/') && !searchQuery.includes(';')) {
+      // Jika ada slash tapi tidak ada semicolon, coba tambahkan semicolon
+      const parts = searchQuery.split('/');
+      if (parts.length > 1) {
+        const withSemicolon = parts[0] + '; ' + parts.slice(1).join('/');
+        if (!withSymbolVariations.includes(withSemicolon)) {
+          withSymbolVariations.push(withSemicolon);
+        }
       }
     }
   }
   
-  // Handle kasus khusus: "Java Beelden" -> cari juga "Java. Beelden"
-  const words = searchQuery.split(' ');
-  if (words.length >= 2) {
-    const firstWordWithDot = words[0] + '.';
-    const withFirstWordDot = [firstWordWithDot, ...words.slice(1)].join(' ');
-    if (!withSymbolVariations.includes(withFirstWordDot)) {
-      withSymbolVariations.push(withFirstWordDot);
+  // Handle kasus khusus untuk apostrophe (seperti dalam "Moehammad Sjafe'i")
+  if (searchQuery.includes("'")) {
+    const withoutApostrophe = searchQuery.replace(/'/g, '').replace(/\s+/g, ' ').trim();
+    if (!withSymbolVariations.includes(withoutApostrophe)) {
+      withSymbolVariations.push(withoutApostrophe);
     }
-    
-    // Juga coba dengan huruf kapital untuk kata pertama
+  }
+  
+  // Juga buat variasi kapitalisasi untuk kata pertama
+  if (words.length > 0) {
     const capitalizedFirst = words[0].charAt(0).toUpperCase() + words[0].slice(1);
     if (capitalizedFirst !== words[0]) {
       const withCapitalized = [capitalizedFirst, ...words.slice(1)].join(' ');
       if (!withSymbolVariations.includes(withCapitalized)) {
         withSymbolVariations.push(withCapitalized);
       }
-      
-      // Dengan titik dan kapital
-      const withCapitalizedDot = capitalizedFirst + '. ' + words.slice(1).join(' ');
-      if (!withSymbolVariations.includes(withCapitalizedDot)) {
-        withSymbolVariations.push(withCapitalizedDot);
-      }
     }
   }
   
-  return [...terms, ...withSymbolVariations];
+  return [...new Set([...terms, ...withSymbolVariations])]; // Hapus duplikat
 };
 
-// Enhanced ranking dengan symbol variation boost
+// ENHANCED ranking dengan improved symbol handling
 const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery, expandedTerms = []) => {
   const lowerQuery = originalQuery.toLowerCase();
   
@@ -186,25 +233,25 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
     const lowerPenerbit = book.penerbit?.toLowerCase() || '';
     
     // BOOST BESAR UNTUK EXACT MATCH
-    if (lowerJudul === lowerQuery) score += 1000; // Boost sangat besar untuk judul exact
+    if (lowerJudul === lowerQuery) score += 1000;
     
     // Boost untuk symbol variations
     if (book._matchType === 'symbol-variation') score += 800;
     
-    // Boost untuk judul yang mengandung query persis (dengan titik/koma dll)
+    // Boost untuk judul yang mengandung query persis
     if (lowerJudul.includes(lowerQuery)) score += 500;
     
     // Boost untuk match type
     if (book._matchType === 'exact') score += 400;
     
-    // Character-by-character matching untuk judul (tanpa spasi dan simbol)
-    const judulChars = lowerJudul.replace(/[^\w]/g, '');
-    const queryChars = lowerQuery.replace(/[^\w]/g, '');
+    // ENHANCED: Character-by-character matching tanpa SEMUA simbol
+    const judulChars = lowerJudul.replace(/[^\w\s]/g, ''); // Hapus semua simbol, pertahankan huruf+angka+spasi
+    const queryChars = lowerQuery.replace(/[^\w\s]/g, '');
     if (judulChars.includes(queryChars)) score += 300;
     
-    // Exact word matching tanpa simbol
-    const judulWords = lowerJudul.replace(/[^\w\s]/g, '');
-    const queryWords = lowerQuery.replace(/[^\w\s]/g, '');
+    // ENHANCED: Exact word matching tanpa simbol spesifik (colon, semicolon, dll)
+    const judulWords = lowerJudul.replace(/[:;,!?]/g, ''); // Hanya hapus simbol tertentu
+    const queryWords = lowerQuery.replace(/[:;,!?]/g, '');
     if (judulWords.includes(queryWords)) score += 250;
     
     // Traditional word matching
@@ -265,7 +312,7 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       detectedSynonyms = expandedData.synonyms;
     }
 
-    console.log('🔍 Symbol-aware search terms:', searchTerms);
+    console.log('🔍 Enhanced symbol-aware search terms:', searchTerms);
 
     // BUAT MULTI-LEVEL QUERY: Exact Match -> Symbol Variations -> Fuzzy Match
     const exactMatchPromise = supabase
@@ -351,7 +398,7 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       results: finalResults,
       synonyms: detectedSynonyms,
       method: useSynonyms && detectedSynonyms.length > 0 ? 
-        'Symbol-Aware + Synonyms' : 'Symbol-Aware Exact Match'
+        'Enhanced Symbol-Aware + Synonyms' : 'Enhanced Symbol-Aware Search'
     };
 
   } catch (error) {
@@ -363,6 +410,9 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
     };
   }
 };
+
+// ... (rest of the component code remains exactly the same as previous version)
+// Hanya ganti bagian performExactMatchSearch dan fungsi-fungsi terkait symbols di atas
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -623,7 +673,7 @@ export default function Home() {
         setActiveSynonyms(searchWithSynonyms.synonyms);
       } else {
         setSearchResults(searchWithoutSynonyms.results);
-        setSearchMethod('Symbol-Aware Exact Match');
+        setSearchMethod('Enhanced Symbol-Aware Search');
         setActiveSynonyms([]);
       }
       
@@ -1083,7 +1133,7 @@ export default function Home() {
                             padding: '0.2rem 0.4rem',
                             borderRadius: '10px'
                           }}>
-                            Symbol-Aware
+                            Enhanced Symbols
                           </span>
                         </div>
                         {suggestions.map((item, index) => (
@@ -1211,7 +1261,7 @@ export default function Home() {
             }}>
               🚀 {searchMethod} • {searchResults.length} hasil relevan
               {liveSearchEnabled && ' • 🔴 Live'} 
-              • 📊 Symbol-Aware
+              • 📊 Enhanced Symbols
               • {synonymsEnabled ? '🌐 Synonyms ON' : '🔤 Synonyms OFF'}
               {detectedLanguage && ` • ${detectedLanguage.toUpperCase()}`}
             </div>
