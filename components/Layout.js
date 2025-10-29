@@ -1,4 +1,4 @@
-// components/Layout.js - EXTENDED VERSION
+// components/Layout.js
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Header from './Header'
@@ -10,7 +10,8 @@ export default function Layout({ children, isMobile }) {
   const [chatbotConfig, setChatbotConfig] = useState({
     enabled: true,
     autoOpen: false,
-    position: 'bottom-right'
+    position: 'bottom-right',
+    welcomeMessage: true
   })
   const router = useRouter()
 
@@ -18,13 +19,15 @@ export default function Layout({ children, isMobile }) {
     setCurrentPath(router.pathname)
     
     // Load chatbot preferences dari localStorage
-    const savedChatbotPrefs = localStorage.getItem('chatbotPreferences')
-    if (savedChatbotPrefs) {
-      try {
-        const prefs = JSON.parse(savedChatbotPrefs)
-        setChatbotConfig(prev => ({ ...prev, ...prefs }))
-      } catch (error) {
-        console.error('Error loading chatbot preferences:', error)
+    if (typeof window !== 'undefined') {
+      const savedChatbotPrefs = localStorage.getItem('chatbotPreferences')
+      if (savedChatbotPrefs) {
+        try {
+          const prefs = JSON.parse(savedChatbotPrefs)
+          setChatbotConfig(prev => ({ ...prev, ...prefs }))
+        } catch (error) {
+          console.error('Error loading chatbot preferences:', error)
+        }
       }
     }
   }, [router.pathname])
@@ -32,7 +35,6 @@ export default function Layout({ children, isMobile }) {
   // Konfigurasi chatbot berdasarkan halaman
   useEffect(() => {
     const pageConfig = {
-      // Default configuration
       '/': { 
         enabled: true, 
         autoOpen: false,
@@ -55,16 +57,19 @@ export default function Layout({ children, isMobile }) {
       },
       '/kritik-saran': { 
         enabled: true, 
-        autoOpen: true, // Auto open di halaman feedback
+        autoOpen: true,
         welcomeMessage: true
       },
       '/chatbot': { 
-        enabled: false, // Disable floating button di halaman chatbot khusus
+        enabled: false,
         autoOpen: false
       },
-      // Tambahkan halaman admin atau lainnya yang perlu disable chatbot
-      '/admin': { enabled: false },
-      '/login': { enabled: false }
+      '/admin': { 
+        enabled: false 
+      },
+      '/login': { 
+        enabled: false 
+      }
     }
 
     const config = pageConfig[router.pathname] || pageConfig['/']
@@ -79,19 +84,6 @@ export default function Layout({ children, isMobile }) {
     }
   }, [chatbotConfig])
 
-  // Function untuk toggle chatbot (bisa dipanggil dari komponen lain)
-  const toggleChatbot = () => {
-    setChatbotConfig(prev => ({ ...prev, enabled: !prev.enabled }))
-  }
-
-  // Function untuk hide/show chatbot sementara
-  const hideChatbotTemporarily = (duration = 30000) => { // Default 30 detik
-    setChatbotConfig(prev => ({ ...prev, enabled: false }))
-    setTimeout(() => {
-      setChatbotConfig(prev => ({ ...prev, enabled: true }))
-    }, duration)
-  }
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -103,7 +95,6 @@ export default function Layout({ children, isMobile }) {
       
       <main style={{ 
         flex: 1,
-        // Pastikan konten tidak tertutup chatbot
         paddingBottom: chatbotConfig.enabled ? (isMobile ? '80px' : '100px') : '0'
       }}>
         {children}
@@ -120,16 +111,6 @@ export default function Layout({ children, isMobile }) {
           welcomeMessage={chatbotConfig.welcomeMessage}
         />
       )}
-
-      {/* Global styles untuk memastikan chatbot tidak mengganggu */}
-      <style jsx global>{`
-        @media (max-width: 768px) {
-          /* Pastikan elemen penting tidak tertutup chatbot di mobile */
-          .important-mobile-element {
-            margin-bottom: 80px;
-          }
-        }
-      `}</style>
     </div>
   )
 }
