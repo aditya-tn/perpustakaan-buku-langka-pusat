@@ -1,14 +1,12 @@
-// pages/chatbot.js - Halaman Chatbot Khusus
-import { useState } from 'react'
+// pages/chatbot.js
+import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
-import Chatbot from '../components/Chatbot'
 
 export default function ChatbotPage() {
   const [isMobile, setIsMobile] = useState(false)
 
-  // Detect mobile screen
-  useState(() => {
+  useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
     window.addEventListener('resize', checkMobile)
@@ -61,7 +59,7 @@ export default function ChatbotPage() {
           {/* Info Section */}
           <div>
             <h2 style={{ color: '#2d3748', marginBottom: '1.5rem' }}>
-                Yang Dapat AI Pustakawan Bantu
+              Yang Dapat AI Pustakawan Bantu
             </h2>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -133,13 +131,32 @@ export default function ChatbotPage() {
             top: isMobile ? 'auto' : '2rem'
           }}>
             <div style={{
-              height: isMobile ? '60vh' : '500px',
+              height: isMobile ? '500px' : '600px',
               border: '1px solid #e2e8f0',
               borderRadius: '12px',
               overflow: 'hidden',
               boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
             }}>
-              <Chatbot isMobile={isMobile} />
+              {/* Chatbot component will be embedded here */}
+              <div style={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: '#f7fafc',
+                color: '#718096',
+                textAlign: 'center',
+                padding: '2rem'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤖</div>
+                <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
+                  AI Pustakawan
+                </h3>
+                <p>
+                  Chatbot tersedia di semua halaman melalui tombol floating di sudut kanan bawah.
+                </p>
+              </div>
             </div>
             
             {/* Tips */}
