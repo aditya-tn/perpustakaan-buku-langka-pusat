@@ -1,4 +1,4 @@
-// pages/index.js - ENHANCED SYMBOL-AWARE SEARCH
+// pages/index.js - ENHANCED COLON-FLEXIBLE SEARCH
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -118,113 +118,140 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// ENHANCED symbol-aware search terms generator untuk SEMUA jenis simbol
+// ENHANCED symbol-aware search terms generator dengan FLEXIBLE COLON HANDLING
 const createSymbolAwareSearchTerms = (searchQuery) => {
   const terms = [searchQuery]; // Term asli selalu prioritas pertama
   
-  // Buat variasi dengan/symbol untuk exact matching
-  const withSymbolVariations = [];
+  // Normalize query untuk handling simbol
+  const normalizedQuery = searchQuery.replace(/\s+/g, ' ').trim();
   
-  // Daftar simbol yang perlu ditangani
-  const symbolsToHandle = ['.', ':', ';', ',', '-', '/', '\\', '!', '?', '&', "'", '"', '(', ')', '[', ']'];
+  // Variasi dengan/tanpa simbol untuk semua simbol termasuk colon
+  const symbolVariations = [];
   
-  // Handle semua simbol
+  // Daftar simbol yang perlu ditangani - COLON diprioritaskan
+  const symbolsToHandle = [':', '.', ';', ',', '-', '/', '\\', '!', '?', '&', "'", '"', '(', ')', '[', ']'];
+  
+  // Handle semua simbol dengan FLEXIBILITY khusus untuk COLON
   symbolsToHandle.forEach(symbol => {
-    if (searchQuery.includes(symbol)) {
+    if (normalizedQuery.includes(symbol)) {
       // Jika query mengandung simbol, buat versi tanpa simbol
       const regex = new RegExp(`\\${symbol}`, 'g');
-      const withoutSymbol = searchQuery.replace(regex, ' ').replace(/\s+/g, ' ').trim();
-      if (withoutSymbol && withoutSymbol !== searchQuery && !withSymbolVariations.includes(withoutSymbol)) {
-        withSymbolVariations.push(withoutSymbol);
+      const withoutSymbol = normalizedQuery.replace(regex, ' ').replace(/\s+/g, ' ').trim();
+      
+      if (withoutSymbol && withoutSymbol !== normalizedQuery) {
+        symbolVariations.push(withoutSymbol);
       }
       
-      // Juga buat versi dengan spasi di sekitar simbol (jika belum ada)
-      const withSpacedSymbol = searchQuery.replace(regex, ` ${symbol} `).replace(/\s+/g, ' ').trim();
-      if (withSpacedSymbol && withSpacedSymbol !== searchQuery && !withSymbolVariations.includes(withSpacedSymbol)) {
-        withSymbolVariations.push(withSpacedSymbol);
+      // Untuk COLON khusus: buat variasi dengan spasi fleksibel
+      if (symbol === ':') {
+        // Versi dengan spasi sebelum/after colon
+        const withSpacedColon = normalizedQuery.replace(/:\s*/g, ' : ').replace(/\s+/g, ' ').trim();
+        if (withSpacedColon !== normalizedQuery) {
+          symbolVariations.push(withSpacedColon);
+        }
+        
+        // Versi tanpa spasi setelah colon
+        const withoutSpaceAfterColon = normalizedQuery.replace(/:\s+/g, ':').trim();
+        if (withoutSpaceAfterColon !== normalizedQuery) {
+          symbolVariations.push(withoutSpaceAfterColon);
+        }
       }
     } else {
       // Jika query tanpa simbol, coba tambahkan simbol setelah kata kunci
-      const words = searchQuery.split(' ');
-      if (words.length > 1) {
-        // Untuk colon/titik dua, tambahkan setelah kata pertama atau kedua
-        if (symbol === ':') {
-          const withColonAfterFirst = words[0] + ': ' + words.slice(1).join(' ');
-          if (!withSymbolVariations.includes(withColonAfterFirst)) {
-            withSymbolVariations.push(withColonAfterFirst);
-          }
+      // KHUSUS untuk COLON: pattern judul dengan anak judul
+      if (symbol === ':') {
+        const words = normalizedQuery.split(' ');
+        
+        // Pattern 1: Tambahkan colon setelah 2-3 kata pertama (umum untuk judul:subjudul)
+        if (words.length >= 3) {
+          // Setelah kata pertama
+          const withColonAfterFirst = `${words[0]}: ${words.slice(1).join(' ')}`;
+          symbolVariations.push(withColonAfterFirst);
           
-          // Juga coba setelah kata kedua jika ada cukup kata
-          if (words.length > 2) {
-            const withColonAfterSecond = words[0] + ' ' + words[1] + ': ' + words.slice(2).join(' ');
-            if (!withSymbolVariations.includes(withColonAfterSecond)) {
-              withSymbolVariations.push(withColonAfterSecond);
-            }
+          // Setelah kata kedua  
+          const withColonAfterSecond = `${words[0]} ${words[1]}: ${words.slice(2).join(' ')}`;
+          symbolVariations.push(withColonAfterSecond);
+          
+          // Setelah kata ketiga (jika ada cukup kata)
+          if (words.length >= 4) {
+            const withColonAfterThird = `${words[0]} ${words[1]} ${words[2]}: ${words.slice(3).join(' ')}`;
+            symbolVariations.push(withColonAfterThird);
           }
         }
         
-        // Untuk simbol lainnya, tambahkan setelah kata pertama
-        const withSymbol = words[0] + symbol + ' ' + words.slice(1).join(' ');
-        if (!withSymbolVariations.includes(withSymbol)) {
-          withSymbolVariations.push(withSymbol);
+        // Pattern 2: Untuk query pendek, coba di akhir
+        if (words.length === 2) {
+          const withColonAfterFirst = `${words[0]}: ${words[1]}`;
+          symbolVariations.push(withColonAfterFirst);
         }
       }
     }
   });
   
-  // Handle kasus khusus untuk judul dengan struktur "Kultuur Djawa : cultuurgeschiedenis"
-  const words = searchQuery.split(' ');
-  if (words.length >= 3) {
-    // Coba tambahkan colon setelah kata kedua (umum dalam format judul)
-    const withColonAfterSecond = `${words[0]} ${words[1]}: ${words.slice(2).join(' ')}`;
-    if (!withSymbolVariations.includes(withColonAfterSecond) && !searchQuery.includes(':')) {
-      withSymbolVariations.push(withColonAfterSecond);
+  // SPECIAL CASE: Handle judul dengan struktur "Main Title : Subtitle"
+  // Buat variasi yang mengabaikan colon sepenuhnya untuk matching yang lebih fleksibel
+  if (normalizedQuery.includes(':')) {
+    // Buat versi yang menghapus colon dan extra spaces
+    const completelyWithoutColon = normalizedQuery.replace(/:\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    if (completelyWithoutColon && completelyWithoutColon !== normalizedQuery) {
+      symbolVariations.push(completelyWithoutColon);
     }
-    
-    // Juga coba dengan semicolon untuk pemisah pengarang
-    if (searchQuery.includes('/') && searchQuery.includes(';')) {
-      // Jika sudah ada struktur pengarang, buat variasi tanpa semicolon
-      const withoutSemicolon = searchQuery.replace(/;/g, '').replace(/\s+/g, ' ').trim();
-      if (!withSymbolVariations.includes(withoutSemicolon)) {
-        withSymbolVariations.push(withoutSemicolon);
-      }
-    } else if (searchQuery.includes('/') && !searchQuery.includes(';')) {
-      // Jika ada slash tapi tidak ada semicolon, coba tambahkan semicolon
-      const parts = searchQuery.split('/');
-      if (parts.length > 1) {
-        const withSemicolon = parts[0] + '; ' + parts.slice(1).join('/');
-        if (!withSymbolVariations.includes(withSemicolon)) {
-          withSymbolVariations.push(withSemicolon);
+  } else {
+    // Jika tidak ada colon, coba pattern judul:subjudul yang umum
+    const words = normalizedQuery.split(' ');
+    if (words.length >= 4) {
+      // Coba beberapa pattern colon insertion yang umum
+      const possibleColonPositions = [1, 2, 3]; // Setelah kata 1, 2, atau 3
+      
+      possibleColonPositions.forEach(pos => {
+        if (words.length > pos) {
+          const withColon = [
+            ...words.slice(0, pos),
+            ':',
+            ...words.slice(pos)
+          ].join(' ').replace(/\s+/g, ' ').trim();
+          
+          symbolVariations.push(withColon);
         }
-      }
+      });
     }
   }
   
-  // Handle kasus khusus untuk apostrophe (seperti dalam "Moehammad Sjafe'i")
-  if (searchQuery.includes("'")) {
-    const withoutApostrophe = searchQuery.replace(/'/g, '').replace(/\s+/g, ' ').trim();
-    if (!withSymbolVariations.includes(withoutApostrophe)) {
-      withSymbolVariations.push(withoutApostrophe);
-    }
-  }
-  
-  // Juga buat variasi kapitalisasi untuk kata pertama
+  // Tambahkan variasi kapitalisasi
+  const words = normalizedQuery.split(' ');
   if (words.length > 0) {
     const capitalizedFirst = words[0].charAt(0).toUpperCase() + words[0].slice(1);
     if (capitalizedFirst !== words[0]) {
       const withCapitalized = [capitalizedFirst, ...words.slice(1)].join(' ');
-      if (!withSymbolVariations.includes(withCapitalized)) {
-        withSymbolVariations.push(withCapitalized);
-      }
+      symbolVariations.push(withCapitalized);
+    }
+    
+    // Juga coba capitalize semua kata utama (untuk judul)
+    const titleCase = words.map(word => 
+      word.length > 3 ? word.charAt(0).toUpperCase() + word.slice(1) : word
+    ).join(' ');
+    if (titleCase !== normalizedQuery) {
+      symbolVariations.push(titleCase);
     }
   }
   
-  return [...new Set([...terms, ...withSymbolVariations])]; // Hapus duplikat
+  // Hapus duplikat dan pastikan term asli tetap pertama
+  const allTerms = [...new Set([...terms, ...symbolVariations])];
+  
+  console.log('🔍 Enhanced Colon-Aware Search Terms:', {
+    original: searchQuery,
+    variations: allTerms
+  });
+  
+  return allTerms;
 };
 
-// ENHANCED ranking dengan improved symbol handling
+// ENHANCED ranking dengan improved COLON-AGNOSTIC matching
 const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery, expandedTerms = []) => {
   const lowerQuery = originalQuery.toLowerCase();
+  
+  // Normalize query untuk colon-agnostic comparison
+  const normalizedQuery = originalQuery.replace(/:\s*/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
   
   const scoredResults = results.map(book => {
     let score = 0;
@@ -232,27 +259,43 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
     const lowerPengarang = book.pengarang?.toLowerCase() || '';
     const lowerPenerbit = book.penerbit?.toLowerCase() || '';
     
-    // BOOST BESAR UNTUK EXACT MATCH
+    // Normalize judul untuk colon-agnostic comparison
+    const normalizedJudul = lowerJudul.replace(/:\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    // BOOST BESAR UNTUK EXACT MATCH (termasuk dengan/tanpa colon)
     if (lowerJudul === lowerQuery) score += 1000;
+    
+    // BOOST BESAR untuk COLON-AGNOSTIC EXACT MATCH
+    if (normalizedJudul === normalizedQuery) score += 900;
     
     // Boost untuk symbol variations
     if (book._matchType === 'symbol-variation') score += 800;
     
-    // Boost untuk judul yang mengandung query persis
+    // Boost untuk judul yang mengandung query persis (dengan/tanpa colon)
     if (lowerJudul.includes(lowerQuery)) score += 500;
+    
+    // ENHANCED: Boost untuk COLON-AGNOSTIC partial match
+    if (normalizedJudul.includes(normalizedQuery)) score += 450;
     
     // Boost untuk match type
     if (book._matchType === 'exact') score += 400;
     
     // ENHANCED: Character-by-character matching tanpa SEMUA simbol
-    const judulChars = lowerJudul.replace(/[^\w\s]/g, ''); // Hapus semua simbol, pertahankan huruf+angka+spasi
+    const judulChars = lowerJudul.replace(/[^\w\s]/g, '');
     const queryChars = lowerQuery.replace(/[^\w\s]/g, '');
     if (judulChars.includes(queryChars)) score += 300;
     
-    // ENHANCED: Exact word matching tanpa simbol spesifik (colon, semicolon, dll)
-    const judulWords = lowerJudul.replace(/[:;,!?]/g, ''); // Hanya hapus simbol tertentu
+    // ENHANCED: Flexible word matching yang mengabaikan colon
+    const judulWords = lowerJudul.replace(/[:;,!?]/g, '');
     const queryWords = lowerQuery.replace(/[:;,!?]/g, '');
     if (judulWords.includes(queryWords)) score += 250;
+    
+    // SPECIAL: Additional boost untuk colon-flexible matching
+    const judulNoColon = lowerJudul.replace(/:\s*/g, ' ');
+    const queryNoColon = lowerQuery.replace(/:\s*/g, ' ');
+    if (judulNoColon.includes(queryNoColon) && queryNoColon.length > 10) {
+      score += 200;
+    }
     
     // Traditional word matching
     searchWords.forEach(word => {
@@ -294,7 +337,7 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
   });
 };
 
-// Enhanced exact match search dengan symbol handling
+// Enhanced exact match search dengan COLON-FLEXIBLE handling
 const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
   const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
   
@@ -302,7 +345,7 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
     let searchTerms = [];
     let detectedSynonyms = [];
 
-    // BUAT TERMS DENGAN SYMBOL AWARENESS
+    // BUAT TERMS DENGAN COLON-FLEXIBLE AWARENESS
     const symbolAwareTerms = createSymbolAwareSearchTerms(searchQuery);
     searchTerms = [...symbolAwareTerms];
 
@@ -312,23 +355,41 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       detectedSynonyms = expandedData.synonyms;
     }
 
-    console.log('🔍 Enhanced symbol-aware search terms:', searchTerms);
+    console.log('🔍 Enhanced Colon-Flexible Search Terms:', {
+      original: searchQuery,
+      terms: searchTerms,
+      synonyms: detectedSynonyms
+    });
 
-    // BUAT MULTI-LEVEL QUERY: Exact Match -> Symbol Variations -> Fuzzy Match
+    // BUAT MULTI-LEVEL QUERY dengan COLON-FLEXIBLE priority
     const exactMatchPromise = supabase
       .from('books')
       .select('*')
       .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%`);
 
-    // Symbol variations search
-    const symbolVariationsPromises = symbolAwareTerms
-      .filter(term => term !== searchQuery)
-      .map(term => 
-        supabase
-          .from('books')
-          .select('*')
-          .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%`)
-      );
+    // Colon-flexible variations search (HIGH PRIORITY)
+    const colonFlexibleTerms = symbolAwareTerms
+      .filter(term => term !== searchQuery && 
+        (term.includes(':') || searchQuery.includes(':') || 
+         term.replace(/:/g, '') === searchQuery.replace(/:/g, '')));
+    
+    const colonFlexiblePromises = colonFlexibleTerms.map(term => 
+      supabase
+        .from('books')
+        .select('*')
+        .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%`)
+    );
+
+    // Other symbol variations
+    const otherSymbolTerms = symbolAwareTerms
+      .filter(term => !colonFlexibleTerms.includes(term) && term !== searchQuery);
+    
+    const otherSymbolPromises = otherSymbolTerms.map(term => 
+      supabase
+        .from('books')
+        .select('*')
+        .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%`)
+    );
 
     // Fuzzy/synonyms search
     const fuzzyMatchPromises = searchTerms
@@ -340,13 +401,19 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
           .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
       );
 
-    const allPromises = [exactMatchPromise, ...symbolVariationsPromises, ...fuzzyMatchPromises];
+    const allPromises = [
+      exactMatchPromise, 
+      ...colonFlexiblePromises, 
+      ...otherSymbolPromises, 
+      ...fuzzyMatchPromises
+    ];
+    
     const allResults = await Promise.all(allPromises);
     
     const combinedResults = [];
     const seenIds = new Set();
     
-    // PROCESS RESULTS WITH PRIORITY LEVELS
+    // PROCESS RESULTS WITH COLON-FLEXIBLE PRIORITY
     allResults.forEach(({ data }, index) => {
       if (data) {
         data.forEach(item => {
@@ -356,7 +423,8 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
             // Tentukan match type berdasarkan priority level
             let matchType = 'fuzzy';
             if (index === 0) matchType = 'exact'; // Exact match query
-            else if (index <= symbolVariationsPromises.length) matchType = 'symbol-variation';
+            else if (index <= colonFlexiblePromises.length) matchType = 'colon-flexible';
+            else if (index <= colonFlexiblePromises.length + otherSymbolPromises.length) matchType = 'symbol-variation';
             
             combinedResults.push({ 
               ...item, 
@@ -398,11 +466,11 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       results: finalResults,
       synonyms: detectedSynonyms,
       method: useSynonyms && detectedSynonyms.length > 0 ? 
-        'Enhanced Symbol-Aware + Synonyms' : 'Enhanced Symbol-Aware Search'
+        'Enhanced Colon-Flexible + Synonyms' : 'Enhanced Colon-Flexible Search'
     };
 
   } catch (error) {
-    console.error('Exact match search error:', error);
+    console.error('Colon-flexible search error:', error);
     return {
       results: [],
       synonyms: [],
@@ -410,9 +478,6 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
     };
   }
 };
-
-// ... (rest of the component code remains exactly the same as previous version)
-// Hanya ganti bagian performExactMatchSearch dan fungsi-fungsi terkait symbols di atas
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -673,7 +738,7 @@ export default function Home() {
         setActiveSynonyms(searchWithSynonyms.synonyms);
       } else {
         setSearchResults(searchWithoutSynonyms.results);
-        setSearchMethod('Enhanced Symbol-Aware Search');
+        setSearchMethod('Enhanced Colon-Flexible Search');
         setActiveSynonyms([]);
       }
       
@@ -1133,7 +1198,7 @@ export default function Home() {
                             padding: '0.2rem 0.4rem',
                             borderRadius: '10px'
                           }}>
-                            Enhanced Symbols
+                            Enhanced Colon-Flexible
                           </span>
                         </div>
                         {suggestions.map((item, index) => (
@@ -1242,6 +1307,7 @@ export default function Home() {
                 {isTyping ? 'Mengetik...' : loading ? 'Mencari...' : 'Live search aktif'}
                 <span style={{ marginLeft: '0.5rem' }}>
                   • {synonymsEnabled ? '🌐 Synonyms ON' : '🔤 Exact Match'}
+                  • 🎯 Colon-Flexible
                 </span>
               </div>
             )}
@@ -1261,7 +1327,7 @@ export default function Home() {
             }}>
               🚀 {searchMethod} • {searchResults.length} hasil relevan
               {liveSearchEnabled && ' • 🔴 Live'} 
-              • 📊 Enhanced Symbols
+              • 🎯 Colon-Flexible
               • {synonymsEnabled ? '🌐 Synonyms ON' : '🔤 Synonyms OFF'}
               {detectedLanguage && ` • ${detectedLanguage.toUpperCase()}`}
             </div>
@@ -1512,6 +1578,16 @@ export default function Home() {
                   fontWeight: '600'
                 }}>
                   {synonymsEnabled ? '🌐 Pencarian dengan Synonyms' : '🔤 Pencarian Exact Match Only'}
+                  <span style={{
+                    backgroundColor: '#4299e1',
+                    color: 'white',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '12px',
+                    fontSize: '0.7rem',
+                    marginLeft: 'auto'
+                  }}>
+                    🎯 Colon-Flexible
+                  </span>
                   <button
                     onClick={toggleSynonyms}
                     style={{
@@ -1520,8 +1596,7 @@ export default function Home() {
                       color: synonymsEnabled ? '#2b6cb0' : '#38a169',
                       cursor: 'pointer',
                       fontSize: '0.7rem',
-                      textDecoration: 'underline',
-                      marginLeft: 'auto'
+                      textDecoration: 'underline'
                     }}
                   >
                     {synonymsEnabled ? 'Matikan synonyms' : 'Nyalakan synonyms'}
@@ -1623,6 +1698,9 @@ export default function Home() {
                         {' '}• {activeSynonyms.length} synonyms
                       </span>
                     )}
+                    <span style={{color: '#d69e2e', fontWeight: '600'}}>
+                      {' '}• 🎯 Colon-Flexible Matching
+                    </span>
                   </>
                 )}
               </p>
@@ -1695,13 +1773,31 @@ export default function Home() {
                   </div>
                 )}
                 
+                {/* Colon-Flexible Match Indicator */}
+                {book._matchType === 'colon-flexible' && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    left: '-8px',
+                    backgroundColor: '#d69e2e',
+                    color: 'white',
+                    fontSize: '0.6rem',
+                    padding: '0.2rem 0.4rem',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    zIndex: 2
+                  }}>
+                    COLON-FLEXIBLE
+                  </div>
+                )}
+                
                 {/* Symbol Variation Match Indicator */}
                 {book._matchType === 'symbol-variation' && (
                   <div style={{
                     position: 'absolute',
                     top: '-8px',
                     left: '-8px',
-                    backgroundColor: '#d69e2e',
+                    backgroundColor: '#805ad5',
                     color: 'white',
                     fontSize: '0.6rem',
                     padding: '0.2rem 0.4rem',
