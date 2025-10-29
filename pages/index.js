@@ -1,4 +1,4 @@
-// pages/index.js - COMPREHENSIVE SYMBOL-AWARE SEARCH
+// pages/index.js - FIXED SYMBOL-AWARE SEARCH
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -118,7 +118,7 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// COMPREHENSIVE SYMBOL-AWARE SEARCH TERMS GENERATOR
+// COMPREHENSIVE SYMBOL-AWARE SEARCH TERMS GENERATOR - FIXED
 const createSymbolAwareSearchTerms = (searchQuery) => {
   const terms = new Set([searchQuery]); // Term asli selalu prioritas pertama
   
@@ -156,10 +156,6 @@ const createSymbolAwareSearchTerms = (searchQuery) => {
     symbols.forEach(symbol => {
       const withSymbol = words.join(symbol + ' ');
       terms.add(withSymbol);
-      
-      // Juga dengan spasi setelah simbol
-      const withSymbolSpace = words.join(symbol + ' ');
-      terms.add(withSymbolSpace);
     });
   }
   
@@ -180,10 +176,13 @@ const createSymbolAwareSearchTerms = (searchQuery) => {
     terms.add(mixedCaseQuery);
   }
   
+  // DEBUG: Log terms yang dihasilkan
+  console.log('🔍 Generated search terms for:', searchQuery, Array.from(terms));
+  
   return Array.from(terms).filter(term => term.length > 0);
 };
 
-// Enhanced ranking dengan symbol variation boost
+// Enhanced ranking dengan symbol variation boost - FIXED
 const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery, expandedTerms = []) => {
   const lowerQuery = originalQuery.toLowerCase();
   
@@ -194,7 +193,10 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
     const lowerPenerbit = book.penerbit?.toLowerCase() || '';
     
     // BOOST BESAR UNTUK EXACT MATCH
-    if (lowerJudul === lowerQuery) score += 1000; // Boost sangat besar untuk judul exact
+    if (lowerJudul === lowerQuery) {
+      score += 1000; // Boost sangat besar untuk judul exact
+      console.log('🎯 Exact match found:', book.judul);
+    }
     
     // Boost untuk symbol variations
     if (book._matchType === 'symbol-variation') score += 800;
@@ -256,7 +258,7 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
   });
 };
 
-// COMPREHENSIVE SYMBOL-AWARE SEARCH
+// COMPREHENSIVE SYMBOL-AWARE SEARCH - FIXED VERSION
 const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
   const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
   
@@ -287,20 +289,38 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       detectedSynonyms = expandedData.synonyms;
     }
 
-    console.log('🔍 Symbol-aware search terms:', searchTerms);
+    console.log('🔍 Final search terms:', searchTerms);
 
-    // BUAT MULTI-LEVEL QUERY: Exact Match -> Symbol Variations -> Fuzzy Match
+    // BUAT SEARCH PROMISES UNTUK SETIAP TERM
     const searchPromises = searchTerms.map((term, index) => {
       let matchType = 'fuzzy';
       if (index === 0) matchType = 'exact'; // First term is exact match
       else if (index < symbolAwareTerms.length) matchType = 'symbol-variation';
       
+      // FIX: Gunakan text search yang lebih robust
       return supabase
         .from('books')
         .select('*')
-        .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%`)
+        .textSearch('judul', term, {
+          type: 'websearch',
+          config: 'indonesian'
+        })
         .then(({ data, error }) => {
-          if (error) throw error;
+          if (error) {
+            console.error('Search error for term:', term, error);
+            // Fallback ke ILIKE jika textSearch gagal
+            return supabase
+              .from('books')
+              .select('*')
+              .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%`)
+              .then(({ data: fallbackData, error: fallbackError }) => {
+                if (fallbackError) {
+                  console.error('Fallback search error:', fallbackError);
+                  return { data: [], matchType, searchTerm: term };
+                }
+                return { data: fallbackData || [], matchType, searchTerm: term };
+              });
+          }
           return { data: data || [], matchType, searchTerm: term };
         });
     });
@@ -313,6 +333,7 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
     // PROCESS RESULTS WITH PRIORITY LEVELS
     allResults.forEach((result, index) => {
       if (result.data && result.data.length > 0) {
+        console.log(`✅ Found ${result.data.length} results for: "${result.searchTerm}" (${result.matchType})`);
         result.data.forEach(item => {
           if (!seenIds.has(item.id)) {
             seenIds.add(item.id);
@@ -323,18 +344,23 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
             });
           }
         });
+      } else {
+        console.log(`❌ No results for: "${result.searchTerm}" (${result.matchType})`);
       }
     });
 
-    // Fallback jika tidak ada hasil - gunakan traditional search
+    console.log(`📊 Total combined results: ${combinedResults.length}`);
+
+    // Fallback jika tidak ada hasil - gunakan traditional search dengan ILIKE
     if (combinedResults.length === 0) {
-      console.log('🔄 No results found, trying fallback search...');
+      console.log('🔄 No results found, trying fallback ILIKE search...');
       const fallbackSearch = await supabase
         .from('books')
         .select('*')
         .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`);
       
       if (fallbackSearch.data && fallbackSearch.data.length > 0) {
+        console.log(`🔄 Fallback found ${fallbackSearch.data.length} results`);
         fallbackSearch.data.forEach(item => {
           if (!seenIds.has(item.id)) {
             seenIds.add(item.id);
@@ -354,6 +380,8 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       searchQuery, 
       searchTerms
     );
+    
+    console.log(`🎯 Final ranked results: ${finalResults.length}`);
     
     return {
       results: finalResults,
