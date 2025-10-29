@@ -2,8 +2,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-const Chatbot = ({ isMobile }) => {
-  const [isOpen, setIsOpen] = useState(false)
+const Chatbot = ({ 
+  isMobile, 
+  autoOpen = false,
+  position = 'bottom-right',
+  welcomeMessage = true 
+}) => {
+  const [isOpen, setIsOpen] = useState(autoOpen)
   const [messages, setMessages] = useState([])
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -18,9 +23,41 @@ const Chatbot = ({ isMobile }) => {
     "Cara mencari naskah kuno?"
   ]
 
+  // Position styling
+  const getPositionStyles = () => {
+    const baseStyles = {
+      bottom: isMobile ? '20px' : '30px',
+      right: isMobile ? '20px' : '30px'
+    }
+
+    switch (position) {
+      case 'bottom-left':
+        return {
+          bottom: isMobile ? '20px' : '30px',
+          left: isMobile ? '20px' : '30px'
+        }
+      case 'top-right':
+        return {
+          top: isMobile ? '20px' : '30px',
+          right: isMobile ? '20px' : '30px'
+        }
+      case 'top-left':
+        return {
+          top: isMobile ? '20px' : '30px',
+          left: isMobile ? '20px' : '30px'
+        }
+      default: // bottom-right
+        return baseStyles
+    }
+  }
+
+  const positionStyles = getPositionStyles()
+
   // Scroll to bottom
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
   }
 
   useEffect(() => {
@@ -29,7 +66,7 @@ const Chatbot = ({ isMobile }) => {
 
   // Initialize with welcome message
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    if (isOpen && messages.length === 0 && welcomeMessage) {
       setMessages([
         {
           id: 1,
@@ -39,7 +76,14 @@ const Chatbot = ({ isMobile }) => {
         }
       ])
     }
-  }, [isOpen])
+  }, [isOpen, welcomeMessage])
+
+  // Auto open effect
+  useEffect(() => {
+    if (autoOpen) {
+      setIsOpen(true)
+    }
+  }, [autoOpen])
 
   // Extract search terms from query
   const extractSearchTerms = (query) => {
@@ -137,7 +181,7 @@ const Chatbot = ({ isMobile }) => {
       setMessages(prev => [...prev, userMessage])
 
       // Process and get bot response
-      let botResponse = await generateBotResponse(query)
+      const botResponse = await generateBotResponse(query)
       
       // Add bot response
       const botMessage = {
@@ -182,6 +226,36 @@ const Chatbot = ({ isMobile }) => {
     processUserQuery(question)
   }
 
+  // Get chat interface position
+  const getChatInterfacePosition = () => {
+    const baseStyle = {
+      bottom: isMobile ? '90px' : '110px',
+      right: isMobile ? '20px' : '30px'
+    }
+
+    switch (position) {
+      case 'bottom-left':
+        return {
+          bottom: isMobile ? '90px' : '110px',
+          left: isMobile ? '20px' : '30px'
+        }
+      case 'top-right':
+        return {
+          top: isMobile ? '90px' : '110px',
+          right: isMobile ? '20px' : '30px'
+        }
+      case 'top-left':
+        return {
+          top: isMobile ? '90px' : '110px',
+          left: isMobile ? '20px' : '30px'
+        }
+      default:
+        return baseStyle
+    }
+  }
+
+  const chatInterfaceStyle = getChatInterfacePosition()
+
   return (
     <>
       {/* Chatbot Toggle Button */}
@@ -189,8 +263,7 @@ const Chatbot = ({ isMobile }) => {
         onClick={toggleChatbot}
         style={{
           position: 'fixed',
-          bottom: isMobile ? '20px' : '30px',
-          right: isMobile ? '20px' : '30px',
+          ...positionStyles,
           width: isMobile ? '60px' : '70px',
           height: isMobile ? '60px' : '70px',
           borderRadius: '50%',
@@ -222,8 +295,7 @@ const Chatbot = ({ isMobile }) => {
       {isOpen && (
         <div style={{
           position: 'fixed',
-          bottom: isMobile ? '90px' : '110px',
-          right: isMobile ? '20px' : '30px',
+          ...chatInterfaceStyle,
           width: isMobile ? 'calc(100vw - 40px)' : '400px',
           height: isMobile ? '60vh' : '500px',
           backgroundColor: 'white',
@@ -250,8 +322,7 @@ const Chatbot = ({ isMobile }) => {
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                backgroundColor: '#48bb78',
-                animation: 'pulse 2s infinite'
+                backgroundColor: '#48bb78'
               }} />
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
                 AI Pustakawan
@@ -332,27 +403,18 @@ const Chatbot = ({ isMobile }) => {
                     display: 'flex',
                     gap: '0.2rem'
                   }}>
-                    <div style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      backgroundColor: '#667eea',
-                      animation: 'pulse 1.5s infinite'
-                    }} />
-                    <div style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      backgroundColor: '#667eea',
-                      animation: 'pulse 1.5s infinite 0.2s'
-                    }} />
-                    <div style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      backgroundColor: '#667eea',
-                      animation: 'pulse 1.5s infinite 0.4s'
-                    }} />
+                    {[0, 1, 2].map((index) => (
+                      <div
+                        key={index}
+                        style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: '#667eea',
+                          animation: `pulse 1.5s infinite ${index * 0.2}s`
+                        }}
+                      />
+                    ))}
                   </div>
                   <span style={{ fontSize: '0.8rem', color: '#718096' }}>
                     AI Pustakawan sedang mengetik...
