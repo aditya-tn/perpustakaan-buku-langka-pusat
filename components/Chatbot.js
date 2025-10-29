@@ -9,7 +9,7 @@ const Chatbot = ({ isMobile }) => {
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef(null)
 
-  // Predefined questions untuk memudahkan pengguna
+  // Predefined questions
   const predefinedQuestions = [
     "Bagaimana cara memesan buku langka?",
     "Apa syarat mengakses koleksi buku langka?",
@@ -18,7 +18,7 @@ const Chatbot = ({ isMobile }) => {
     "Cara mencari naskah kuno?"
   ]
 
-  // Scroll ke bawah otomatis
+  // Scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -27,7 +27,7 @@ const Chatbot = ({ isMobile }) => {
     scrollToBottom()
   }, [messages])
 
-  // Inisialisasi chat dengan welcome message
+  // Initialize with welcome message
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       setMessages([
@@ -41,53 +41,37 @@ const Chatbot = ({ isMobile }) => {
     }
   }, [isOpen])
 
-  // Fungsi untuk memproses pertanyaan pengguna
-  const processUserQuery = async (query) => {
-    setIsLoading(true)
-    
+  // Extract search terms from query
+  const extractSearchTerms = (query) => {
+    const stopWords = ['cari', 'carikan', 'rekomendasi', 'buku', 'tentang', 'apa', 'ada', 'yang', 'di', 'ke']
+    const words = query.toLowerCase().split(' ')
+    return words.filter(word => !stopWords.includes(word) && word.length > 2).join(' ')
+  }
+
+  // Search books from database
+  const searchBooks = async (searchTerm) => {
+    if (!searchTerm) return []
+
     try {
-      // Tambahkan pesan pengguna
-      const userMessage = {
-        id: Date.now(),
-        text: query,
-        isBot: false,
-        timestamp: new Date()
-      }
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
+        .limit(5)
 
-      setMessages(prev => [...prev, userMessage])
-
-      // Proses pertanyaan dengan berbagai tipe
-      let botResponse = await generateBotResponse(query)
-      
-      // Tambahkan response bot
-      const botMessage = {
-        id: Date.now() + 1,
-        text: botResponse,
-        isBot: true,
-        timestamp: new Date()
-      }
-
-      setMessages(prev => [...prev, botMessage])
-
+      if (error) throw error
+      return data || []
     } catch (error) {
-      console.error('Chatbot error:', error)
-      const errorMessage = {
-        id: Date.now() + 1,
-        text: "Maaf, terjadi kesalahan. Silakan coba lagi atau hubungi pustakawan kami langsung.",
-        isBot: true,
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
+      console.error('Search books error:', error)
+      return []
     }
   }
 
-  // Generate response berdasarkan query
+  // Generate bot response based on query
   const generateBotResponse = async (query) => {
     const lowerQuery = query.toLowerCase()
 
-    // Cek pertanyaan tentang layanan
+    // Service questions
     if (lowerQuery.includes('pesan') || lowerQuery.includes('memesan') || lowerQuery.includes('booking')) {
       return `Untuk memesan buku langka:\n\n1. Login ke akun Perpustakaan Nasional\n2. Kunjungi halaman "Layanan"\n3. Pilih "Pemesanan Koleksi Buku Langka"\n4. Isi formulir dengan detail buku yang diinginkan\n5. Tunggu konfirmasi via email\n\n📚 Buku akan disiapkan di ruang baca khusus.`
     }
@@ -104,8 +88,8 @@ const Chatbot = ({ isMobile }) => {
       return `Untuk memesan ruang baca khusus:\n\n1. Minimal 3 hari sebelumnya\n2. Maksimal 2 jam per sesi\n3. Maksimal 5 buku per sesi\n4. Tidak boleh membawa tas\n5. Hanya boleh menggunakan laptop dan alat tulis\n\n📞 Hubungi: (021) 5220100 ext. 1234`
     }
 
-    // Cari buku berdasarkan query
-    if (lowerQuery.includes('cari') || lowerQuery.includes('cari') || lowerQuery.includes('rekomendasi') || 
+    // Search for books
+    if (lowerQuery.includes('cari') || lowerQuery.includes('rekomendasi') || 
         lowerQuery.includes('buku tentang') || lowerQuery.includes('naskah')) {
       
       const searchTerms = extractSearchTerms(query)
@@ -133,33 +117,49 @@ const Chatbot = ({ isMobile }) => {
       }
     }
 
-    // Default response untuk pertanyaan umum
+    // Default response
     return `Terima kasih atas pertanyaannya! 🤖\n\nSaya AI Pustakawan khusus koleksi buku langka. Saya dapat membantu Anda dengan:\n\n• Pencarian koleksi buku\n• Informasi layanan pemesanan\n• Jam operasional\n• Syarat akses\n• Rekomendasi buku\n\nSilakan tanyakan hal spesifik tentang koleksi kami!`
   }
 
-  // Extract search terms dari query
-  const extractSearchTerms = (query) => {
-    const stopWords = ['cari', 'carikan', 'rekomendasi', 'buku', 'tentang', 'apa', 'ada', 'yang', 'di', 'ke']
-    const words = query.toLowerCase().split(' ')
-    return words.filter(word => !stopWords.includes(word) && word.length > 2).join(' ')
-  }
-
-  // Search books dari database
-  const searchBooks = async (searchTerm) => {
-    if (!searchTerm) return []
-
+  // Process user query
+  const processUserQuery = async (query) => {
+    setIsLoading(true)
+    
     try {
-      const { data, error } = await supabase
-        .from('books')
-        .select('*')
-        .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
-        .limit(5)
+      // Add user message
+      const userMessage = {
+        id: Date.now(),
+        text: query,
+        isBot: false,
+        timestamp: new Date()
+      }
 
-      if (error) throw error
-      return data || []
+      setMessages(prev => [...prev, userMessage])
+
+      // Process and get bot response
+      let botResponse = await generateBotResponse(query)
+      
+      // Add bot response
+      const botMessage = {
+        id: Date.now() + 1,
+        text: botResponse,
+        isBot: true,
+        timestamp: new Date()
+      }
+
+      setMessages(prev => [...prev, botMessage])
+
     } catch (error) {
-      console.error('Search books error:', error)
-      return []
+      console.error('Chatbot error:', error)
+      const errorMessage = {
+        id: Date.now() + 1,
+        text: "Maaf, terjadi kesalahan. Silakan coba lagi atau hubungi pustakawan kami langsung.",
+        isBot: true,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -175,6 +175,11 @@ const Chatbot = ({ isMobile }) => {
   // Toggle chatbot
   const toggleChatbot = () => {
     setIsOpen(!isOpen)
+  }
+
+  // Handle predefined question click
+  const handlePredefinedQuestion = (question) => {
+    processUserQuery(question)
   }
 
   return (
@@ -217,7 +222,7 @@ const Chatbot = ({ isMobile }) => {
       {isOpen && (
         <div style={{
           position: 'fixed',
-          bottom: isMobile ? '80px' : '100px',
+          bottom: isMobile ? '90px' : '110px',
           right: isMobile ? '20px' : '30px',
           width: isMobile ? 'calc(100vw - 40px)' : '400px',
           height: isMobile ? '60vh' : '500px',
@@ -249,7 +254,7 @@ const Chatbot = ({ isMobile }) => {
                 animation: 'pulse 2s infinite'
               }} />
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
-                AI Pustakawan Buku Langka
+                AI Pustakawan
               </h3>
             </div>
             <button
@@ -381,7 +386,7 @@ const Chatbot = ({ isMobile }) => {
                 {predefinedQuestions.map((question, index) => (
                   <button
                     key={index}
-                    onClick={() => processUserQuery(question)}
+                    onClick={() => handlePredefinedQuestion(question)}
                     style={{
                       padding: '0.5rem 0.75rem',
                       backgroundColor: '#f7fafc',
