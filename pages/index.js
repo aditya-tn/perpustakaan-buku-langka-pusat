@@ -118,69 +118,128 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// COMPREHENSIVE SYMBOL-AWARE SEARCH TERMS GENERATOR - FIXED
+// COMPREHENSIVE SYMBOL-AWARE SEARCH FOR . : / IN ALL POSITIONS
 const createSymbolAwareSearchTerms = (searchQuery) => {
   const terms = new Set([searchQuery]); // Term asli selalu prioritas pertama
   
-  // Normalize query untuk processing
   const normalizedQuery = searchQuery.toLowerCase().trim();
+  const words = normalizedQuery.split(' ').filter(w => w.length > 0);
   
-  // Handle berbagai simbol: . , : ; / - _
-  const symbols = ['.', ',', ':', ';', '/', '-', '_'];
+  if (words.length === 0) return [searchQuery];
   
-  // Variasi 1: Hapus semua simbol (clean version)
-  let cleanVersion = normalizedQuery;
-  symbols.forEach(symbol => {
-    cleanVersion = cleanVersion.replace(new RegExp(`\\${symbol}`, 'g'), ' ');
-  });
-  cleanVersion = cleanVersion.replace(/\s+/g, ' ').trim();
+  // HANYA HANDLE 3 SIMBOL: . : /
+  
+  // 1. Clean version (tanpa simbol . : /)
+  let cleanVersion = normalizedQuery.replace(/[.:\/]/g, ' ').replace(/\s+/g, ' ').trim();
   if (cleanVersion && cleanVersion !== normalizedQuery) {
     terms.add(cleanVersion);
   }
   
-  // Variasi 2: Tambahkan titik setelah kata pertama (common pattern)
-  const words = normalizedQuery.split(' ');
+  // 2. Titik di berbagai posisi
   if (words.length > 1) {
+    // Titik setelah kata pertama
     const firstWordWithDot = words[0] + '.';
     const withFirstWordDot = [firstWordWithDot, ...words.slice(1)].join(' ');
     terms.add(withFirstWordDot);
     
-    // Juga versi capitalized
-    const capitalized = words[0].charAt(0).toUpperCase() + words[0].slice(1) + '.';
-    const withCapitalizedDot = [capitalized, ...words.slice(1)].join(' ');
-    terms.add(withCapitalizedDot);
-  }
-  
-  // Variasi 3: Ganti spasi dengan berbagai simbol
-  if (words.length > 1) {
-    symbols.forEach(symbol => {
-      const withSymbol = words.join(symbol + ' ');
-      terms.add(withSymbol);
-    });
-  }
-  
-  // Variasi 4: Handle colon khusus (common dalam judul)
-  if (words.length >= 2) {
-    const withColon = words[0] + ': ' + words.slice(1).join(' ');
-    terms.add(withColon);
+    // Titik setelah kata terakhir
+    const lastWordWithDot = words[words.length - 1] + '.';
+    const withLastWordDot = [...words.slice(0, -1), lastWordWithDot].join(' ');
+    terms.add(withLastWordDot);
     
-    const capitalizedColon = words[0].charAt(0).toUpperCase() + words[0].slice(1) + ': ' + words.slice(1).join(' ');
-    terms.add(capitalizedColon);
+    // Titik di antara semua kata (kecuali pertama dan terakhir)
+    if (words.length > 2) {
+      const middleWordsWithDots = words.map((word, index) => {
+        if (index > 0 && index < words.length - 1) {
+          return word + '.';
+        }
+        return word;
+      });
+      terms.add(middleWordsWithDots.join(' '));
+    }
+    
+    // Capitalized versions dengan titik
+    const capitalizedFirst = words[0].charAt(0).toUpperCase() + words[0].slice(1) + '.';
+    const withCapitalizedFirstDot = [capitalizedFirst, ...words.slice(1)].join(' ');
+    terms.add(withCapitalizedFirstDot);
   }
   
-  // Variasi 5: Mixed case untuk kata pertama (common pattern)
+  // 3. Titik dua di berbagai posisi
+  if (words.length >= 2) {
+    // Titik dua setelah kata pertama
+    const withColonFirst = words[0] + ': ' + words.slice(1).join(' ');
+    terms.add(withColonFirst);
+    
+    // Titik dua setelah kata kedua (jika ada 3+ kata)
+    if (words.length >= 3) {
+      const withColonSecond = words[0] + ' ' + words[1] + ': ' + words.slice(2).join(' ');
+      terms.add(withColonSecond);
+    }
+    
+    // Capitalized colon versions
+    const capitalizedColonFirst = words[0].charAt(0).toUpperCase() + words[0].slice(1) + ': ' + words.slice(1).join(' ');
+    terms.add(capitalizedColonFirst);
+  }
+  
+  // 4. Slash di berbagai posisi
+  if (words.length > 1) {
+    // Slash sebagai pemisah semua kata
+    const withSlashAll = words.join(' / ');
+    terms.add(withSlashAll);
+    
+    // Slash hanya di antara kata pertama dan kedua
+    const withSlashFirst = [words[0] + ' /', ...words.slice(1)].join(' ');
+    terms.add(withSlashFirst);
+    
+    // Slash hanya di antara kata terakhir
+    const withSlashLast = [...words.slice(0, -1), '/ ' + words[words.length - 1]].join(' ');
+    terms.add(withSlashLast);
+  }
+  
+  // 5. Kombinasi simbol (jika query mengandung simbol)
+  if (normalizedQuery.includes('.') || normalizedQuery.includes(':') || normalizedQuery.includes('/')) {
+    // Versi tanpa simbol apapun
+    const noSymbols = normalizedQuery.replace(/[.:\/]/g, ' ').replace(/\s+/g, ' ').trim();
+    terms.add(noSymbols);
+    
+    // Ganti simbol dengan simbol lain
+    if (normalizedQuery.includes('.')) {
+      const withColonInstead = normalizedQuery.replace(/\./g, ':');
+      terms.add(withColonInstead);
+      const withSlashInstead = normalizedQuery.replace(/\./g, '/');
+      terms.add(withSlashInstead);
+    }
+    if (normalizedQuery.includes(':')) {
+      const withDotInstead = normalizedQuery.replace(/:/g, '.');
+      terms.add(withDotInstead);
+    }
+    if (normalizedQuery.includes('/')) {
+      const withDotInstead = normalizedQuery.replace(/\//g, '.');
+      terms.add(withDotInstead);
+    }
+  }
+  
+  // 6. Mixed case untuk berbagai kata
   if (words.length > 0) {
-    const firstWord = words[0];
-    const mixedCase = firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
-    const mixedCaseQuery = [mixedCase, ...words.slice(1)].join(' ');
-    terms.add(mixedCaseQuery);
+    // Capitalize kata pertama saja
+    const firstWordCapitalized = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
+    const mixedFirst = [firstWordCapitalized, ...words.slice(1)].join(' ');
+    terms.add(mixedFirst);
+    
+    // Capitalize semua kata (title case)
+    const titleCase = words.map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+    terms.add(titleCase);
   }
   
-  // DEBUG: Log terms yang dihasilkan
-  console.log('🔍 Generated search terms for:', searchQuery, Array.from(terms));
+  // Convert to array dan limit jumlah terms
+  const finalTerms = Array.from(terms).slice(0, 12); // Sedikit lebih banyak untuk coverage
   
-  return Array.from(terms).filter(term => term.length > 0);
+  console.log('🔍 Comprehensive symbol terms (. : / in all positions):', finalTerms);
+  return finalTerms;
 };
+
 
 // Enhanced ranking dengan symbol variation boost - FIXED
 const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery, expandedTerms = []) => {
@@ -258,7 +317,7 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
   });
 };
 
-// COMPREHENSIVE SYMBOL-AWARE SEARCH - FIXED VERSION
+// OPTIMIZED BATCH SEARCH UNTUK BANYAK TERMS
 const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
   const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
   
@@ -274,14 +333,15 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
     let searchTerms = [];
     let detectedSynonyms = [];
 
-    // BUAT TERMS DENGAN SYMBOL AWARENESS
+    // BUAT TERMS DENGAN COMPREHENSIVE SYMBOL AWARENESS
     const symbolAwareTerms = createSymbolAwareSearchTerms(searchQuery);
     searchTerms = [...symbolAwareTerms];
 
     if (useSynonyms) {
       const expandedData = await expandSearchWithSynonyms(searchQuery);
-      // Filter out duplicates
-      expandedData.terms.forEach(term => {
+      // Hanya tambahkan 2 synonyms teratas
+      const topSynonyms = expandedData.terms.slice(0, 2);
+      topSynonyms.forEach(term => {
         if (!searchTerms.includes(term)) {
           searchTerms.push(term);
         }
@@ -289,90 +349,107 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       detectedSynonyms = expandedData.synonyms;
     }
 
-    console.log('🔍 Final search terms:', searchTerms);
+    console.log('🔍 Final search terms:', searchTerms.length, 'terms');
 
-    // BUAT SEARCH PROMISES UNTUK SETIAP TERM
-    const searchPromises = searchTerms.map((term, index) => {
-      let matchType = 'fuzzy';
-      if (index === 0) matchType = 'exact'; // First term is exact match
-      else if (index < symbolAwareTerms.length) matchType = 'symbol-variation';
+    // BATCH SEARCH UNTUK HANDLE BANYAK TERMS DENGAN AMAN
+    const performBatchSearch = async (terms) => {
+      // Bagi terms menjadi batch kecil (4 terms per batch)
+      const batchSize = 4;
+      const batches = [];
+      for (let i = 0; i < terms.length; i += batchSize) {
+        batches.push(terms.slice(i, i + batchSize));
+      }
+
+      const allResults = [];
       
-      // FIX: Gunakan text search yang lebih robust
-      return supabase
-        .from('books')
-        .select('*')
-        .textSearch('judul', term, {
-          type: 'websearch',
-          config: 'indonesian'
-        })
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('Search error for term:', term, error);
-            // Fallback ke ILIKE jika textSearch gagal
-            return supabase
-              .from('books')
-              .select('*')
-              .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%`)
-              .then(({ data: fallbackData, error: fallbackError }) => {
-                if (fallbackError) {
-                  console.error('Fallback search error:', fallbackError);
-                  return { data: [], matchType, searchTerm: term };
-                }
-                return { data: fallbackData || [], matchType, searchTerm: term };
-              });
-          }
-          return { data: data || [], matchType, searchTerm: term };
-        });
-    });
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        const orConditions = batch.map(term => 
+          `judul.ilike.%${term}%,pengarang.ilike.%${term}%`
+        ).join(',');
 
-    const allResults = await Promise.all(searchPromises);
+        try {
+          const { data, error } = await supabase
+            .from('books')
+            .select('*')
+            .or(orConditions)
+            .limit(300);
+
+          if (error) {
+            console.error(`Batch ${i + 1} error:`, error);
+            continue;
+          }
+
+          if (data && data.length > 0) {
+            allResults.push({
+              data,
+              terms: batch,
+              batchIndex: i
+            });
+          }
+
+          // Delay kecil antar batch
+          if (i < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        } catch (batchError) {
+          console.error(`Batch ${i + 1} failed:`, batchError);
+        }
+      }
+
+      return allResults;
+    };
+
+    console.log('🚀 Executing batch search with', searchTerms.length, 'terms');
+
+    const batchResults = await performBatchSearch(searchTerms);
     
     const combinedResults = [];
     const seenIds = new Set();
     
-    // PROCESS RESULTS WITH PRIORITY LEVELS
-    allResults.forEach((result, index) => {
-      if (result.data && result.data.length > 0) {
-        console.log(`✅ Found ${result.data.length} results for: "${result.searchTerm}" (${result.matchType})`);
-        result.data.forEach(item => {
+    // PROCESS RESULTS DENGAN PRIORITY YANG BENAR
+    batchResults.forEach(batchResult => {
+      if (batchResult.data && batchResult.data.length > 0) {
+        batchResult.data.forEach(item => {
           if (!seenIds.has(item.id)) {
             seenIds.add(item.id);
+            
+            // Tentukan match type berdasarkan term yang paling tepat
+            let matchType = 'fuzzy';
+            let matchedTerm = searchTerms[0];
+            const lowerJudul = item.judul?.toLowerCase() || '';
+            
+            // Priority 1: Exact match dengan term asli
+            if (lowerJudul === searchQuery.toLowerCase()) {
+              matchType = 'exact';
+              matchedTerm = searchQuery;
+            } 
+            // Priority 2: Exact match dengan symbol variations
+            else {
+              for (const term of batchResult.terms) {
+                const lowerTerm = term.toLowerCase();
+                if (lowerJudul === lowerTerm) {
+                  matchType = 'symbol-variation';
+                  matchedTerm = term;
+                  break;
+                } else if (lowerJudul.includes(lowerTerm) && matchType !== 'symbol-variation') {
+                  matchType = 'symbol-variation';
+                  matchedTerm = term;
+                }
+              }
+            }
+            
             combinedResults.push({ 
               ...item, 
-              _matchType: result.matchType,
-              _searchTerm: result.searchTerm
+              _matchType: matchType,
+              _searchTerm: matchedTerm
             });
           }
         });
-      } else {
-        console.log(`❌ No results for: "${result.searchTerm}" (${result.matchType})`);
       }
     });
 
-    console.log(`📊 Total combined results: ${combinedResults.length}`);
-
-    // Fallback jika tidak ada hasil - gunakan traditional search dengan ILIKE
-    if (combinedResults.length === 0) {
-      console.log('🔄 No results found, trying fallback ILIKE search...');
-      const fallbackSearch = await supabase
-        .from('books')
-        .select('*')
-        .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%,penerbit.ilike.%${searchQuery}%`);
-      
-      if (fallbackSearch.data && fallbackSearch.data.length > 0) {
-        console.log(`🔄 Fallback found ${fallbackSearch.data.length} results`);
-        fallbackSearch.data.forEach(item => {
-          if (!seenIds.has(item.id)) {
-            seenIds.add(item.id);
-            combinedResults.push({ 
-              ...item, 
-              _matchType: 'fallback',
-              _searchTerm: searchQuery
-            });
-          }
-        });
-      }
-    }
+    console.log(`📊 Total results after processing: ${combinedResults.length}`);
 
     const finalResults = rankSearchResultsWithExactPriority(
       combinedResults, 
@@ -387,11 +464,37 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
       results: finalResults,
       synonyms: detectedSynonyms,
       method: useSynonyms && detectedSynonyms.length > 0 ? 
-        'Exact Match + Symbols + Synonyms' : 'Exact Match + Symbols'
+        'Comprehensive Symbol Search + Synonyms' : 'Comprehensive Symbol Search'
     };
 
   } catch (error) {
-    console.error('Exact match search error:', error);
+    console.error('Comprehensive search error:', error);
+    
+    // Fallback ke simple search
+    try {
+      const simpleSearch = await supabase
+        .from('books')
+        .select('*')
+        .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%`)
+        .limit(100);
+      
+      if (simpleSearch.data) {
+        const fallbackResults = simpleSearch.data.map(item => ({
+          ...item,
+          _matchType: 'fallback',
+          _searchTerm: searchQuery
+        }));
+        
+        return {
+          results: fallbackResults,
+          synonyms: [],
+          method: 'Simple Search'
+        };
+      }
+    } catch (fallbackError) {
+      console.error('Fallback also failed:', fallbackError);
+    }
+    
     return {
       results: [],
       synonyms: [],
