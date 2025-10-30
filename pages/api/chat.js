@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const messages = [
       {
         role: 'system',
-        content: `Anda adalah AI Pustakawan Layanan Buku Langka yang membantu pengguna Perpustakaan Nasional RI mengakses layanan buku langka. 
+        content: `Anda adalah AI Pustakawan yang membantu pengguna Perpustakaan Nasional RI. 
 Tugas Anda:
 1. Bantu pencarian dan rekomendasi buku koleksi langka
 2. Jelaskan prosedur layanan perpustakaan  
