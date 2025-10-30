@@ -1,0 +1,23 @@
+# .gitignore
+# Environment files
+.env.local
+.env
+.env.*.local
+
+# Next.js
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Production builds
+*.tgz
+*.gz
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
