@@ -69,14 +69,14 @@ export default function TentangKami({ isMobile }) {
             fontSize: isMobile ? '0.9rem' : '1rem' 
           }}>
             <p style={{ marginBottom: '1.5rem' }}>
-              <strong>Layanan Koleksi Buku Langka</strong> merupakan unit layanan di bawah 
+              <strong>Layanan Koleksi Buku Langka</strong> merupakan salah satu unit layanan di bawah 
               Perpustakaan Nasional Republik Indonesia yang memberikan akses langsung bagi 
               masyarakat terhadap koleksi buku langka yang bernilai historis dan ilmiah.
             </p>
             <p style={{ marginBottom: '1.5rem' }}>
               Melalui layanan ini, pengguna dapat menelusuri informasi koleksi, mengajukan 
               permohonan baca di tempat, serta memperoleh pendampingan dari pustakawan 
-              dalam meneliti atau menelaah isi buku langka.
+              dalam pemanfaatan buku langka.
             </p>
             <p style={{ marginBottom: '1.5rem' }}>
               Kami berkomitmen memberikan pelayanan yang profesional, ramah, dan tertib, 
@@ -106,10 +106,10 @@ export default function TentangKami({ isMobile }) {
             gap: '0.75rem' 
           }}>
             <StatItem number="85,000+" label="Total Koleksi Buku Langka" isMobile={isMobile} />
-            <StatItem number="200+" label="Tahun Sejarah Tercakup" isMobile={isMobile} />
+            <StatItem number="1547" label="Tahun buku tertua" isMobile={isMobile} />
             <StatItem number="50+" label="Bahasa yang Tersedia" isMobile={isMobile} />
             <StatItem number="1,200+" label="Peneliti per Tahun" isMobile={isMobile} />
-            <StatItem number="500+" label="Kunjungan per Tahun" isMobile={isMobile} />
+            <StatItem number="8000+" label="Kunjungan fisik per Tahun" isMobile={isMobile} />
             <StatItem number="7" label="Tim Profesional" isMobile={isMobile} />
           </div>
         </div>
