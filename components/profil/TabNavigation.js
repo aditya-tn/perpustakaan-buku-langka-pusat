@@ -1,26 +1,11 @@
-// components/profil/TabNavigation.js - FIXED MOBILE VERSION
-import { useState, useEffect } from 'react'
-
+// components/profil/TabNavigation.js - FIXED MOBILE
 export default function TabNavigation({ activeTab, setActiveTab, isMobile }) {
-  const [isScrolled, setIsScrolled] = useState(false)
-  
   const tabs = [
-    { id: 'tentang', label: 'Tentang', icon: '🏛️', shortLabel: 'Tentang' },
-    { id: 'visi-misi', label: 'Visi & Misi', icon: '🎯', shortLabel: 'Visi' },
-    { id: 'pegawai', label: 'Tim Kami', icon: '👥', shortLabel: 'Tim' },
-    { id: 'kontak', label: 'Kontak', icon: '📞', shortLabel: 'Kontak' }
+    { id: 'tentang', label: 'Tentang Kami', icon: '🏛️' },
+    { id: 'visi-misi', label: 'Visi & Misi', icon: '🎯' },
+    { id: 'pegawai', label: 'Tim Kami', icon: '👥' },
+    { id: 'kontak', label: 'Kontak & Jam', icon: '📞' }
   ]
-
-  // Handle scroll untuk hide/show navigation
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY
-      setIsScrolled(scrollY > 100)
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
 
   return (
     <div style={{
@@ -28,22 +13,21 @@ export default function TabNavigation({ activeTab, setActiveTab, isMobile }) {
       justifyContent: 'center',
       gap: isMobile ? '0.25rem' : '1rem',
       padding: isMobile ? '1rem 0.5rem' : '2rem',
-      flexWrap: 'nowrap',
-      backgroundColor: isScrolled ? 'rgba(248, 250, 252, 0.95)' : '#f8fafc',
+      flexWrap: 'wrap',
+      backgroundColor: '#f8fafc',
       borderBottom: '1px solid #e2e8f0',
       position: 'sticky',
-      top: 0,
+      top: isMobile ? '0' : '0',
       zIndex: 100,
       backdropFilter: 'blur(10px)',
-      transition: 'all 0.3s ease',
-      boxShadow: isScrolled ? '0 2px 20px rgba(0,0,0,0.1)' : 'none'
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
     }}>
       {tabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
           style={{
-            padding: isMobile ? '0.6rem 0.5rem' : '1rem 1.5rem',
+            padding: isMobile ? '0.6rem 0.8rem' : '1rem 1.5rem',
             backgroundColor: activeTab === tab.id ? '#4299e1' : 'white',
             color: activeTab === tab.id ? 'white' : '#4a5568',
             border: '1px solid #e2e8f0',
@@ -53,34 +37,27 @@ export default function TabNavigation({ activeTab, setActiveTab, isMobile }) {
             transition: 'all 0.3s ease',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.3rem',
-            boxShadow: activeTab === tab.id ? '0 2px 8px rgba(66, 153, 225, 0.3)' : '0 1px 3px rgba(0,0,0,0.1)',
+            gap: '0.5rem',
+            boxShadow: activeTab === tab.id ? '0 2px 8px rgba(66, 153, 225, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)',
             fontSize: isMobile ? '0.7rem' : '0.9rem',
-            flex: 1,
-            minWidth: 0,
-            minHeight: isMobile ? '45px' : 'auto',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
+            minWidth: isMobile ? 'calc(50% - 0.5rem)' : '140px',
+            justifyContent: 'center',
+            flex: isMobile ? '1 1 calc(50% - 0.5rem)' : 'none',
+            maxWidth: isMobile ? 'calc(50% - 0.5rem)' : 'none'
           }}
         >
+          <span style={{ fontSize: isMobile ? '0.9rem' : '1.1rem' }}>{tab.icon}</span>
           <span style={{ 
-            fontSize: isMobile ? '0.9rem' : '1.1rem',
-            flexShrink: 0
-          }}>
-            {tab.icon}
-          </span>
-          <span style={{
-            display: isMobile ? 'none' : 'block'
+            display: isMobile ? 'none' : 'inline',
+            fontSize: isMobile ? '0.65rem' : '0.9rem'
           }}>
             {tab.label}
           </span>
-          <span style={{
-            display: isMobile ? 'block' : 'none',
+          <span style={{ 
+            display: isMobile ? 'inline' : 'none',
             fontSize: '0.65rem'
           }}>
-            {tab.shortLabel}
+            {tab.label.split(' ')[0]}
           </span>
         </button>
       ))}
