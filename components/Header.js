@@ -166,25 +166,6 @@ export default function Header({ isMobile }) {
             }}>
               Kritik & Saran
             </Link>
-            {/* TAMBAHAN: Menu Chatbot */}
-            <Link href="/chatbot" style={{ 
-              color: isActive('/chatbot') ? '#667eea' : '#4a5568', 
-              textDecoration: 'none',
-              fontWeight: isActive('/chatbot') ? '600' : '400',
-              fontSize: '0.95rem',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              backgroundColor: isActive('/chatbot') ? '#f0f4ff' : 'transparent',
-              border: '1px solid',
-              borderColor: isActive('/chatbot') ? '#667eea' : '#e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s'
-            }}>
-              <span>🤖</span>
-              AI Pustakawan
-            </Link>
           </nav>
         )}
 
