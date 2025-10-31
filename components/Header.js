@@ -295,30 +295,7 @@ export default function Header({ isMobile }) {
               >
                 Kritik & Saran
               </Link>
-              {/* TAMBAHAN: Menu Chatbot untuk Mobile */}
-              <Link 
-                href="/chatbot" 
-                onClick={() => setIsMenuOpen(false)}
-                style={{ 
-                  color: isActive('/chatbot') ? '#667eea' : '#4a5568', 
-                  textDecoration: 'none',
-                  fontWeight: isActive('/chatbot') ? '600' : '400',
-                  fontSize: '1rem',
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  backgroundColor: isActive('/chatbot') ? '#f0f4ff' : 'transparent',
-                  border: '1px solid',
-                  borderColor: isActive('/chatbot') ? '#667eea' : '#e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  marginTop: '0.5rem'
-                }}
-              >
-                <span>🤖</span>
-                AI Pustakawan
-              </Link>
+
             </nav>
           </div>
         )}
