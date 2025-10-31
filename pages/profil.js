@@ -1,4 +1,4 @@
-// pages/profil.js - FIXED VERSION
+// pages/profil.js - ADD SCROLL MARGIN
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Layout from '../components/Layout'
@@ -15,31 +15,47 @@ export default function Profil() {
   const [isMobile, setIsMobile] = useState(false)
   const [isClient, setIsClient] = useState(false)
 
-  // FIX: Client-side only code
   useEffect(() => {
     setIsClient(true)
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
     window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    
+    // Add scroll margin for sticky navigation
+    const style = document.createElement('style')
+    style.textContent = `
+      .scroll-margin-target {
+        scroll-margin-top: 80px;
+      }
+      @media (max-width: 768px) {
+        .scroll-margin-target {
+          scroll-margin-top: 70px;
+        }
+      }
+    `
+    document.head.appendChild(style)
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+      document.head.removeChild(style)
+    }
   }, [])
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'tentang':
-        return <TentangKami />
+        return <TentangKami isMobile={isMobile} />
       case 'visi-misi':
-        return <VisiMisi />
+        return <VisiMisi isMobile={isMobile} />
       case 'pegawai':
-        return <TimKami />
+        return <TimKami isMobile={isMobile} />
       case 'kontak':
-        return <KontakJam />
+        return <KontakJam isMobile={isMobile} />
       default:
-        return <TentangKami />
+        return <TentangKami isMobile={isMobile} />
     }
   }
 
-  // FIX: Return early during SSR
   if (!isClient) {
     return (
       <Layout>
@@ -61,10 +77,15 @@ export default function Profil() {
         <meta name="description" content="Profil Layanan Koleksi Buku Langka Perpustakaan Nasional RI - Visi, Misi, Tim, dan Kontak" />
       </Head>
 
-      <HeroProfil />
-      <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
-      {renderTabContent()}
-      <QuickActions />
+      <HeroProfil isMobile={isMobile} />
+      <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} isMobile={isMobile} />
+      
+      {/* Add scroll margin target */}
+      <div className="scroll-margin-target">
+        {renderTabContent()}
+      </div>
+      
+      <QuickActions isMobile={isMobile} />
     </Layout>
   )
 }
