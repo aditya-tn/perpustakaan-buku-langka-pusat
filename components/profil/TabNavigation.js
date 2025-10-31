@@ -1,61 +1,114 @@
-// components/profil/TabNavigation.js - HYBRID VERSION
+// components/profil/TabNavigation.js - BOTTOM NAV MOBILE VERSION
 import { useState, useEffect } from 'react'
 
 export default function TabNavigation({ activeTab, setActiveTab, isMobile }) {
-  const [isVisible, setIsVisible] = useState(true)
-  const [lastScrollY, setLastScrollY] = useState(0)
-
+  const [isScrolled, setIsScrolled] = useState(false)
+  
   const tabs = [
-    { id: 'tentang', label: 'Tentang Kami', icon: '🏛️', shortLabel: 'Tentang' },
-    { id: 'visi-misi', label: 'Visi & Misi', icon: '🎯', shortLabel: 'Visi' },
-    { id: 'pegawai', label: 'Tim Kami', icon: '👥', shortLabel: 'Tim' },
-    { id: 'kontak', label: 'Kontak & Jam', icon: '📞', shortLabel: 'Kontak' }
+    { id: 'tentang', label: 'Tentang', icon: '🏛️' },
+    { id: 'visi-misi', label: 'Visi', icon: '🎯' },
+    { id: 'pegawai', label: 'Tim', icon: '👥' },
+    { id: 'kontak', label: 'Kontak', icon: '📞' }
   ]
 
-  // Handle scroll untuk hide/show navigation
   useEffect(() => {
     const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        // Scroll down - hide nav
-        setIsVisible(false)
-      } else {
-        // Scroll up - show nav
-        setIsVisible(true)
-      }
-      
-      setLastScrollY(currentScrollY)
+      setIsScrolled(window.scrollY > 100)
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [lastScrollY])
+  }, [])
 
+  if (isMobile) {
+    return (
+      <>
+        {/* Desktop-like tabs di atas (hidden di mobile) */}
+        <div style={{
+          display: 'none'
+        }}>
+          {/* Hidden desktop version */}
+        </div>
+
+        {/* Bottom Navigation untuk Mobile */}
+        <div style={{
+          display: 'flex',
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'white',
+          borderTop: '1px solid #e2e8f0',
+          padding: '0.5rem',
+          zIndex: 1000,
+          boxShadow: '0 -2px 20px rgba(0,0,0,0.1)',
+          backdropFilter: 'blur(10px)'
+        }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              style={{
+                flex: 1,
+                padding: '0.75rem 0.5rem',
+                backgroundColor: activeTab === tab.id ? '#4299e1' : 'transparent',
+                color: activeTab === tab.id ? 'white' : '#4a5568',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.25rem',
+                fontSize: '0.65rem',
+                minHeight: '50px'
+              }}
+            >
+              <span style={{ fontSize: '1.1rem' }}>
+                {tab.icon}
+              </span>
+              <span>
+                {tab.label}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Spacer untuk bottom nav */}
+        <div style={{
+          height: '70px',
+          display: isMobile ? 'block' : 'none'
+        }} />
+      </>
+    )
+  }
+
+  // Desktop Version
   return (
     <div style={{
       display: 'flex',
       justifyContent: 'center',
-      gap: isMobile ? '0.3rem' : '1rem',
-      padding: isMobile ? '0.8rem 0.5rem' : '2rem',
-      flexWrap: 'nowrap',
-      backgroundColor: 'rgba(248, 250, 252, 0.98)',
+      gap: '1rem',
+      padding: '2rem',
+      flexWrap: 'wrap',
+      backgroundColor: '#f8fafc',
       borderBottom: '1px solid #e2e8f0',
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      backdropFilter: 'blur(10px)',
-      transition: 'transform 0.3s ease, opacity 0.3s ease',
-      transform: isVisible ? 'translateY(0)' : 'translateY(-100%)',
-      opacity: isVisible ? 1 : 0,
-      boxShadow: '0 2px 20px rgba(0,0,0,0.08)'
+      backdropFilter: 'blur(10px)'
     }}>
       {tabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
           style={{
-            padding: isMobile ? '0.5rem 0.4rem' : '1rem 1.5rem',
+            padding: '1rem 1.5rem',
             backgroundColor: activeTab === tab.id ? '#4299e1' : 'white',
             color: activeTab === tab.id ? 'white' : '#4a5568',
             border: '1px solid #e2e8f0',
@@ -65,34 +118,17 @@ export default function TabNavigation({ activeTab, setActiveTab, isMobile }) {
             transition: 'all 0.3s ease',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.3rem',
-            boxShadow: activeTab === tab.id ? '0 2px 8px rgba(66, 153, 225, 0.3)' : '0 1px 3px rgba(0,0,0,0.05)',
-            fontSize: isMobile ? '0.65rem' : '0.9rem',
-            flex: 1,
-            minWidth: 0,
-            minHeight: isMobile ? '40px' : 'auto',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
+            gap: '0.5rem',
+            boxShadow: activeTab === tab.id ? '0 4px 12px rgba(66, 153, 225, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+            fontSize: '0.9rem',
+            minWidth: '140px',
+            justifyContent: 'center'
           }}
         >
-          <span style={{ 
-            fontSize: isMobile ? '0.8rem' : '1.1rem',
-            flexShrink: 0
-          }}>
+          <span style={{ fontSize: '1.1rem' }}>
             {tab.icon}
           </span>
-          <span style={{
-            display: isMobile ? 'none' : 'block'
-          }}>
-            {tab.label}
-          </span>
-          <span style={{
-            display: isMobile ? 'block' : 'none'
-          }}>
-            {tab.shortLabel}
-          </span>
+          {tab.label}
         </button>
       ))}
     </div>
