@@ -14,16 +14,16 @@ const Chatbot = ({
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef(null)
 
-  // Predefined questions
+  // Predefined questions - DIUPDATE sesuai API
   const predefinedQuestions = [
-    "Bagaimana cara memesan buku langka?",
-    "Apa syarat mengakses koleksi buku langka?",
-    "Jam operasional layanan buku langka?",
-    "Rekomendasi buku sejarah Indonesia",
-    "Cara mencari naskah kuno?"
+    "Jam buka perpustakaan?",
+    "Dimana lokasi perpustakaan?",
+    "Cara meminjam buku?",
+    "Syarat jadi anggota?",
+    "Kontak perpustakaan?"
   ]
 
-  // Position styling
+  // Position styling (SAMA)
   const getPositionStyles = () => {
     const baseStyles = {
       bottom: isMobile ? '20px' : '30px',
@@ -53,7 +53,7 @@ const Chatbot = ({
 
   const positionStyles = getPositionStyles()
 
-  // Scroll to bottom
+  // Scroll to bottom (SAMA)
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
@@ -64,7 +64,7 @@ const Chatbot = ({
     scrollToBottom()
   }, [messages])
 
-  // Initialize with welcome message
+  // Initialize with welcome message (SAMA)
   useEffect(() => {
     if (isOpen && messages.length === 0 && welcomeMessage) {
       setMessages([
@@ -78,94 +78,14 @@ const Chatbot = ({
     }
   }, [isOpen, welcomeMessage])
 
-  // Auto open effect
+  // Auto open effect (SAMA)
   useEffect(() => {
     if (autoOpen) {
       setIsOpen(true)
     }
   }, [autoOpen])
 
-  // Extract search terms from query
-  const extractSearchTerms = (query) => {
-    const stopWords = ['cari', 'carikan', 'rekomendasi', 'buku', 'tentang', 'apa', 'ada', 'yang', 'di', 'ke']
-    const words = query.toLowerCase().split(' ')
-    return words.filter(word => !stopWords.includes(word) && word.length > 2).join(' ')
-  }
-
-  // Search books from database
-  const searchBooks = async (searchTerm) => {
-    if (!searchTerm) return []
-
-    try {
-      const { data, error } = await supabase
-        .from('books')
-        .select('*')
-        .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
-        .limit(5)
-
-      if (error) throw error
-      return data || []
-    } catch (error) {
-      console.error('Search books error:', error)
-      return []
-    }
-  }
-
-  // Generate bot response based on query
-  const generateBotResponse = async (query) => {
-    const lowerQuery = query.toLowerCase()
-
-    // Service questions
-    if (lowerQuery.includes('pesan') || lowerQuery.includes('memesan') || lowerQuery.includes('booking')) {
-      return `Untuk memesan buku langka:\n\n1. Login ke akun Perpustakaan Nasional\n2. Kunjungi halaman "Layanan"\n3. Pilih "Pemesanan Koleksi Buku Langka"\n4. Isi formulir dengan detail buku yang diinginkan\n5. Tunggu konfirmasi via email\n\n📚 Buku akan disiapkan di ruang baca khusus.`
-    }
-
-    if (lowerQuery.includes('syarat') || lowerQuery.includes('akses') || lowerQuery.includes('persyaratan')) {
-      return `Syarat mengakses koleksi buku langka:\n\n• Memiliki kartu anggota Perpustakaan Nasional\n• Mengisi formulir permohonan\n• Menunjukkan identitas asli\n• Menggunakan sarung tangan yang disediakan\n• Tidak memfotokopi (kecuali ijin khusus)\n• Hanya boleh dibaca di ruang baca khusus`
-    }
-
-    if (lowerQuery.includes('jam') || lowerQuery.includes('buka') || lowerQuery.includes('operasional')) {
-      return `🕒 Jam Operasional Layanan Buku Langka:\n\nSenin - Jumat: 08.00 - 16.00 WIB\nSabtu: 09.00 - 15.00 WIB\nMinggu & Hari Libur: Tutup\n\n📍 Lokasi: Gedung Perpustakaan Nasional Lantai 7`
-    }
-
-    if (lowerQuery.includes('ruang') || lowerQuery.includes('baca') || lowerQuery.includes('khusus')) {
-      return `Untuk memesan ruang baca khusus:\n\n1. Minimal 3 hari sebelumnya\n2. Maksimal 2 jam per sesi\n3. Maksimal 5 buku per sesi\n4. Tidak boleh membawa tas\n5. Hanya boleh menggunakan laptop dan alat tulis\n\n📞 Hubungi: (021) 5220100 ext. 1234`
-    }
-
-    // Search for books
-    if (lowerQuery.includes('cari') || lowerQuery.includes('rekomendasi') || 
-        lowerQuery.includes('buku tentang') || lowerQuery.includes('naskah')) {
-      
-      const searchTerms = extractSearchTerms(query)
-      const bookResults = await searchBooks(searchTerms)
-      
-      if (bookResults.length > 0) {
-        let response = `Saya menemukan ${bookResults.length} buku terkait "${searchTerms}":\n\n`
-        
-        bookResults.slice(0, 3).forEach((book, index) => {
-          response += `${index + 1}. **${book.judul}**\n`
-          response += `   👤 ${book.pengarang || 'Pengarang tidak diketahui'}\n`
-          response += `   📅 ${book.tahun_terbit || 'Tahun tidak diketahui'}\n`
-          response += `   📚 ${book.penerbit || 'Penerbit tidak diketahui'}\n\n`
-        })
-
-        if (bookResults.length > 3) {
-          response += `...dan ${bookResults.length - 3} buku lainnya. Gunakan fitur pencarian di beranda untuk hasil lengkap!`
-        }
-        
-        response += `\n🔍 **Tips**: Gunakan pencarian di halaman utama untuk filter yang lebih detail.`
-        
-        return response
-      } else {
-        return `Saya tidak menemukan buku yang spesifik terkait "${searchTerms}". Coba gunakan kata kunci yang lebih umum atau kunjungi halaman pencarian untuk opsi lanjutan.`
-      }
-    }
-
-    // Default response
-    return `Terima kasih atas pertanyaannya! 🤖\n\nSaya AI Pustakawan khusus koleksi buku langka. Saya dapat membantu Anda dengan:\n\n• Pencarian koleksi buku\n• Informasi layanan pemesanan\n• Jam operasional\n• Syarat akses\n• Rekomendasi buku\n\nSilakan tanyakan hal spesifik tentang koleksi kami!`
-  }
-
-  // Process user query
+  // 🎯 PROCESS USER QUERY - DIUPDATE UNTUK INTEGRASI API
   const processUserQuery = async (query) => {
     setIsLoading(true)
     
@@ -180,8 +100,37 @@ const Chatbot = ({
 
       setMessages(prev => [...prev, userMessage])
 
-      // Process and get bot response
-      const botResponse = await generateBotResponse(query)
+      console.log('Sending to API:', query);
+      
+      // 🎯 KIRIM KE API ROUTE YANG SUDAH FIX
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: query }),
+      });
+
+      console.log('Response status:', response.status);
+      
+      let botResponse = "";
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('API response:', data);
+        
+        // 🎯 AMBIL RESPONSE DARI API
+        if (Array.isArray(data) && data.length > 0) {
+          botResponse = data[0].text;
+        } else if (data && data.text) {
+          botResponse = data.text;
+        } else {
+          botResponse = "Maaf, saya belum bisa menjawab pertanyaan itu.";
+        }
+      } else {
+        // Fallback jika API error
+        botResponse = await generateFallbackResponse(query);
+      }
       
       // Add bot response
       const botMessage = {
@@ -195,9 +144,13 @@ const Chatbot = ({
 
     } catch (error) {
       console.error('Chatbot error:', error)
+      
+      // Fallback response
+      const fallbackResponse = await generateFallbackResponse(query);
+      
       const errorMessage = {
         id: Date.now() + 1,
-        text: "Maaf, terjadi kesalahan. Silakan coba lagi atau hubungi pustakawan kami langsung.",
+        text: fallbackResponse,
         isBot: true,
         timestamp: new Date()
       }
@@ -207,7 +160,35 @@ const Chatbot = ({
     }
   }
 
-  // Handle form submit
+  // 🎯 FALLBACK RESPONSE JIKA API ERROR
+  const generateFallbackResponse = async (query) => {
+    const lowerQuery = query.toLowerCase();
+    
+    // Simple rule-based fallback
+    if (lowerQuery.includes('jam') || lowerQuery.includes('buka')) {
+      return "🕐 Perpustakaan buka:\n• Senin-Jumat: 08.00-19.00\n• Sabtu-Minggu: 09.00-16.00";
+    }
+    
+    if (lowerQuery.includes('lokasi') || lowerQuery.includes('alamat') || lowerQuery.includes('dimana')) {
+      return "📍 Gedung Perpustakaan Nasional Lantai 14\nJl. Medan Merdeka Selatan No.11, Jakarta";
+    }
+    
+    if (lowerQuery.includes('pinjam') || lowerQuery.includes('buku')) {
+      return "📚 Cara meminjam buku:\n1. Bawa kartu anggota\n2. Datang ke meja sirkulasi\n3. Maksimal 5 buku untuk 14 hari";
+    }
+    
+    if (lowerQuery.includes('syarat') || lowerQuery.includes('anggota')) {
+      return "📝 Syarat jadi anggota:\n• KTP asli\n• Formulir pendaftaran\n• Pas foto 3x4 (2 lembar)";
+    }
+    
+    if (lowerQuery.includes('kontak') || lowerQuery.includes('telpon') || lowerQuery.includes('email')) {
+      return "📞 Kontak kami:\n• Telp: (021) 1234567\n• Email: info_pujasintara@perpusnas.go.id";
+    }
+    
+    return "Halo! Saya asisten Perpustakaan Nasional. Tanyakan tentang: jam buka, lokasi, peminjaman buku, atau syarat jadi anggota.";
+  }
+
+  // Handle form submit (SAMA)
   const handleSubmit = (e) => {
     e.preventDefault()
     if (inputMessage.trim() && !isLoading) {
@@ -216,17 +197,17 @@ const Chatbot = ({
     }
   }
 
-  // Toggle chatbot
+  // Toggle chatbot (SAMA)
   const toggleChatbot = () => {
     setIsOpen(!isOpen)
   }
 
-  // Handle predefined question click
+  // Handle predefined question click (SAMA)
   const handlePredefinedQuestion = (question) => {
     processUserQuery(question)
   }
 
-  // Get chat interface position
+  // Get chat interface position (SAMA)
   const getChatInterfacePosition = () => {
     const baseStyle = {
       bottom: isMobile ? '90px' : '110px',
@@ -256,6 +237,7 @@ const Chatbot = ({
 
   const chatInterfaceStyle = getChatInterfacePosition()
 
+  // 🎯 RENDER COMPONENT (SAMA)
   return (
     <>
       {/* Chatbot Toggle Button */}
