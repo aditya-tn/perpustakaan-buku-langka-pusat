@@ -57,7 +57,7 @@ export default function Layout({ children, isMobile }) {
       },
       '/kritik-saran': { 
         enabled: true, 
-        autoOpen: true,
+        autoOpen: false,
         welcomeMessage: true
       },
       '/chatbot': { 
