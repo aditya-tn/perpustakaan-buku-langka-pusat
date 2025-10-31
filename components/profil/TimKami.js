@@ -8,14 +8,14 @@ export default function TimKami({ isMobile }) {
   const staffData = [
     // Manajemen
     {
-      name: "Yeri Nurita, S.S",
+      name: "Yeri Nurita",
       position: "Plt. Kepala Pusat Jasa Informasi dan Pengelolaan Naskah Nusantara",
       department: "manajemen",
       education: "S-1 Sastra Indonesia - Universitas Indonesia",
       experience: "32 tahun"
     },
     {
-      name: "Hety Setiawati, S.E., M.P.",
+      name: "Hety Setiawati",
       position: "Ketua Kelompok Substansi Layanan Koleksi Langka", 
       department: "manajemen",
       education: "S-1 Ekonomi, S-2 Manajemen",
@@ -23,42 +23,42 @@ export default function TimKami({ isMobile }) {
     },
     // Layanan Pengguna
     {
-      name: "Aditya Taufik Nugraha, S.Hum",
+      name: "Adit",
       position: "Ketua Tim Layanan Koleksi Buku Langka, Pustakawan Ahli Muda",
       department: "layanan",
       education: "S-1 Ilmu Perpustakaan - Universitas Indonesia", 
       experience: "6 tahun"
     },
     {
-      name: "Dian Soni Amellia, S.Hum., M.Hum.",
+      name: "Dian Soni",
       position: "Pustakawan Ahli Madya",
       department: "layanan",
       education: "S-1 Program Studi Belanda - Universitas Indonesia, S-2 Ilmu Perpustakaan - Universitas Indonesia",
       experience: "17 tahun"
     },
     {
-      name: "Katolo Gowani, S.S., MTCSOL",
+      name: "K.Go",
       position: "Pustakawan Ahli Muda",
       department: "layanan",
-      education: "S-1 Sastra Cina - Universitas Bina Nusantara, S-2 Magister Pengajaran Bahasa Tionghoa untuk Penutur Bahasa Lain",
+      education: "",
       experience: "6 tahun"
     },
     {
-      name: "Kharissa Putri, S.Hum",
+      name: "Charis",
       position: "Pustakawan Ahli Pertama",
       department: "layanan",
       education: "S-1 Program Studi Belanda - Universitas Indonesia",
       experience: "6 tahun"
     },
     {
-      name: "Regina Savitri, S.S.I",
+      name: "Egi",
       position: "Pustakawan Ahli Pertama",
       department: "layanan",
       education: "S-1 Ilmu Perpustakaan dan Informasi - Universitas Padjajaran",
       experience: "1 tahun"
     },
     {
-      name: "Dinda Ayumanda, A.Md",
+      name: "Dinda",
       position: "Asisten Perpustakaan Terampil",
       department: "layanan",
       education: "D-III Ilmu Perpustakaan dan Kearsipan - Universitas Negeri Padang",
