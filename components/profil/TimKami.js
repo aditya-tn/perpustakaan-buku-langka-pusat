@@ -23,7 +23,7 @@ export default function TimKami({ isMobile }) {
     },
     // Layanan Pengguna
     {
-      name: "Adit",
+      name: "Aditya T",
       position: "Ketua Tim Layanan Koleksi Buku Langka, Pustakawan Ahli Muda",
       department: "layanan",
       education: "S-1 Ilmu Perpustakaan - Universitas Indonesia", 
