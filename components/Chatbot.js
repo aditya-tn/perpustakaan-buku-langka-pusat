@@ -70,7 +70,7 @@ const Chatbot = ({
       setMessages([
         {
           id: 1,
-          text: "Halo! Saya AI Pustakawan 🤖. Saya siap membantu Anda menjelajahi koleksi buku langka kami. Silakan tanyakan tentang koleksi, layanan, atau bantuan pencarian.",
+          text: "Halo! Saya Asisten Pustakawan Koleksi Buku Langka 🤖 Silakan tanyakan tentang koleksi, layanan, atau bantuan pencarian.",
           isBot: true,
           timestamp: new Date()
         }
@@ -178,14 +178,14 @@ const Chatbot = ({
     }
     
     if (lowerQuery.includes('syarat') || lowerQuery.includes('anggota')) {
-      return "📝 Syarat jadi anggota:\n• KTP asli\n• Formulir pendaftaran\n• Pas foto 3x4 (2 lembar)";
+      return "📝 Syarat jadi anggota:\n• KTP \n• Mengisi formulir pendaftaran online";
     }
     
     if (lowerQuery.includes('kontak') || lowerQuery.includes('telpon') || lowerQuery.includes('email')) {
-      return "📞 Kontak kami:\n• Telp: (021) 1234567\n• Email: info_pujasintara@perpusnas.go.id";
+      return "📞 Kontak kami:\n• whatsapp : +6285717147303 \n• Email: info_pujasintara@perpusnas.go.id";
     }
     
-    return "Halo! Saya asisten Perpustakaan Nasional. Tanyakan tentang: jam buka, lokasi, peminjaman buku, atau syarat jadi anggota.";
+    return "Halo! Saya asisten pustakawan layanan buku langka, Perpustakaan Nasional. Tanyakan tentang: jam buka, lokasi, peminjaman buku, atau syarat jadi anggota.";
   }
 
   // Handle form submit (SAMA)
@@ -307,7 +307,7 @@ const Chatbot = ({
                 backgroundColor: '#48bb78'
               }} />
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
-                AI Pustakawan
+                Asisten Pustakawan Buku Langka
               </h3>
             </div>
             <button
@@ -399,7 +399,7 @@ const Chatbot = ({
                     ))}
                   </div>
                   <span style={{ fontSize: '0.8rem', color: '#718096' }}>
-                    AI Pustakawan sedang mengetik...
+                    Asiten Pustakawan sedang mengetik...
                   </span>
                 </div>
               </div>
