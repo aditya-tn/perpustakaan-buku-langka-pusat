@@ -70,7 +70,7 @@ const analyzeSentiment = (text) => {
     'maintenance': 1, 'gangguan': 1, 'trouble': 1, 'blank': 1, 'tidak muncul': 1,
     'loading': 1, 'lemot': 1, 'lelet': 1, 'terbatas': 1, 'sedikit': 1,
     'tidak lengkap': 1, 'kadaluarsa': 1, 'usang': 1, 'basil': 1, 'tidak update': 1,
-    'tidak relevan': 1, 'tidak akurat': 1, 'salah': 1, 'lama': 1
+    'tidak relevan': 1, 'tidak akurat': 1, 'salah': 1
   };
   
   // Negation phrases yang spesifik
