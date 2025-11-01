@@ -1501,7 +1501,7 @@ export default function Home() {
                       { label: "🏛️ 1800-1899", range: [1800, 1899], description: "Era kolonial awal" },
                       { label: "📜 1900-1945", range: [1900, 1945], description: "Pergerakan nasional" },
                       { label: "🇮🇩 1945-1965", range: [1945, 1965], description: "Era kemerdekaan" },
-                      { label: "📚 1965-2000", range: [1965, 1990], description: "Era Orde Baru" }
+                      { label: "📚 1965-1990", range: [1965, 1990], description: "Era Orde Baru" }
                     ].map(period => (
                       <button
                         key={period.label}
