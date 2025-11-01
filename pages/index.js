@@ -448,8 +448,8 @@ export default function Home() {
   const abortControllerRef = useRef(null)
 
   // Constants
-  const MIN_YEAR = 1500
-  const MAX_YEAR = 2024
+  const MIN_YEAR = 1547
+  const MAX_YEAR = 1990
 
   // Helper untuk count buku dengan tahun valid
   const countValidYears = (books) => {
