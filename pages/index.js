@@ -1,4 +1,4 @@
-// pages/index.js - ENHANCED SYMBOL-AWARE SEARCH
+// pages/index.js - ENHANCED WITH PERIOD FEATURES
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -411,9 +411,6 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
   }
 };
 
-// ... (rest of the component code remains exactly the same as previous version)
-// Hanya ganti bagian performExactMatchSearch dan fungsi-fungsi terkait symbols di atas
-
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -440,20 +437,52 @@ export default function Home() {
   // Search-within-Search dengan Year Slider ONLY
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
-    tahunRange: [1547, 1990]
+    tahunRange: [1500, 2024]
   })
+
+  // NEW: Active Period State untuk Visual Feedback
+  const [activePeriod, setActivePeriod] = useState(null)
 
   // Refs
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
 
   // Constants
-  const MIN_YEAR = 1547
-  const MAX_YEAR = 1990
+  const MIN_YEAR = 1500
+  const MAX_YEAR = 2024
+
+  // Historical Periods Data
+  const historicalPeriods = [
+    { label: "🕌 Pra-1800", range: [1500, 1799], description: "Naskah kuno & manuskrip" },
+    { label: "🏛️ 1800-1899", range: [1800, 1899], description: "Era kolonial awal" },
+    { label: "📜 1900-1945", range: [1900, 1945], description: "Pergerakan nasional" },
+    { label: "🇮🇩 1945-1965", range: [1945, 1965], description: "Era kemerdekaan" },
+    { label: "📚 1965-2000", range: [1965, 2000], description: "Modern awal" }
+  ];
 
   // Helper untuk count buku dengan tahun valid
   const countValidYears = (books) => {
     return books.filter(book => extractYearFromString(book.tahun_terbit) !== null).length;
+  };
+
+  // NEW: Helper untuk menghitung buku dalam periode
+  const getPeriodBookCount = (range) => {
+    return searchResults.filter(book => {
+      const year = extractYearFromString(book.tahun_terbit);
+      return year && year >= range[0] && year <= range[1];
+    }).length;
+  };
+
+  // NEW: Helper untuk menghitung tahun rata-rata
+  const calculateAverageYear = (books) => {
+    const validBooks = books.filter(book => extractYearFromString(book.tahun_terbit) !== null);
+    if (validBooks.length === 0) return '-';
+    
+    const totalYears = validBooks.reduce((sum, book) => {
+      return sum + extractYearFromString(book.tahun_terbit);
+    }, 0);
+    
+    return Math.round(totalYears / validBooks.length);
   };
 
   // Clean Mode State
@@ -531,6 +560,7 @@ export default function Home() {
         setWithinSearchTerm('')
         setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
         setActiveSynonyms([])
+        setActivePeriod(null)
       }
       return
     }
@@ -556,6 +586,7 @@ export default function Home() {
     if (searchResults.length > 0) {
       setWithinSearchTerm('')
       setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
+      setActivePeriod(null)
     }
   }, [searchResults])
 
@@ -643,12 +674,29 @@ export default function Home() {
   // Get current filtered results dengan useMemo untuk optimasi
   const filteredResults = useMemo(() => getFilteredResults(), [getFilteredResults])
 
+  // NEW: Handle Period Selection
+  const handlePeriodSelect = (range, label) => {
+    setActiveFilters(prev => ({
+      ...prev,
+      tahunRange: range
+    }));
+    setActivePeriod(label);
+    setCurrentPage(1);
+  };
+
+  // NEW: Clear active period
+  const clearActivePeriod = () => {
+    setActivePeriod(null);
+    setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] });
+  };
+
   // EXACT MATCH SEARCH EXECUTION
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) return;
     
     setActiveSynonyms([]);
     setOriginalSearchResults([]);
+    setActivePeriod(null);
     
     const lang = detectLanguage(searchQuery);
     setDetectedLanguage(lang);
@@ -774,6 +822,7 @@ export default function Home() {
     setWithinSearchTerm('')
     setActiveSynonyms([])
     setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
+    setActivePeriod(null)
     
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
@@ -787,6 +836,7 @@ export default function Home() {
   const clearWithinSearch = () => {
     setWithinSearchTerm('')
     setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
+    setActivePeriod(null)
   }
 
   // Update year range dari slider
@@ -795,6 +845,7 @@ export default function Home() {
       ...prev,
       tahunRange: newRange
     }))
+    setActivePeriod(null) // Clear active period ketika manual slider digunakan
     setCurrentPage(1)
   }
 
@@ -1314,7 +1365,7 @@ export default function Home() {
           margin: isMobile ? '2rem auto' : '3rem auto',
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
-          {/* Search-within-Search Panel dengan Year Slider ONLY */}
+          {/* Search-within-Search Panel dengan Year Slider + Period Quick Select */}
           <div style={{
             backgroundColor: 'white',
             padding: '1.5rem',
@@ -1392,139 +1443,180 @@ export default function Home() {
                 />
               </div>
 
-              {/* Right Column: Year Slider ONLY */}
+              {/* Right Column: Year Slider + Period Quick Select */}
               <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '1rem'
-                }}>
-                  Rentang Tahun Terbit:
-                </label>
-                
-                {/* Year Range Display */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.9rem',
-                  color: '#4a5568'
-                }}>
-                  <span>{activeFilters.tahunRange[0]}</span>
-                  <span style={{ 
-                    backgroundColor: '#4299e1',
-                    color: 'white',
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '12px',
+                {/* Period Quick Select */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{
+                    display: 'block',
                     fontSize: '0.8rem',
-                    fontWeight: '600'
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    marginBottom: '0.5rem'
                   }}>
-                    {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
-                  </span>
-                  <span>{activeFilters.tahunRange[1]}</span>
-                </div>
-
-                {/* Custom Slider */}
-                <div style={{ position: 'relative', marginBottom: '1rem' }}>
-                  <div style={{
-                    height: '6px',
-                    backgroundColor: '#e2e8f0',
-                    borderRadius: '3px',
-                    position: 'relative'
+                    Periode Historis:
+                  </label>
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '0.5rem', 
+                    flexWrap: 'wrap',
+                    alignItems: 'center'
                   }}>
-                    {/* Active Range */}
-                    <div style={{
-                      position: 'absolute',
-                      height: '100%',
-                      backgroundColor: '#4299e1',
-                      borderRadius: '3px',
-                      left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-                      right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
-                    }} />
-                    
-                    {/* Min Handle */}
-                    <input
-                      type="range"
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      value={activeFilters.tahunRange[0]}
-                      onChange={(e) => updateYearRange([
-                        parseInt(e.target.value),
-                        activeFilters.tahunRange[1]
-                      ])}
-                      style={{
-                        position: 'absolute',
-                        width: '100%',
-                        top: '-6px',
-                        height: '18px',
-                        appearance: 'none',
-                        background: 'transparent',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                    
-                    {/* Max Handle */}
-                    <input
-                      type="range"
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      value={activeFilters.tahunRange[1]}
-                      onChange={(e) => updateYearRange([
-                        activeFilters.tahunRange[0],
-                        parseInt(e.target.value)
-                      ])}
-                      style={{
-                        position: 'absolute',
-                        width: '100%',
-                        top: '-6px',
-                        height: '18px',
-                        appearance: 'none',
-                        background: 'transparent',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                  </div>
-                </div>
-                {/* Quick Period Select */}
-                <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#4a5568', marginBottom: '0.5rem' }}>
-                    Periode Cepat:
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {[
-                      { label: "🕌 Pra-1800", range: [1547, 1799], description: "Masa Kesultanan & Awal Kolonialisme" },
-                      { label: "🏛️ 1800-1899", range: [1800, 1899], description: "Era kolonial awal" },
-                      { label: "📜 1900-1945", range: [1900, 1945], description: "Pergerakan nasional" },
-                      { label: "🇮🇩 1945-1965", range: [1945, 1965], description: "Era kemerdekaan" },
-                      { label: "📚 1965-1990", range: [1965, 1990], description: "Era Orde Baru" }
-                    ].map(period => (
+                    {historicalPeriods.map(period => (
                       <button
                         key={period.label}
-                        onClick={() => updateYearRange(period.range)}
+                        onClick={() => handlePeriodSelect(period.range, period.label)}
                         style={{
                           padding: '0.4rem 0.8rem',
                           border: '1px solid #e2e8f0',
                           borderRadius: '20px',
-                          backgroundColor: 'white',
+                          backgroundColor: activePeriod === period.label ? '#4299e1' : 'white',
+                          color: activePeriod === period.label ? 'white' : '#4a5568',
                           fontSize: '0.7rem',
                           cursor: 'pointer',
-                          transition: 'all 0.2s'
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem'
                         }}
-                        onMouseOver={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                        onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                        onMouseOver={(e) => {
+                          if (activePeriod !== period.label) {
+                            e.target.style.backgroundColor = '#f7fafc';
+                          }
+                        }}
+                        onMouseOut={(e) => {
+                          if (activePeriod !== period.label) {
+                            e.target.style.backgroundColor = 'white';
+                          }
+                        }}
+                        title={period.description}
                       >
                         {period.label}
+                        <span style={{
+                          fontSize: '0.6rem',
+                          backgroundColor: activePeriod === period.label ? 'rgba(255,255,255,0.3)' : '#e2e8f0',
+                          color: activePeriod === period.label ? 'white' : '#718096',
+                          padding: '0.1rem 0.3rem',
+                          borderRadius: '10px'
+                        }}>
+                          {getPeriodBookCount(period.range)}
+                        </span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-              
+                {/* Year Range Slider */}
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    color: '#4a5568',
+                    marginBottom: '1rem'
+                  }}>
+                    Rentang Tahun Terbit:
+                  </label>
+                  
+                  {/* Year Range Display */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.5rem',
+                    fontSize: '0.9rem',
+                    color: '#4a5568'
+                  }}>
+                    <span>{activeFilters.tahunRange[0]}</span>
+                    <span style={{ 
+                      backgroundColor: '#4299e1',
+                      color: 'white',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}>
+                      {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
+                    </span>
+                    <span>{activeFilters.tahunRange[1]}</span>
+                  </div>
+
+                  {/* Custom Slider */}
+                  <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                    <div style={{
+                      height: '6px',
+                      backgroundColor: '#e2e8f0',
+                      borderRadius: '3px',
+                      position: 'relative'
+                    }}>
+                      {/* Active Range */}
+                      <div style={{
+                        position: 'absolute',
+                        height: '100%',
+                        backgroundColor: '#4299e1',
+                        borderRadius: '3px',
+                        left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+                        right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
+                      }} />
+                      
+                      {/* Min Handle */}
+                      <input
+                        type="range"
+                        min={MIN_YEAR}
+                        max={MAX_YEAR}
+                        value={activeFilters.tahunRange[0]}
+                        onChange={(e) => updateYearRange([
+                          parseInt(e.target.value),
+                          activeFilters.tahunRange[1]
+                        ])}
+                        style={{
+                          position: 'absolute',
+                          width: '100%',
+                          top: '-6px',
+                          height: '18px',
+                          appearance: 'none',
+                          background: 'transparent',
+                          pointerEvents: 'none',
+                          zIndex: 2
+                        }}
+                      />
+                      
+                      {/* Max Handle */}
+                      <input
+                        type="range"
+                        min={MIN_YEAR}
+                        max={MAX_YEAR}
+                        value={activeFilters.tahunRange[1]}
+                        onChange={(e) => updateYearRange([
+                          activeFilters.tahunRange[0],
+                          parseInt(e.target.value)
+                        ])}
+                        style={{
+                          position: 'absolute',
+                          width: '100%',
+                          top: '-6px',
+                          height: '18px',
+                          appearance: 'none',
+                          background: 'transparent',
+                          pointerEvents: 'none',
+                          zIndex: 2
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Year Stats */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '0.7rem',
+                    color: '#718096',
+                    marginTop: '0.5rem'
+                  }}>
+                    <span>📅 {countValidYears(filteredResults)}/{filteredResults.length} buku dengan tahun valid</span>
+                    <span>📊 Rata-rata: {calculateAverageYear(filteredResults)}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1593,7 +1685,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* Filter Status */}
+            {/* Enhanced Filter Status */}
             {isWithinSearchActive && (
               <div style={{
                 marginTop: '1rem',
@@ -1605,11 +1697,30 @@ export default function Home() {
                 color: '#234e52'
               }}>
                 🔍 Filter aktif: 
-                {withinSearchTerm && ` Teks: "${withinSearchTerm}"`}
+                {activePeriod && ` Periode: ${activePeriod}`}
+                {withinSearchTerm && ` • Teks: "${withinSearchTerm}"`}
                 {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-                  ` Tahun: ${activeFilters.tahunRange[0]} - ${activeFilters.tahunRange[1]}`}
+                  !activePeriod && ` • Tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
                 {` • ${filteredResults.length} hasil (dari ${searchResults.length})`}
-                {` • 📊 ${countValidYears(filteredResults)} buku dengan tahun valid`}
+                {` • 📅 ${countValidYears(filteredResults)} buku dengan tahun valid`}
+                {` • 📊 Rata-rata tahun: ${calculateAverageYear(filteredResults)}`}
+                
+                {activePeriod && (
+                  <button
+                    onClick={clearActivePeriod}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2b6cb0',
+                      cursor: 'pointer',
+                      fontSize: '0.7rem',
+                      textDecoration: 'underline',
+                      marginLeft: '0.5rem'
+                    }}
+                  >
+                    Hapus periode
+                  </button>
+                )}
               </div>
             )}
           </div>
