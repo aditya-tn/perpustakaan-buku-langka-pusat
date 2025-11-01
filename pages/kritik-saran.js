@@ -29,149 +29,171 @@ export default function KritikSaran() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-// FIXED sentiment analysis dengan approach yang lebih sederhana
+// IMPROVED sentiment analysis dengan confidence yang lebih tinggi
 const analyzeSentiment = (text) => {
-  // Positive words
-  const positiveWords = [
-    'bagus', 'baik', 'mantap', 'puas', 'cepat', 'mudah', 'helpful', 'excellent', 
-    'terima kasih', 'keren', 'luar biasa', 'memuaskan', 'profesional', 'responsif',
-    'bermanfaat', 'inovasi', 'recommended', 'wow', 'sangat baik', 'istimewa',
-    'memukau', 'fantastis', 'hebat', 'unggul', 'berkualitas', 'premium',
-    'ramah', 'sopan', 'ganteng', 'cantik', 'murah senyum', 'penuh perhatian',
-    'sigap', 'tanggap', 'solutif', 'kooperatif', 'friendly', 'supportive', 
-    'care', 'peduli', 'baik hati', 'nyaman', 'rapi', 'bersih', 'teratur', 
-    'modern', 'canggih', 'lengkap', 'akses mudah', 'user friendly', 'intuitif', 
-    'efisien', 'efektif', 'bervariasi', 'relevan', 'update', 'terkini',
-    'komprehensif', 'detail', 'akurat', 'reliable'
-  ];
+  // Positive words dengan weight berbeda
+  const positiveWords = {
+    // High weight words (very positive)
+    'luar biasa': 3, 'fantastis': 3, 'memukau': 3, 'istimewa': 3, 'excellent': 3,
+    'terima kasih': 2, 'recommended': 2, 'wow': 2, 'hebat': 2, 'unggul': 2,
+    
+    // Medium weight words
+    'bagus': 1.5, 'baik': 1.5, 'mantap': 1.5, 'puas': 1.5, 'memuaskan': 1.5,
+    'profesional': 1.5, 'responsif': 1.5, 'bermanfaat': 1.5, 'inovasi': 1.5,
+    'ramah': 1.5, 'sopan': 1.5, 'sigap': 1.5, 'tanggap': 1.5, 'solutif': 1.5,
+    
+    // Standard weight words
+    'cepat': 1, 'mudah': 1, 'helpful': 1, 'keren': 1, 'sangat baik': 1,
+    'berkualitas': 1, 'premium': 1, 'ganteng': 1, 'cantik': 1, 'murah senyum': 1,
+    'penuh perhatian': 1, 'kooperatif': 1, 'friendly': 1, 'supportive': 1,
+    'care': 1, 'peduli': 1, 'baik hati': 1, 'nyaman': 1, 'rapi': 1, 'bersih': 1,
+    'teratur': 1, 'modern': 1, 'canggih': 1, 'lengkap': 1, 'akses mudah': 1,
+    'user friendly': 1, 'intuitif': 1, 'efisien': 1, 'efektif': 1, 'bervariasi': 1,
+    'relevan': 1, 'update': 1, 'terkini': 1, 'komprehensif': 1, 'detail': 1,
+    'akurat': 1, 'reliable': 1
+  };
   
-  // Negative words
-  const negativeWords = [
-    'buruk', 'jelek', 'lambat', 'sulit', 'ribet', 'error', 'gagal', 'kecewa',
-    'tidak bisa', 'tidak ada', 'kosong', 'rusak', 'bug', 'masalah', 'komplain',
-    'protes', 'mengecewakan', 'seharusnya', 'kurang', 'perlu perbaikan',
-    'kasar', 'cuek', 'acuh', 'tidak sopan', 'marah', 'kesal', 'emosi', 
-    'tidak membantu', 'malas', 'lamban', 'tidak responsif', 'hang', 'crash', 
-    'down', 'maintenance', 'gangguan', 'trouble', 'blank', 'tidak muncul', 
-    'loading', 'lemot', 'lelet', 'terbatas', 'sedikit', 'tidak lengkap', 
-    'kadaluarsa', 'usang', 'basil', 'tidak update', 'tidak relevan', 
-    'tidak akurat', 'salah'
-  ];
+  // Negative words dengan weight
+  const negativeWords = {
+    // High weight words (very negative)
+    'mengecewakan': 3, 'gagal': 2.5, 'kecewa': 2.5, 'protes': 2.5, 'komplain': 2,
+    
+    // Medium weight words
+    'buruk': 1.5, 'jelek': 1.5, 'lambat': 1.5, 'sulit': 1.5, 'ribet': 1.5,
+    'error': 1.5, 'rusak': 1.5, 'bug': 1.5, 'masalah': 1.5, 'kasar': 1.5,
+    'tidak sopan': 1.5, 'marah': 1.5, 'kesal': 1.5, 'emosi': 1.5,
+    
+    // Standard weight words
+    'tidak bisa': 1, 'tidak ada': 1, 'kosong': 1, 'seharusnya': 1, 'kurang': 1,
+    'perlu perbaikan': 1, 'cuek': 1, 'acuh': 1, 'tidak membantu': 1, 'malas': 1,
+    'lamban': 1, 'tidak responsif': 1, 'hang': 1, 'crash': 1, 'down': 1,
+    'maintenance': 1, 'gangguan': 1, 'trouble': 1, 'blank': 1, 'tidak muncul': 1,
+    'loading': 1, 'lemot': 1, 'lelet': 1, 'terbatas': 1, 'sedikit': 1,
+    'tidak lengkap': 1, 'kadaluarsa': 1, 'usang': 1, 'basil': 1, 'tidak update': 1,
+    'tidak relevan': 1, 'tidak akurat': 1, 'salah': 1, 'lama': 1
+  };
   
-  // Negation phrases (frase lengkap yang mengandung negasi)
+  // Negation phrases yang spesifik
   const negationPhrases = [
     'tidak ramah', 'tidak sopan', 'tidak membantu', 'tidak responsif',
-    'tidak bagus', 'tidak baik', 'tidak cepat', 'tidak mudah',
-    'tidak lengkap', 'tidak update', 'tidak akurat', 'tidak relevan',
-    'tidak ada', 'tidak bisa', 'tukan bagus', 'bukan baik'
+    'tidak bagus', 'tidak baik', 'tidak cepat', 'tidak mudah', 'tidak lengkap',
+    'tidak update', 'tidak akurat', 'tidak relevan', 'tidak ada', 'tidak bisa',
+    'bukan bagus', 'bukan baik', 'kurang ramah', 'kurang sopan'
   ];
   
-  const words = text.toLowerCase().split(/\s+/);
+  const lowerText = text.toLowerCase().trim();
   let positiveScore = 0;
   let negativeScore = 0;
   const reasons = [];
   
-  // FIXED: Check for negation phrases first
-  const lowerText = text.toLowerCase();
-  
-  // Check positive phrases without negation
-  positiveWords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    const matches = lowerText.match(regex);
-    if (matches) {
-      // Check if this positive word is part of a negation phrase
-      let isNegated = false;
-      negationPhrases.forEach(phrase => {
-        if (lowerText.includes(phrase)) {
-          isNegated = true;
-        }
-      });
-      
-      if (!isNegated) {
-        positiveScore += matches.length;
-        reasons.push(`Kata positif: "${word}"`);
-      }
-    }
-  });
-  
-  // Check negative phrases
-  negativeWords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    const matches = lowerText.match(regex);
-    if (matches) {
-      negativeScore += matches.length;
-      reasons.push(`Kata perlu perbaikan: "${word}"`);
-    }
-  });
-  
-  // Check explicit negation phrases (these are always negative)
+  // FIXED: Check for negation phrases first (highest priority)
+  let hasNegation = false;
   negationPhrases.forEach(phrase => {
     if (lowerText.includes(phrase)) {
-      negativeScore += 2; // Extra weight for explicit negations
-      reasons.push(`Frase negasi: "${phrase}"`);
+      negativeScore += 2;
+      reasons.push(`Frase negasi terdeteksi: "${phrase}"`);
+      hasNegation = true;
     }
   });
   
-  // Special positive cases
-  if (lowerText.includes('terima kasih')) {
-    positiveScore += 2;
-    reasons.push('Ucapan terima kasih');
+  // Check positive words (jika tidak ada negasi yang overlap)
+  if (!hasNegation) {
+    Object.entries(positiveWords).forEach(([word, weight]) => {
+      // Gunakan regex untuk exact word matching
+      const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+      const matches = lowerText.match(regex);
+      if (matches) {
+        positiveScore += (weight * matches.length);
+        reasons.push(`Kata positif: "${word}" (weight: ${weight})`);
+      }
+    });
   }
   
-  if (lowerText.includes('sangat') && positiveScore > 0) {
+  // Check negative words (selalu check, termasuk untuk negation phrases)
+  Object.entries(negativeWords).forEach(([word, weight]) => {
+    const regex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    const matches = lowerText.match(regex);
+    if (matches) {
+      negativeScore += (weight * matches.length);
+      reasons.push(`Kata perlu perbaikan: "${word}" (weight: ${weight})`);
+    }
+  });
+  
+  // Special positive boosters
+  if (lowerText.includes('terima kasih')) {
+    positiveScore += 3;
+    reasons.push('Boost: Ucapan terima kasih');
+  }
+  
+  if (lowerText.includes('sangat ') && positiveScore > 0) {
+    positiveScore += 1;
+    reasons.push('Boost: Intensifier "sangat"');
+  }
+  
+  if ((lowerText.includes('sangat') || lowerText.includes('sekali') || lowerText.includes('banget')) && positiveScore > 0) {
     positiveScore += 0.5;
-    reasons.push('Intensifier "sangat"');
   }
   
   // Special negative cases
-  if ((lowerText.includes('maaf') || lowerText.includes('mohon maaf')) && negativeScore === 0) {
+  if ((lowerText.includes('maaf') || lowerText.includes('mohon maaf')) && negativeScore === 0 && positiveScore === 0) {
     negativeScore += 1;
-    reasons.push('Permintaan maaf');
+    reasons.push('Permintaan maaf terdeteksi');
   }
   
-  // Determine sentiment
+  // Calculate sentiment dengan confidence yang lebih tinggi
   let sentiment, confidence;
+  const totalScore = positiveScore + negativeScore;
   
-  if (positiveScore > 0 && negativeScore === 0) {
-    sentiment = 'positive';
-    confidence = Math.min(95, 70 + (positiveScore * 5));
-  } else if (negativeScore > 0 && positiveScore === 0) {
-    sentiment = 'negative';
-    confidence = Math.min(95, 70 + (negativeScore * 5));
+  if (totalScore === 0) {
+    sentiment = 'neutral';
+    confidence = 30;
+    reasons.push('Tidak ada kata kunci sentiment yang terdeteksi');
   } else if (positiveScore > negativeScore) {
     sentiment = 'positive';
-    confidence = Math.min(90, 60 + ((positiveScore - negativeScore) * 10));
+    // Confidence calculation: base + ratio-based boost
+    const ratio = positiveScore / totalScore;
+    confidence = Math.min(98, 75 + (ratio * 20)); // Base 75 + ratio boost
+    
+    // Extra boost untuk kasus yang sangat clear
+    if (positiveScore >= 2 && negativeScore === 0) {
+      confidence = 95;
+    }
+    if (positiveScore >= 3) {
+      confidence = 98;
+    }
   } else if (negativeScore > positiveScore) {
     sentiment = 'negative';
-    confidence = Math.min(90, 60 + ((negativeScore - positiveScore) * 10));
+    const ratio = negativeScore / totalScore;
+    confidence = Math.min(98, 75 + (ratio * 20));
+    
+    if (negativeScore >= 2 && positiveScore === 0) {
+      confidence = 95;
+    }
+    if (negativeScore >= 3) {
+      confidence = 98;
+    }
   } else {
     sentiment = 'neutral';
     confidence = 50;
+    reasons.push('Balance antara positif dan negatif');
   }
   
-  // Override for clear cases
-  if (positiveScore >= 2 && negativeScore === 0) {
-    sentiment = 'positive';
-    confidence = 85;
-  }
-  
-  if (negativeScore >= 2 && positiveScore === 0) {
-    sentiment = 'negative';
-    confidence = 85;
-  }
-  
-  // Question detection
-  if (text.includes('?') && positiveScore === 0 && negativeScore === 0) {
+  // Question detection override
+  if ((text.includes('?') || /^(apakah|bagaimana|bisakah|mohon info)/i.test(text)) && totalScore === 0) {
     sentiment = 'neutral';
     confidence = 40;
     reasons.push('Pesan bersifat pertanyaan');
   }
   
+  // Clean up scores untuk display
+  const displayPositive = Math.round(positiveScore * 10) / 10;
+  const displayNegative = Math.round(negativeScore * 10) / 10;
+  
   return { 
     sentiment, 
     confidence: Math.round(confidence),
-    reasons: reasons.slice(0, 3), // Limit reasons untuk tampilan
-    scores: { positive: positiveScore, negative: negativeScore }
+    reasons: reasons.slice(0, 3),
+    scores: { positive: displayPositive, negative: displayNegative }
   };
 };
   
