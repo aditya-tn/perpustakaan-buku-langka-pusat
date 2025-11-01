@@ -440,7 +440,7 @@ export default function Home() {
   // Search-within-Search dengan Year Slider ONLY
   const [withinSearchTerm, setWithinSearchTerm] = useState('')
   const [activeFilters, setActiveFilters] = useState({
-    tahunRange: [1500, 2024]
+    tahunRange: [1547, 1990]
   })
 
   // Refs
@@ -1490,6 +1490,41 @@ export default function Home() {
                     />
                   </div>
                 </div>
+                {/* Quick Period Select */}
+                <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#4a5568', marginBottom: '0.5rem' }}>
+                    Periode Cepat:
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {[
+                      { label: "🕌 Pra-1800", range: [1500, 1799] },
+                      { label: "🏛️ 1800-1899", range: [1800, 1899] },
+                      { label: "📜 1900-1945", range: [1900, 1945] },
+                      { label: "🇮🇩 1945-1965", range: [1945, 1965] },
+                      { label: "📚 1965-2000", range: [1965, 2000] }
+                    ].map(period => (
+                      <button
+                        key={period.label}
+                        onClick={() => updateYearRange(period.range)}
+                        style={{
+                          padding: '0.4rem 0.8rem',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '20px',
+                          backgroundColor: 'white',
+                          fontSize: '0.7rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#f7fafc'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                      >
+                        {period.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              
               </div>
             </div>
 
