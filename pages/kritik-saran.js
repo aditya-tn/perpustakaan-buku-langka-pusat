@@ -29,178 +29,186 @@ export default function KritikSaran() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Enhanced sentiment analysis dengan konteks bahasa Indonesia
-  const analyzeSentiment = (text) => {
-    // Expanded positive words dengan konteks layanan
-    const positiveWords = [
-      // Service quality
-      'bagus', 'baik', 'mantap', 'puas', 'cepat', 'mudah', 'helpful', 'excellent', 
-      'terima kasih', 'keren', 'luar biasa', 'memuaskan', 'profesional', 'responsif',
-      'bermanfaat', 'inovasi', 'recommended', 'wow', 'sangat baik', 'istimewa',
-      'memukau', 'fantastis', 'hebat', 'unggul', 'berkualitas', 'premium',
-      
-      // Staff & service attitude
-      'ramah', 'sopan', 'ganteng', 'cantik', 'murah senyum', 'penuh perhatian',
-      'responsif', 'sigap', 'tanggap', 'solutif', 'kooperatif', 'friendly',
-      'helpful', 'supportive', 'care', 'peduli', 'baik hati',
-      
-      // Facility & experience
-      'nyaman', 'rapi', 'bersih', 'teratur', 'modern', 'canggih', 'lengkap',
-      'akses mudah', 'user friendly', 'intuitif', 'efisien', 'efektif',
-      
-      // Collection & content
-      'lengkap', 'bervariasi', 'bermanfaat', 'relevan', 'update', 'terkini',
-      'komprehensif', 'detail', 'akurat', 'reliable'
-    ];
+// Enhanced sentiment analysis dengan konteks bahasa Indonesia - FIXED
+const analyzeSentiment = (text) => {
+  // Expanded positive words dengan konteks layanan
+  const positiveWords = [
+    // Service quality
+    'bagus', 'baik', 'mantap', 'puas', 'cepat', 'mudah', 'helpful', 'excellent', 
+    'terima kasih', 'keren', 'luar biasa', 'memuaskan', 'profesional', 'responsif',
+    'bermanfaat', 'inovasi', 'recommended', 'wow', 'sangat baik', 'istimewa',
+    'memukau', 'fantastis', 'hebat', 'unggul', 'berkualitas', 'premium',
     
-    // Expanded negative words dengan konteks
-    const negativeWords = [
-      // Service issues
-      'buruk', 'jelek', 'lambat', 'sulit', 'ribet', 'error', 'gagal', 'kecewa',
-      'tidak bisa', 'tidak ada', 'kosong', 'rusak', 'bug', 'masalah', 'komplain',
-      'protes', 'mengecewakan', 'seharusnya', 'kurang', 'perlu perbaikan',
-      
-      // Staff & attitude issues
-      'kasar', 'cuek', 'acuh', 'marah', 'kesal',
-      'emosi', 'malas', 'lamban', 'jahat', 'cuek',
-      
-      // Technical & facility issues
-      'hang', 'crash', 'down', 'maintenance', 'gangguan', 'trouble', 'error',
-      'blank', 'kosong', 'tidak muncul', 'loading', 'lemot', 'lelet',
-      
-      // Collection & content issues
-      'terbatas', 'sedikit', 'kadaluarsa', 'usang', 'basil',
-     'salah'
-    ];
+    // Staff & service attitude
+    'ramah', 'sopan', 'ganteng', 'cantik', 'murah senyum', 'penuh perhatian',
+    'responsif', 'sigap', 'tanggap', 'solutif', 'kooperatif', 'friendly',
+    'helpful', 'supportive', 'care', 'peduli', 'baik hati',
     
-    // Negation words yang membalikkan makna
-    const negationWords = ['tidak', 'bukan', 'jangan', 'tanpa', 'kurang', 'belum'];
+    // Facility & experience
+    'nyaman', 'rapi', 'bersih', 'teratur', 'modern', 'canggih', 'lengkap',
+    'akses mudah', 'user friendly', 'intuitif', 'efisien', 'efektif',
     
-    const words = text.toLowerCase().split(/\s+/);
-    let positiveScore = 0;
-    let negativeScore = 0;
-    let negationContext = false;
+    // Collection & content
+    'lengkap', 'bervariasi', 'bermanfaat', 'relevan', 'update', 'terkini',
+    'komprehensif', 'detail', 'akurat', 'reliable'
+  ];
+  
+  // Expanded negative words dengan konteks
+  const negativeWords = [
+    // Service issues
+    'buruk', 'jelek', 'lambat', 'sulit', 'ribet', 'error', 'gagal', 'kecewa',
+    'tidak bisa', 'tidak ada', 'kosong', 'rusak', 'bug', 'masalah', 'komplain',
+    'protes', 'mengecewakan', 'seharusnya', 'kurang', 'perlu perbaikan',
     
-    // Advanced scoring dengan konteks negasi
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i];
-      
-      // Check for negation words
-      if (negationWords.includes(word)) {
-        negationContext = true;
-        continue;
-      }
-      
-      // Check for positive words
-      const isPositive = positiveWords.some(positive => {
-        return word.includes(positive) || positive.includes(word);
-      });
-      
-      // Check for negative words  
-      const isNegative = negativeWords.some(negative => {
-        return word.includes(negative) || negative.includes(word);
-      });
-      
-      if (isPositive) {
-        if (negationContext) {
-          negativeScore += 2; // "tidak baik" = negative
-        } else {
-          positiveScore += 1;
-        }
-        negationContext = false;
-      }
-      
-      if (isNegative) {
-        if (negationContext) {
-          positiveScore += 2; // "tidak buruk" = positive  
-        } else {
-          negativeScore += 1;
-        }
-        negationContext = false;
-      }
-      
-      // Reset negation context setelah beberapa kata
-      if (i > 0 && negationContext && !negationWords.includes(words[i-1])) {
-        negationContext = false;
-      }
-    }
+    // Staff & attitude issues
+    'tidak ramah', 'kasar', 'cuek', 'acuh', 'tidak sopan', 'marah', 'kesal',
+    'emosi', 'tidak membantu', 'malas', 'lamban', 'tidak responsif',
     
-    // Additional scoring untuk intensifier
-    const intensifiers = ['sangat', 'sekali', 'banget', 'amat', 'benar', 'sungguh'];
-    words.forEach((word, i) => {
-      if (intensifiers.includes(word) && i < words.length - 1) {
-        const nextWord = words[i + 1];
-        if (positiveWords.some(p => nextWord.includes(p))) {
-          positiveScore += 0.5;
-        }
-        if (negativeWords.some(n => nextWord.includes(n))) {
-          negativeScore += 0.5;
-        }
-      }
+    // Technical & facility issues
+    'hang', 'crash', 'down', 'maintenance', 'gangguan', 'trouble', 'error',
+    'blank', 'kosong', 'tidak muncul', 'loading', 'lemot', 'lelet',
+    
+    // Collection & content issues
+    'terbatas', 'sedikit', 'tidak lengkap', 'kadaluarsa', 'usang', 'basil',
+    'tidak update', 'tidak relevan', 'tidak akurat', 'salah'
+  ];
+  
+  // Negation words yang membalikkan makna
+  const negationWords = ['tidak', 'bukan', 'jangan', 'tanpa', 'kurang', 'belum'];
+  
+  const words = text.toLowerCase().split(/\s+/);
+  let positiveScore = 0;
+  let negativeScore = 0;
+  
+  // FIXED: Advanced scoring dengan konteks negasi yang lebih akurat
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i].replace(/[.,!?]/g, ''); // Clean punctuation
+    
+    // Check for positive words
+    const isPositive = positiveWords.some(positive => {
+      // Exact match atau partial match yang meaningful
+      return word === positive || 
+             (word.includes(positive) && positive.length > 2) ||
+             (positive.includes(word) && word.length > 2);
     });
     
-    const totalRelevant = positiveScore + negativeScore;
-    const reasons = [];
+    // Check for negative words  
+    const isNegative = negativeWords.some(negative => {
+      return word === negative || 
+             (word.includes(negative) && negative.length > 2) ||
+             (negative.includes(word) && word.length > 2);
+    });
     
-    if (totalRelevant === 0) {
-      return { 
-        sentiment: 'neutral', 
-        confidence: 30,
-        reasons: ['Pesan netral tanpa kata kunci sentiment spesifik'],
-        scores: { positive: 0, negative: 0 }
-      };
+    // Check for negation context - hanya jika kata sebelumnya adalah negation word
+    let hasNegation = false;
+    if (i > 0) {
+      const prevWord = words[i-1].replace(/[.,!?]/g, '');
+      hasNegation = negationWords.includes(prevWord);
     }
     
-    let sentiment, confidence;
-    
-    if (positiveScore > negativeScore) {
-      sentiment = 'positive';
-      confidence = Math.min(95, (positiveScore / totalRelevant) * 100 + 20);
-      reasons.push(`Ditemukan ${positiveScore.toFixed(1)} poin positif`);
-      if (negativeScore > 0) reasons.push(`Dengan ${negativeScore.toFixed(1)} catatan`);
-    } else if (negativeScore > positiveScore) {
-      sentiment = 'negative';
-      confidence = Math.min(95, (negativeScore / totalRelevant) * 100 + 20);
-      reasons.push(`Ditemukan ${negativeScore.toFixed(1)} poin perlu perbaikan`);
-      if (positiveScore > 0) reasons.push(`Dengan ${positiveScore.toFixed(1)} aspek positif`);
-    } else {
-      sentiment = 'neutral';
-      confidence = 50;
-      reasons.push('Balance antara aspek positif dan perlu perbaikan');
+    if (isPositive) {
+      if (hasNegation) {
+        negativeScore += 1; // "tidak baik" = negative
+      } else {
+        positiveScore += 1;
+      }
     }
     
-    // Special cases detection
-    const lowerText = text.toLowerCase();
-    
-    // Thankful messages biasanya positive
-    if (lowerText.includes('terima kasih') && positiveScore === 0) {
-      sentiment = 'positive';
-      confidence = 70;
-      reasons.push('Mengungkapkan rasa terima kasih');
+    if (isNegative) {
+      if (hasNegation) {
+        positiveScore += 1; // "tidak buruk" = positive  
+      } else {
+        negativeScore += 1;
+      }
     }
-    
-    // Apology messages biasanya negative  
-    if (lowerText.includes('maaf') && negativeScore === 0 && lowerText.includes('tidak')) {
-      sentiment = 'negative';
-      confidence = 65;
-      reasons.push('Mengungkapkan permintaan maaf atau ketidaknyamanan');
+  }
+  
+  // Additional scoring untuk intensifier
+  const intensifiers = ['sangat', 'sekali', 'banget', 'amat', 'benar', 'sungguh'];
+  words.forEach((word, i) => {
+    const cleanWord = word.replace(/[.,!?]/g, '');
+    if (intensifiers.includes(cleanWord) && i < words.length - 1) {
+      const nextWord = words[i + 1].replace(/[.,!?]/g, '');
+      
+      const nextIsPositive = positiveWords.some(p => 
+        nextWord === p || (nextWord.includes(p) && p.length > 2)
+      );
+      const nextIsNegative = negativeWords.some(n => 
+        nextWord === n || (nextWord.includes(n) && n.length > 2)
+      );
+      
+      if (nextIsPositive) positiveScore += 0.5;
+      if (nextIsNegative) negativeScore += 0.5;
     }
-    
-    // Question marks netral jika tidak ada sentiment jelas
-    if ((text.includes('?') || lowerText.includes('apakah') || lowerText.includes('bagaimana')) && totalRelevant === 0) {
-      sentiment = 'neutral';
-      confidence = 40;
-      reasons.push('Pesan bersifat pertanyaan atau netral');
-    }
-    
+  });
+  
+  const totalRelevant = positiveScore + negativeScore;
+  const reasons = [];
+  
+  if (totalRelevant === 0) {
     return { 
-      sentiment, 
-      confidence: Math.round(confidence),
-      reasons,
-      scores: { positive: positiveScore, negative: negativeScore }
+      sentiment: 'neutral', 
+      confidence: 30,
+      reasons: ['Pesan netral tanpa kata kunci sentiment spesifik'],
+      scores: { positive: 0, negative: 0 }
     };
+  }
+  
+  let sentiment, confidence;
+  
+  if (positiveScore > negativeScore) {
+    sentiment = 'positive';
+    confidence = Math.min(95, (positiveScore / totalRelevant) * 100 + 20);
+    reasons.push(`Ditemukan ${positiveScore.toFixed(1)} poin positif`);
+    if (negativeScore > 0) reasons.push(`Dengan ${negativeScore.toFixed(1)} catatan`);
+  } else if (negativeScore > positiveScore) {
+    sentiment = 'negative';
+    confidence = Math.min(95, (negativeScore / totalRelevant) * 100 + 20);
+    reasons.push(`Ditemukan ${negativeScore.toFixed(1)} poin perlu perbaikan`);
+    if (positiveScore > 0) reasons.push(`Dengan ${positiveScore.toFixed(1)} aspek positif`);
+  } else {
+    sentiment = 'neutral';
+    confidence = 50;
+    reasons.push('Balance antara aspek positif dan perlu perbaikan');
+  }
+  
+  // Special cases detection
+  const lowerText = text.toLowerCase();
+  
+  // Thankful messages biasanya positive
+  if (lowerText.includes('terima kasih') && positiveScore === 0) {
+    sentiment = 'positive';
+    confidence = 70;
+    reasons.push('Mengungkapkan rasa terima kasih');
+  }
+  
+  // Apology messages biasanya negative  
+  if ((lowerText.includes('maaf') || lowerText.includes('mohon maaf')) && negativeScore === 0) {
+    sentiment = 'negative';
+    confidence = 65;
+    reasons.push('Mengungkapkan permintaan maaf');
+  }
+  
+  // Question marks netral jika tidak ada sentiment jelas
+  if ((text.includes('?') || lowerText.includes('apakah') || lowerText.includes('bagaimana')) && totalRelevant === 0) {
+    sentiment = 'neutral';
+    confidence = 40;
+    reasons.push('Pesan bersifat pertanyaan atau netral');
+  }
+  
+  // FIXED: Handle common false positives
+  if (positiveScore > 0 && negativeScore === 0 && sentiment !== 'positive') {
+    sentiment = 'positive';
+    confidence = Math.max(confidence, 70);
+  }
+  
+  return { 
+    sentiment, 
+    confidence: Math.round(confidence),
+    reasons,
+    scores: { positive: positiveScore, negative: negativeScore }
   };
-
+};
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
