@@ -1497,11 +1497,11 @@ export default function Home() {
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {[
-                      { label: "🕌 Pra-1800", range: [1500, 1799] },
-                      { label: "🏛️ 1800-1899", range: [1800, 1899] },
-                      { label: "📜 1900-1945", range: [1900, 1945] },
-                      { label: "🇮🇩 1945-1965", range: [1945, 1965] },
-                      { label: "📚 1965-2000", range: [1965, 2000] }
+                      { label: "🕌 Pra-1800", range: [1500, 1799], description: "Naskah kuno & manuskrip" },
+                      { label: "🏛️ 1800-1899", range: [1800, 1899], description: "Era kolonial awal" },
+                      { label: "📜 1900-1945", range: [1900, 1945], description: "Pergerakan nasional" },
+                      { label: "🇮🇩 1945-1965", range: [1945, 1965], description: "Era kemerdekaan" },
+                      { label: "📚 1965-2000", range: [1965, 2000], description: "Modern awal" }
                     ].map(period => (
                       <button
                         key={period.label}
