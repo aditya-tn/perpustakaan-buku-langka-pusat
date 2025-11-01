@@ -61,16 +61,16 @@ export default function KritikSaran() {
       'protes', 'mengecewakan', 'seharusnya', 'kurang', 'perlu perbaikan',
       
       // Staff & attitude issues
-      'tidak ramah', 'kasar', 'cuek', 'acuh', 'tidak sopan', 'marah', 'kesal',
-      'emosi', 'tidak membantu', 'malas', 'lamban', 'tidak responsif',
+      'kasar', 'cuek', 'acuh', 'marah', 'kesal',
+      'emosi', 'malas', 'lamban', 'jahat', 'cuek',
       
       // Technical & facility issues
       'hang', 'crash', 'down', 'maintenance', 'gangguan', 'trouble', 'error',
       'blank', 'kosong', 'tidak muncul', 'loading', 'lemot', 'lelet',
       
       // Collection & content issues
-      'terbatas', 'sedikit', 'tidak lengkap', 'kadaluarsa', 'usang', 'basil',
-      'tidak update', 'tidak relevan', 'tidak akurat', 'salah'
+      'terbatas', 'sedikit', 'kadaluarsa', 'usang', 'basil',
+     'salah'
     ];
     
     // Negation words yang membalikkan makna
