@@ -30,7 +30,7 @@ export default function TimKami({ isMobile }) {
       experience: "6 tahun"
     },
     {
-      name: "Dian Soni",
+      name: "Dian",
       position: "Pustakawan Ahli Madya",
       department: "layanan",
       education: "S-1 Program Studi Belanda - Universitas Indonesia, S-2 Ilmu Perpustakaan - Universitas Indonesia",
