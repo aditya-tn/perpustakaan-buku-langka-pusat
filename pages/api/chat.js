@@ -326,7 +326,17 @@ async function handleEnhancedRuleBased(message) {
       response: "📶 **WiFi Perpustakaan Nasional:**\n• Nama: National Library of Indonesia\n• Password: smartlibrary\n• Kecepatan relatif cepat, tergantung jumlah pengguna\n• Gratis untuk semua pengunjung",
       confidence: 0.9
     },
-
+    {
+      patterns: ['ruang baca khusus','ruang baca', 'area baca', 'tempat baca', 'kursi baca'],
+      response: "🪑 **Fasilitas Ruang Baca Khusus:**\n\n• Kursi ergonomis di setiap lantai\n\n• Meja baca dengan pencahayaan optimal\n\n• Hanya boleh ditempati oleh 1 orang (silent zone) di Lantai 9, 13 dan 14 \n\n• Syarat kartu anggota dan mengisi formulir \n\n**Fasilitas Ruang Diskusi:**\n\n• Ruang diskusi (discussion zone) hanya terdapat di Lantai 8, 16, 19 dan 24 \n\n• Syarat minimal 3 orang",
+      confidence: 0.85
+    },
+    {
+      patterns: ['toilet', 'wc', 'kamar mandi', 'restroom'],
+      response: "🚻 **Fasilitas Toilet:**\n\n• Tersedia di setiap lantai layanan\n\n• Bersih dan terawat\n\n• Toilet disabilitas tersedia di lantai 7\n\n• Dilengkapi wastafel dan sabun",
+      confidence: 0.9
+    }
+    
     // === BUKU & KOLEKSI ===
     {
       patterns: ['buku tertua', 'buku kuno', 'umur buku'],
@@ -464,6 +474,11 @@ Koleksi buku langka kami mendapatkan perawatan khusus untuk menjaga kelestariann
     {
       patterns: ['anggota', 'keanggotaan', 'syarat', 'daftar', 'kartu'],
       response: "📝 **Syarat Keanggotaan Perpustakaan Nasional:**\n\n• KTP / KK / Paspor yang masih berlaku\n\n• Mengisi formulir pendaftaran online/offline\n\n• Validasi keanggotaan di lantai 2\n\n• **Gratis** - tidak ada biaya pendaftaran\n\n• Proses: ±3 menit setelah validasi",
+      confidence: 0.9
+    },
+    {
+      patterns: ['ganti kartu', 'kartu hilang', 'kartu rusak', 'kartu anggota hilang'],
+      response: "🔄 **Penggantian Kartu Anggota:**\n\n• **Syarat**: Bawa KTP asli & surat kehilangan (jika hilang) dari kepolisian \n\n •lapor ke meja layanan keanggotaan\n• **Biaya**: Gratis (selama ketersediaan kartu anggota masih ada)\n\n• **Proses**: ±10 menit setelah verifikasi\n\n• **Lokasi**: Lantai 2 - Layanan Keanggotaan",
       confidence: 0.9
     },
 
