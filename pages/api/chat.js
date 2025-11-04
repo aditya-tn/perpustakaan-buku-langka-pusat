@@ -375,12 +375,12 @@ async function handleEnhancedRuleBased(message) {
   
     // === LAYANAN DIGITAL & E-BOOK ===
     {
-      patterns: ['e-book', 'ebook','cara baca ebook','koleksi digital', 'buku digital', 'digital', 'ipusnas', 'bintangpusnas', 'aplikasi perpus'],
+      patterns: ['e-book', 'ebook','cara baca ebook','koleksi digital', 'digital', 'ipusnas', 'bintangpusnas', 'aplikasi perpus'],
       response: `📱 **Akses Layanan Digital Perpustakaan Nasional:**\n\n**📚 E-Book & Buku Digital:**\n\n• **IPUSNAS** - Aplikasi mobile untuk akses koleksi digital\n\n• **BintangPusnas Edu** - Platform pembelajaran digital\n\n**🌐 Jurnal Online & E-Resources:**\n• **E-Resources** - https://e-resources.perpusnas.go.id\n\n   - Jurnal internasional\n\n   - Database penelitian\n\n   - Artikel akademik\n\n**📜 Koleksi Langka Digital:**\n\n• **KHASTARA** - https://khastara.perpusnas.go.id/\n\n   - Koleksi langka hasil alih media\n   - Naskah kuno digital\n\n   - Buku Langka dan koleksi langka Perpustakaan Nasional Lainnya\n\n**💡 Tips:**\n\n• Download aplikasi IPUSNAS di Play Store/App Store\n\n• Akses gratis dengan kartu anggota Perpusnas\n\n• Konsultasi dengan pustakawan untuk bantuan akses`,
       confidence: 0.9
     },
     {
-      patterns: ['khastara', 'naskah digital', 'koleksi digital', 'alih media'],
+      patterns: ['khastara', 'buku digital','hasil scan','pdf', 'koleksi digital','hasil alih media', 'alih media', 'koleksi digital buku langka'],
       response: `🌐 **KHASTARA - Koleksi Digital Buku Langka:**\n\n**Akses melalui:** https://khastara.perpusnas.go.id/\n\n**Yang tersedia di Khastara:**\n\n• Naskah kuno terdigitalisasi\n\n• Buku langka hasil alih media\n\n• Majalah dan Surat Kabar Langka \n\n• Foto, Peta dan Lukisan\n\n**Keuntungan:**\n\n• Akses online 24/7\n\n• Tidak merusak fisik buku asli\n\n• Kualitas terjamin\n\n• Pencarian lebih mudah`,
       confidence: 0.85
     },
