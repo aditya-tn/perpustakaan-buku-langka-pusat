@@ -512,24 +512,9 @@ Koleksi buku langka kami mendapatkan perawatan khusus untuk menjaga kelestariann
     
     // 🎯 TAMBAHAN PATTERN UNTUK REDUCE AI LOAD
     {
-      patterns: ['locker', 'loker', 'penitipan barang', 'titip barang'],
-      response: "🗄️ **Fasilitas Locker:**\n\n• Tersedia di setiap lantai layanan\n• **Gratis** - tidak ada biaya sewa\n• Bawa kunci sendiri atau gunakan sistem pin\n• **Tidak boleh**: Makanan, minuman, barang berharga\n• Buka dari jam operasional perpustakaan",
+      patterns: ['locker', 'loker', 'tas','penitipan barang', 'titip barang'],
+      response: "🗄️ **Fasilitas Locker:**\n\n• Pengguna / pengunjung tidak diperkenankan membawa tas pada ruang koleksi \n\n• Silahkan menitipkan tas bawaan ke bagian locker yang tersedia di lantai 1 (satu)",
       confidence: 0.9
-    },
-    {
-      patterns: ['denda', 'telat', 'keterlambatan', 'denda buku'],
-      response: "💰 **Kebijakan Denda:**\n\n• **Buku reguler**: Rp 2.000/hari/buku\n• **Maksimal denda**: Rp 50.000 per buku\n• **Cara bayar**: Langsung di meja sirkulasi\n• **Pembayaran**: Tunai atau QRIS\n• **Peringatan**: Tidak bisa pinjam jika ada denda",
-      confidence: 0.9
-    },
-    {
-      patterns: ['opac', 'katalog online', 'catalog', 'pencarian katalog'],
-      response: "💻 **Katalog Online (OPAC):**\n\n• **Akses**: https://opac.perpusnas.go.id\n• **Fitur**: Pencarian judul, pengarang, subjek\n• **Ketersediaan**: Cek status buku (tersedia/dipinjam)\n• **Lokasi**: Lihat nomor panggil untuk penelusuran\n• **Bantuan**: Pustakawan referensi siap membantu pencarian",
-      confidence: 0.9
-    },
-    {
-      patterns: ['sanksi', 'pelanggaran', 'merusak buku', 'buku rusak'],
-      response: "⚖️ **Sanksi Pelanggaran:**\n\n• **Merusak buku**: Ganti rugi sesuai nilai buku\n• **Hilangkan buku**: Ganti dengan buku sama atau bayar 2x harga\n• **Tertib**: Dikeluarkan jika mengganggu pengunjung lain\n• **Pelanggaran berat**: Dicabut keanggotaannya",
-      confidence: 0.85
     }
   ];
 
