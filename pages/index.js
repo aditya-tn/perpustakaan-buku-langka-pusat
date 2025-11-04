@@ -1947,17 +1947,17 @@ export default function Home() {
                       style={{
                         backgroundColor: '#4299e1',
                         color: 'white',
-                        padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+                        padding: '0.4rem 0.8rem',
                         borderRadius: '6px',
                         textDecoration: 'none',
-                        fontSize: isMobile ? '0.75rem' : '0.85rem',
+                        fontSize: '0.75rem',
                         fontWeight: '500'
                       }}
                     >
                       📖 Lihat OPAC
                     </a>
                   )}
-
+                
                   {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
                     <a 
                       href={book.link_pesan_koleksi}
@@ -1966,16 +1966,19 @@ export default function Home() {
                       style={{
                         backgroundColor: '#48bb78',
                         color: 'white',
-                        padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+                        padding: '0.4rem 0.8rem',
                         borderRadius: '6px',
                         textDecoration: 'none',
-                        fontSize: isMobile ? '0.75rem' : '0.85rem',
+                        fontSize: '0.75rem',
                         fontWeight: '500'
                       }}
                     >
                       📥 Pesan Koleksi
                     </a>
                   )}
+                
+                  {/* TAMBAHKAN KOMPONEN BARU DI SINI */}
+                  <BookDescription book={book} />
                 </div>
               </div>
             ))}
