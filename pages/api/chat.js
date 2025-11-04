@@ -364,29 +364,29 @@ async function handleEnhancedRuleBased(message) {
         // === FOTOKOPI & SCAN BUKU LANGKA ===
     {
       patterns: ['fotokopi', 'foto kopi', 'copy', 'photocopy', 'gandakan', 'penggandaan'],
-      response: `🚫 **Kebijakan Fotokopi Buku Langka:**\n\nBuku langka **tidak dapat difotokopi** dengan alasan:\n\n• **Pelestarian Koleksi** - Mencegah kerusakan fisik pada buku langka\n• **Nilai Historis** - Menjaga keaslian dan kondisi naskah kuno\n• **Kebijakan Konservasi** - Standar internasional untuk preservasi koleksi langka\n\n📚 **Alternatif yang tersedia:**\n• Baca di tempat di Lantai 14\n• Konsultasi dengan pustakawan untuk akses terbatas\n• Akses digital melalui platform Khastara (jika tersedia)`,
+      response: `🚫 **Kebijakan Fotokopi Buku Langka:**\n\nBuku langka **tidak dapat difotokopi** dengan alasan:\n\n• **Pelestarian Koleksi** - Mencegah kerusakan fisik pada buku langka\n\n• **Nilai Historis** - Menjaga keaslian dan kondisi naskah kuno\n\n• **Kebijakan Konservasi** - Standar internasional untuk preservasi koleksi langka\n\n📚 **Alternatif yang tersedia:**\n\n• Baca di tempat di Lantai 14\n\n• Konsultasi dengan pustakawan untuk akses terbatas\n\n• Akses digital melalui platform Khastara (jika tersedia)`,
       confidence: 0.9
     },
     {
       patterns: ['scan', 'pindai', 'digitalisasi', 'foto digital', 'fotografi'],
-      response: `📄 **Layanan Scan/Pindai Buku Langka:**\n\n**Permintaan scan buku langka dapat dilakukan dengan:**\n\n**1. Scan Mandiri:**\n   • Bawa device sendiri (hp/kamera)\n   • Izin pustakawan terlebih dahulu\n   • Tidak menggunakan flash\n   • Tidak menekan buku berlebihan\n\n**2. Scan oleh Perpustakaan Nasional:**\n   • Mengikuti SOP yang berlaku\n   • Syarat dan ketentuan khusus\n   • Waktu proses sesuai kompleksitas\n   • Biaya administrasi berlaku\n\n**📞 Untuk informasi lengkap:**\nSilakan hubungi langsung pustakawan layanan di Lantai 14 atau melalui WhatsApp: +6285717147303`,
+      response: `📄 **Layanan Scan/Pindai Buku Langka:**\n\n**Permintaan scan buku langka dapat dilakukan dengan:**\n\n**1. Scan Mandiri:**\n\n   • Bawa device sendiri (hanya diperkenankan menggunakan smartphone, tidak menggunakan kamera profesional)\n\n   • Izin pustakawan terlebih dahulu\n   • Tidak menggunakan flash\n   • Tidak menekan buku berlebihan\n\n**2. Scan oleh Perpustakaan Nasional:**\n\n   • Mengikuti SOP yang berlaku\n\n   • Syarat dan ketentuan khusus\n\n   • Waktu proses sesuai kompleksitas\n\n   • Biaya administrasi berlaku\n\n**📞 Untuk informasi lengkap:**\nSilakan hubungi langsung pustakawan layanan di Lantai 14 atau melalui WhatsApp: +6285717147303`,
       confidence: 0.9
     },
   
     // === LAYANAN DIGITAL & E-BOOK ===
     {
       patterns: ['e-book', 'ebook', 'buku digital', 'digital', 'ipusnas', 'bintangpusnas', 'aplikasi perpus'],
-      response: `📱 **Akses Layanan Digital Perpustakaan Nasional:**\n\n**📚 E-Book & Buku Digital:**\n• **IPUSNAS** - Aplikasi mobile untuk akses koleksi digital\n• **BintangPusnas Edu** - Platform pembelajaran digital\n\n**🌐 Jurnal Online & E-Resources:**\n• **E-Resources** - https://e-resources.perpusnas.go.id\n   - Jurnal internasional\n   - Database penelitian\n   - Artikel akademik\n\n**📜 Koleksi Langka Digital:**\n• **KHASTARA** - https://khastara.perpusnas.go.id/\n   - Koleksi langka hasil alih media\n   - Naskah kuno digital\n   - Arsip sejarah terdigitalisasi\n\n**💡 Tips:**\n• Download aplikasi IPUSNAS di Play Store/App Store\n• Akses gratis dengan kartu anggota Perpusnas\n• Konsultasi dengan pustakawan untuk bantuan akses`,
+      response: `📱 **Akses Layanan Digital Perpustakaan Nasional:**\n\n**📚 E-Book & Buku Digital:**\n\n• **IPUSNAS** - Aplikasi mobile untuk akses koleksi digital\n\n• **BintangPusnas Edu** - Platform pembelajaran digital\n\n**🌐 Jurnal Online & E-Resources:**\n• **E-Resources** - https://e-resources.perpusnas.go.id\n\n   - Jurnal internasional\n\n   - Database penelitian\n\n   - Artikel akademik\n\n**📜 Koleksi Langka Digital:**\n\n• **KHASTARA** - https://khastara.perpusnas.go.id/\n\n   - Koleksi langka hasil alih media\n   - Naskah kuno digital\n\n   - Buku Langka dan koleksi langka Perpustakaan Nasional Lainnya\n\n**💡 Tips:**\n\n• Download aplikasi IPUSNAS di Play Store/App Store\n\n• Akses gratis dengan kartu anggota Perpusnas\n\n• Konsultasi dengan pustakawan untuk bantuan akses`,
       confidence: 0.9
     },
     {
       patterns: ['khastara', 'naskah digital', 'koleksi digital', 'alih media'],
-      response: `🌐 **KHASTARA - Koleksi Digital Buku Langka:**\n\n**Akses melalui:** https://khastara.perpusnas.go.id/\n\n**Yang tersedia di Khastara:**\n• Naskah kuno terdigitalisasi\n• Buku langka hasil alih media\n• Dokumen sejarah digital\n• Koleksi spesial dalam format digital\n\n**Keuntungan:**\n• Akses online 24/7\n• Tidak merusak fisik buku asli\n• Kualitas terjamin\n• Pencarian lebih mudah`,
+      response: `🌐 **KHASTARA - Koleksi Digital Buku Langka:**\n\n**Akses melalui:** https://khastara.perpusnas.go.id/\n\n**Yang tersedia di Khastara:**\n\n• Naskah kuno terdigitalisasi\n\n• Buku langka hasil alih media\n\n• Majalah dan Surat Kabar Langka \n\n• Foto, Peta dan Lukisan\n\n**Keuntungan:**\n\n• Akses online 24/7\n\n• Tidak merusak fisik buku asli\n\n• Kualitas terjamin\n\n• Pencarian lebih mudah`,
       confidence: 0.85
     },
     {
       patterns: ['e-resources', 'jurnal online', 'jurnal digital', 'database online'],
-      response: `💻 **E-Resources Perpustakaan Nasional:**\n\n**Akses melalui:** https://e-resources.perpusnas.go.id\n\n**Konten yang tersedia:**\n• Jurnal internasional bereputasi\n• Database penelitian global\n• Artikel akademik terbaru\n• E-book dari penerbit ternama\n• Prosiding konferensi\n\n**Syarat akses:**\n• Kartu anggota Perpusnas yang aktif\n• Akses dari dalam perpustakaan\n• Konsultasi dengan pustakawan referensi`,
+      response: `💻 **E-Resources Perpustakaan Nasional:**\n\n**Akses melalui:** https://e-resources.perpusnas.go.id\n\n**Konten yang tersedia:**\n\n• Jurnal internasional bereputasi\n\n• Database penelitian global\n\n• Artikel akademik terbaru\n\n• E-book dari penerbit ternama\n\n• Prosiding konferensi\n\n**Syarat akses:**\n\n• Kartu anggota Perpusnas yang aktif\n\n• Akses dari dalam perpustakaan\n\n• Konsultasi dengan pustakawan referensi`,
       confidence: 0.85
     },
 
