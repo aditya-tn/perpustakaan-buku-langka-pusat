@@ -9,34 +9,12 @@ const Chatbot = ({
   position = 'bottom-right',
   welcomeMessage = true 
 }) => {
-  // 🎯 LOAD INITIAL STATE DARI localStorage
-  const [isOpen, setIsOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('chatbot-isOpen')
-      return saved ? JSON.parse(saved) : autoOpen
-    }
-    return autoOpen
-  })
-  
-  const [messages, setMessages] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('chatbot-messages')
-      try {
-        const parsed = saved ? JSON.parse(saved) : []
-        // 🎯 FIX: Convert timestamp strings back to Date objects
-        return parsed.map(msg => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }))
-      } catch (e) {
-        return []
-      }
-    }
-    return []
-  })
-  
+  // 🎯 FIX: State awal tanpa localStorage di server
+  const [isOpen, setIsOpen] = useState(autoOpen)
+  const [messages, setMessages] = useState([])
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isMounted, setIsMounted] = useState(false) // 🆕 Track client-side mount
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -49,29 +27,56 @@ const Chatbot = ({
     "Kontak perpustakaan?"
   ]
 
-  // 🎯 SAVE STATE KE localStorage SETIAP PERUBAHAN
+  // 🎯 FIX: Hanya jalankan di client-side setelah mount
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    setIsMounted(true)
+    
+    // Load state dari localStorage HANYA di client
+    const savedIsOpen = localStorage.getItem('chatbot-isOpen')
+    if (savedIsOpen) {
+      setIsOpen(JSON.parse(savedIsOpen))
+    }
+
+    const savedMessages = localStorage.getItem('chatbot-messages')
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages)
+        // Convert timestamp strings back to Date objects
+        const messagesWithDate = parsedMessages.map(msg => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }))
+        setMessages(messagesWithDate)
+      } catch (e) {
+        console.error('Error parsing saved messages:', e)
+        setMessages([])
+      }
+    }
+  }, [])
+
+  // 🎯 FIX: Save to localStorage HANYA setelah mount
+  useEffect(() => {
+    if (isMounted) {
       localStorage.setItem('chatbot-isOpen', JSON.stringify(isOpen))
     }
-  }, [isOpen])
+  }, [isOpen, isMounted])
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && messages.length > 0) {
+    if (isMounted && messages.length > 0) {
       localStorage.setItem('chatbot-messages', JSON.stringify(messages))
     }
-  }, [messages])
+  }, [messages, isMounted])
 
-  // 🎯 AUTO FOCUS KE INPUT KETIKA CHATBOT DIBUKA
+  // 🎯 FIX: Auto focus hanya setelah mount dan open
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isMounted && isOpen && inputRef.current) {
       setTimeout(() => {
         inputRef.current.focus()
       }, 300)
     }
-  }, [isOpen])
+  }, [isOpen, isMounted])
 
-  // 🎯 FIXED POSITION STYLING - PAKAI INLINE STYLE UNTUK POSITION
+  // 🎯 FIXED POSITION STYLING - TETAP DI BOTTOM
   const getPositionStyles = () => {
     const baseStyles = {
       position: 'fixed',
@@ -121,7 +126,7 @@ const Chatbot = ({
 
   const toggleButtonStyle = getPositionStyles()
 
-  // 🎯 FIXED CHAT INTERFACE POSITION
+  // 🎯 FIXED CHAT INTERFACE POSITION - TETAP DI ATAS BUTTON
   const getChatInterfaceStyle = () => {
     const baseStyle = {
       position: 'fixed',
@@ -182,9 +187,9 @@ const Chatbot = ({
     scrollToBottom()
   }, [messages])
 
-  // 🎯 INITIALIZE DENGAN WELCOME MESSAGE HANYA JIKA BELUM ADA MESSAGES
+  // 🎯 FIX: Initialize welcome message hanya setelah mount
   useEffect(() => {
-    if (isOpen && messages.length === 0 && welcomeMessage) {
+    if (isMounted && isOpen && messages.length === 0 && welcomeMessage) {
       const welcomeMsg = {
         id: Date.now(),
         text: "Halo! Saya Asisten Pustakawan Koleksi Buku Langka 🤖 Silakan tanyakan tentang koleksi, layanan, atau bantuan pencarian.",
@@ -193,27 +198,27 @@ const Chatbot = ({
       }
       setMessages([welcomeMsg])
     }
-  }, [isOpen, welcomeMessage, messages.length])
+  }, [isOpen, welcomeMessage, messages.length, isMounted])
 
-  // Auto open effect
+  // Auto open effect - hanya setelah mount
   useEffect(() => {
-    if (autoOpen && typeof window !== 'undefined') {
+    if (isMounted && autoOpen) {
       const saved = localStorage.getItem('chatbot-isOpen')
       if (!saved) {
         setIsOpen(true)
       }
     }
-  }, [autoOpen])
+  }, [autoOpen, isMounted])
 
   // 🎯 CLEAR CHAT HISTORY FUNCTION
   const clearChatHistory = () => {
     setMessages([])
-    if (typeof window !== 'undefined') {
+    if (isMounted) {
       localStorage.removeItem('chatbot-messages')
     }
   }
 
-  // 🎯 PROCESS USER QUERY
+  // 🎯 PROCESS USER QUERY (TIDAK BERUBAH)
   const processUserQuery = async (query) => {
     setIsLoading(true)
     
@@ -223,7 +228,7 @@ const Chatbot = ({
         id: Date.now(),
         text: query,
         isBot: false,
-        timestamp: new Date() // 🎯 PASTIKAN TIMESTAMP DATE OBJECT
+        timestamp: new Date()
       }
 
       setMessages(prev => [...prev, userMessage])
@@ -263,7 +268,7 @@ const Chatbot = ({
         id: Date.now() + 1,
         text: botResponse,
         isBot: true,
-        timestamp: new Date() // 🎯 PASTIKAN TIMESTAMP DATE OBJECT
+        timestamp: new Date()
       }
 
       setMessages(prev => [...prev, botMessage])
@@ -277,7 +282,7 @@ const Chatbot = ({
         id: Date.now() + 1,
         text: fallbackResponse,
         isBot: true,
-        timestamp: new Date() // 🎯 PASTIKAN TIMESTAMP DATE OBJECT
+        timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
@@ -285,7 +290,7 @@ const Chatbot = ({
     }
   }
 
-  // 🎯 FALLBACK RESPONSE JIKA API ERROR
+  // 🎯 FALLBACK RESPONSE JIKA API ERROR (TIDAK BERUBAH)
   const generateFallbackResponse = async (query) => {
     const lowerQuery = query.toLowerCase();
     
@@ -348,7 +353,6 @@ const Chatbot = ({
   // 🎯 SAFE TIMESTAMP FORMATTING
   const formatTimestamp = (timestamp) => {
     try {
-      // Handle both Date objects and strings
       const date = timestamp instanceof Date ? timestamp : new Date(timestamp)
       return date.toLocaleTimeString('id-ID', { 
         hour: '2-digit', 
@@ -360,9 +364,28 @@ const Chatbot = ({
     }
   }
 
+  // 🎯 FIX: Jangan render apa-apa selama belum mount (server-side)
+  if (!isMounted) {
+    return (
+      <>
+        {/* Render button sederhana untuk server */}
+        <button
+          style={{
+            ...getPositionStyles(),
+            opacity: 0 // Sembunyikan dulu
+          }}
+          aria-label="Chatbot"
+        >
+          🤖
+        </button>
+      </>
+    )
+  }
+
+  // 🎯 Render lengkap hanya di client-side
   return (
     <>
-      {/* Chatbot Toggle Button - TANPA NOTIFIKASI ANGKA */}
+      {/* Chatbot Toggle Button */}
       <button
         onClick={toggleChatbot}
         style={toggleButtonStyle}
@@ -377,7 +400,6 @@ const Chatbot = ({
         }}
       >
         🤖
-        {/* 🎯 HAPUS NOTIFIKASI ANGKA */}
       </button>
 
       {/* Chatbot Interface */}
@@ -443,7 +465,7 @@ const Chatbot = ({
                   background: 'rgba(255, 255, 255, 0.2)',
                   border: 'none',
                   color: 'white',
-                  width: '32px',
+                    width: '32px',
                   height: '32px',
                   borderRadius: '50%',
                   cursor: 'pointer',
@@ -468,11 +490,11 @@ const Chatbot = ({
           {/* Messages Area */}
           <div style={{
             flex: 1,
-            padding: '1rem', // 🎯 KURANGI PADDING
+            padding: '1rem',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
-            gap: '0.75rem', // 🎯 KURANGI GAP
+            gap: '0.75rem',
             background: '#f8fafc'
           }}>
             {messages.map((message) => (
@@ -486,18 +508,18 @@ const Chatbot = ({
                 }}
               >
                 <div style={{
-                  maxWidth: '75%', // 🎯 KURANGI LEBAR MAXIMUM
-                  padding: '0.75rem 1rem', // 🎯 KURANGI PADDING
-                  borderRadius: '16px', // 🎯 KURANGI BORDER RADIUS
-                  lineHeight: '1.4', // 🎯 KURANGI LINE HEIGHT
+                  maxWidth: '75%',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '16px',
+                  lineHeight: '1.4',
                   wordWrap: 'break-word',
-                  boxShadow: '0 1px 8px rgba(0, 0, 0, 0.1)', // 🎯 KURANGI SHADOW
+                  boxShadow: '0 1px 8px rgba(0, 0, 0, 0.1)',
                   background: message.isBot ? 'white' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: message.isBot ? '#2d3748' : 'white',
                   borderBottomLeftRadius: message.isBot ? '4px' : '16px',
                   borderBottomRightRadius: message.isBot ? '16px' : '4px',
                   border: message.isBot ? '1px solid #e2e8f0' : 'none',
-                  fontSize: '0.9rem' // 🎯 KURANGI FONT SIZE
+                  fontSize: '0.9rem'
                 }}>
                   {message.isBot ? (
                     <ReactMarkdown>{message.text}</ReactMarkdown>
@@ -506,9 +528,9 @@ const Chatbot = ({
                   )}
                 </div>
                 <div style={{
-                  fontSize: '0.65rem', // 🎯 KURANGI FONT SIZE TIMESTAMP
+                  fontSize: '0.65rem',
                   color: '#718096',
-                  marginTop: '0.2rem', // 🎯 KURANGI MARGIN
+                  marginTop: '0.2rem',
                   textAlign: message.isBot ? 'left' : 'right'
                 }}>
                   {formatTimestamp(message.timestamp)}
@@ -524,8 +546,8 @@ const Chatbot = ({
                 alignItems: 'flex-start'
               }}>
                 <div style={{
-                  maxWidth: '75%', // 🎯 KURANGI LEBAR MAXIMUM
-                  padding: '0.75rem 1rem', // 🎯 KURANGI PADDING
+                  maxWidth: '75%',
+                  padding: '0.75rem 1rem',
                   borderRadius: '16px',
                   lineHeight: '1.4',
                   wordWrap: 'break-word',
@@ -542,7 +564,7 @@ const Chatbot = ({
                       <span
                         key={index}
                         style={{
-                          width: '5px', // 🎯 KURANGI UKURAN DOT
+                          width: '5px',
                           height: '5px',
                           borderRadius: '50%',
                           background: '#667eea',
@@ -563,14 +585,14 @@ const Chatbot = ({
           {/* Predefined Questions - Hanya tampil jika messages sedikit */}
           {messages.length <= 2 && (
             <div style={{
-              padding: '0.75rem', // 🎯 KURANGI PADDING
+              padding: '0.75rem',
               borderTop: '1px solid #e2e8f0',
               background: 'white'
             }}>
               <div style={{
-                fontSize: '0.75rem', // 🎯 KURANGI FONT SIZE
+                fontSize: '0.75rem',
                 color: '#718096',
-                marginBottom: '0.5rem', // 🎯 KURANGI MARGIN
+                marginBottom: '0.5rem',
                 fontWeight: '600'
               }}>
                 💡 Pertanyaan cepat:
@@ -578,18 +600,18 @@ const Chatbot = ({
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.4rem' // 🎯 KURANGI GAP
+                gap: '0.4rem'
               }}>
                 {predefinedQuestions.map((question, index) => (
                   <button
                     key={index}
                     onClick={() => handlePredefinedQuestion(question)}
                     style={{
-                      padding: '0.5rem 0.6rem', // 🎯 KURANGI PADDING
+                      padding: '0.5rem 0.6rem',
                       background: '#f7fafc',
                       border: '1px solid #e2e8f0',
-                      borderRadius: '8px', // 🎯 KURANGI BORDER RADIUS
-                      fontSize: '0.7rem', // 🎯 KURANGI FONT SIZE
+                      borderRadius: '8px',
+                      fontSize: '0.7rem',
                       textAlign: 'left',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
@@ -616,7 +638,7 @@ const Chatbot = ({
 
           {/* Input Area */}
           <form onSubmit={handleSubmit} style={{
-            padding: '0.75rem', // 🎯 KURANGI PADDING
+            padding: '0.75rem',
             borderTop: '1px solid #e2e8f0',
             background: 'white'
           }}>
@@ -631,10 +653,10 @@ const Chatbot = ({
                 disabled={isLoading}
                 style={{
                   flex: 1,
-                  padding: '0.75rem 0.875rem', // 🎯 KURANGI PADDING
+                  padding: '0.75rem 0.875rem',
                   border: '1px solid #e2e8f0',
-                  borderRadius: '10px', // 🎯 KURANGI BORDER RADIUS
-                  fontSize: '0.85rem', // 🎯 KURANGI FONT SIZE
+                  borderRadius: '10px',
+                  fontSize: '0.85rem',
                   outline: 'none',
                   background: 'white',
                   transition: 'all 0.2s',
@@ -646,18 +668,18 @@ const Chatbot = ({
                 type="submit"
                 disabled={!inputMessage.trim() || isLoading}
                 style={{
-                  width: '40px', // 🎯 KURANGI UKURAN
+                  width: '40px',
                   height: '40px',
                   background: !inputMessage.trim() || isLoading ? '#cbd5e0' : '#667eea',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '10px', // 🎯 KURANGI BORDER RADIUS
+                  borderRadius: '10px',
                   cursor: !inputMessage.trim() || isLoading ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   transition: 'all 0.2s',
-                  fontSize: '0.9rem', // 🎯 KURANGI FONT SIZE
+                  fontSize: '0.9rem',
                   fontWeight: '600'
                 }}
                 aria-label="Kirim pesan"
