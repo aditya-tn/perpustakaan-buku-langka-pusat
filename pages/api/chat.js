@@ -15,33 +15,32 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Message is required' });
     }
     
-// Tambahkan logging di handler utama
-console.log('=== HYBRID CHAT API CALLED ===');
-console.log('Processing message:', message);
+    // Tambahkan logging di handler utama
+    console.log('Processing message:', message);
 
-// 🎯 STEP 1: Prioritize Book Search
-const searchResponse = await handleBookSearch(message);
-console.log('🔍 Book search result:', searchResponse ? 'MATCH' : 'NO MATCH');
+    // 🎯 STEP 1: Prioritize Book Search
+    const searchResponse = await handleBookSearch(message);
+    console.log('🔍 Book search result:', searchResponse ? 'MATCH' : 'NO MATCH');
 
-if (searchResponse) {
-  return res.status(200).json([{ 
-    text: searchResponse,
-    type: 'book_search',
-    confidence: 0.9
-  }]);
-}
+    if (searchResponse) {
+      return res.status(200).json([{ 
+        text: searchResponse,
+        type: 'book_search',
+        confidence: 0.9
+      }]);
+    }
 
-// 🎯 STEP 1.5: BOOK SPECIFIC QUESTIONS - IMPROVED
-const bookQuestionResponse = await handleBookSpecificQuestion(message);
-console.log('📖 Book question result:', bookQuestionResponse ? 'MATCH' : 'NO MATCH');
+    // 🎯 STEP 1.5: BOOK SPECIFIC QUESTIONS - IMPROVED
+    const bookQuestionResponse = await handleBookSpecificQuestion(message);
+    console.log('📖 Book question result:', bookQuestionResponse ? 'MATCH' : 'NO MATCH');
 
-if (bookQuestionResponse) {
-  return res.status(200).json([{ 
-    text: bookQuestionResponse,
-    type: 'book_detail',
-    confidence: 0.8
-  }]);
-}
+    if (bookQuestionResponse) {
+      return res.status(200).json([{ 
+        text: bookQuestionResponse,
+        type: 'book_detail',
+        confidence: 0.8
+      }]);
+    }
     
     // 🎯 STEP 2: Enhanced Rule-Based dengan Confidence Scoring
     const ruleBasedResult = await handleEnhancedRuleBased(message);
@@ -294,13 +293,11 @@ async function handleEnhancedRuleBased(message) {
     },
 
     // === FASILITAS & LAYANAN UMUM ===
-
     {
       patterns: ['cara meminjam', 'cara pinjam', 'pinjam buku', 'meminjam buku'],
       response: "📚 **Cara Meminjam Buku:**\n1. Bawa kartu anggota\n2. Cari buku di web katalog buku langka / OPAC Perpusnas \n3. Isi formulir pemesanan buku \n4. Maksimal 5 buku\n5. Baca di tempat \n\n📍 **Buku Langka**: Hanya di Lantai 14, tidak boleh dipinjam keluar",
       confidence: 0.95
     },
-
     {
       patterns: ['jam', 'buka', 'tutup', 'operasional'],
       response: "🕐 **Jam Operasional** \n\n  **Layanan Buku Langka,** \n\n**Perpustakaan Nasional:**\n\n Senin-Jumat: 08.00-19.00 WIB \n\n Sabtu-Minggu: 09.00-16.00 WIB",
@@ -335,8 +332,8 @@ async function handleEnhancedRuleBased(message) {
       patterns: ['toilet', 'wc', 'kamar mandi', 'restroom'],
       response: "🚻 **Fasilitas Toilet:**\n\n• Tersedia di setiap lantai layanan\n\n• Bersih dan terawat\n\n• Toilet disabilitas tersedia di lantai 7\n\n• Dilengkapi wastafel dan sabun",
       confidence: 0.9
-    }
-    
+    },
+
     // === BUKU & KOLEKSI ===
     {
       patterns: ['buku tertua', 'buku kuno', 'umur buku'],
@@ -371,7 +368,7 @@ async function handleEnhancedRuleBased(message) {
       confidence: 0.9
     },
 
-        // === FOTOKOPI & SCAN BUKU LANGKA ===
+    // === FOTOKOPI & SCAN BUKU LANGKA ===
     {
       patterns: ['fotokopi', 'foto kopi', 'copy', 'photocopy', 'gandakan', 'menggandakan','photo copy','penggandaan'],
       response: `🚫 **Kebijakan Fotokopi Buku Langka:**\n\nBuku langka **tidak dapat difotokopi** dengan alasan:\n\n• **Pelestarian Koleksi** - Mencegah kerusakan fisik pada buku langka\n\n• **Nilai Historis** - Menjaga keaslian dan kondisi naskah kuno\n\n• **Kebijakan Konservasi** - Standar internasional untuk preservasi koleksi langka\n\n📚 **Alternatif yang tersedia:**\n\n• Baca di tempat di Lantai 14\n\n• Konsultasi dengan pustakawan untuk akses terbatas\n\n• Akses digital melalui platform Khastara (jika tersedia)`,
@@ -512,12 +509,27 @@ Koleksi buku langka kami mendapatkan perawatan khusus untuk menjaga kelestariann
       response: "Terima kasih sudah berkunjung! 👋 Sampai jumpa lagi di Perpustakaan Nasional!",
       confidence: 0.9
     },
-    // 🎯 TAMBAH INTENT PATTERN KHUSUS DI RULE-BASED
+    
+    // 🎯 TAMBAHAN PATTERN UNTUK REDUCE AI LOAD
     {
-      patterns: ['tentang apa', 'mengenai apa'],
-      response: null, // Biarkan AI handle
-      confidence: 0.7,
-      isBookQuestion: true // Flag khusus
+      patterns: ['locker', 'loker', 'penitipan barang', 'titip barang'],
+      response: "🗄️ **Fasilitas Locker:**\n\n• Tersedia di setiap lantai layanan\n• **Gratis** - tidak ada biaya sewa\n• Bawa kunci sendiri atau gunakan sistem pin\n• **Tidak boleh**: Makanan, minuman, barang berharga\n• Buka dari jam operasional perpustakaan",
+      confidence: 0.9
+    },
+    {
+      patterns: ['denda', 'telat', 'keterlambatan', 'denda buku'],
+      response: "💰 **Kebijakan Denda:**\n\n• **Buku reguler**: Rp 2.000/hari/buku\n• **Maksimal denda**: Rp 50.000 per buku\n• **Cara bayar**: Langsung di meja sirkulasi\n• **Pembayaran**: Tunai atau QRIS\n• **Peringatan**: Tidak bisa pinjam jika ada denda",
+      confidence: 0.9
+    },
+    {
+      patterns: ['opac', 'katalog online', 'catalog', 'pencarian katalog'],
+      response: "💻 **Katalog Online (OPAC):**\n\n• **Akses**: https://opac.perpusnas.go.id\n• **Fitur**: Pencarian judul, pengarang, subjek\n• **Ketersediaan**: Cek status buku (tersedia/dipinjam)\n• **Lokasi**: Lihat nomor panggil untuk penelusuran\n• **Bantuan**: Pustakawan referensi siap membantu pencarian",
+      confidence: 0.9
+    },
+    {
+      patterns: ['sanksi', 'pelanggaran', 'merusak buku', 'buku rusak'],
+      response: "⚖️ **Sanksi Pelanggaran:**\n\n• **Merusak buku**: Ganti rugi sesuai nilai buku\n• **Hilangkan buku**: Ganti dengan buku sama atau bayar 2x harga\n• **Tertib**: Dikeluarkan jika mengganggu pengunjung lain\n• **Pelanggaran berat**: Dicabut keanggotaannya",
+      confidence: 0.85
     }
   ];
 
