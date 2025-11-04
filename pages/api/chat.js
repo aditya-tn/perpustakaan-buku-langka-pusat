@@ -308,7 +308,7 @@ async function handleEnhancedRuleBased(message) {
     },
     {
       patterns: ['lokasi', 'alamat', 'dimana', 'tempat'],
-      response: "📍 **Alamat Perpustakaan Nasional RI:**\nGedung Fasilitas Layanan Perpustakaan Nasional\nJl. Medan Merdeka Selatan No.11, Jakarta 10110\n(Lokasi layanan tersebar di berbagai lantai)",
+      response: "📍 **Alamat Layanan Buku Langka Perpustakaan Nasional RI:**\nGedung Fasilitas Layanan Perpustakaan Nasional\nJl. Medan Merdeka Selatan No.11, Lantai 14, Jakarta 10110",
       confidence: 0.9
     },
     {
@@ -447,7 +447,7 @@ Koleksi buku langka kami mendapatkan perawatan khusus untuk menjaga kelestariann
 
     // === LAYANAN LAINNYA ===
     {
-      patterns: ['layanan', 'fasilitas', 'apa saja'],
+      patterns: ['layanan', 'fasilitas', 'apa saja layanan'],
       response: "📋 **Layanan Perpustakaan Nasional:**\n• Peminjaman buku reguler\n• Koleksi buku langka (Lt. 14)\n• Layanan anak (Lt. 7)\n• Ruang baca nyaman\n• WiFi gratis\n• Konsultasi pustakawan\n• Akses database online\n• Layanan digital & e-book",
       confidence: 0.85
     },
