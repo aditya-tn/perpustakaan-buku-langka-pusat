@@ -385,7 +385,7 @@ async function handleEnhancedRuleBased(message) {
       confidence: 0.85
     },
     {
-      patterns: ['e-resources', 'cara baca jurnal','jurnal online', 'jurnal digital', 'database online'],
+      patterns: ['e-resources', 'cara baca jurnal','jurnal online', 'jurnal digital', 'jurnal', 'database online'],
       response: `💻 **E-Resources Perpustakaan Nasional:**\n\n**Akses melalui:** https://e-resources.perpusnas.go.id\n\n**Konten yang tersedia:**\n\n• Jurnal internasional bereputasi\n\n• Database penelitian global\n\n• Artikel akademik terbaru\n\n• E-book dari penerbit ternama\n\n• Prosiding konferensi\n\n**Syarat akses:**\n\n• Kartu anggota Perpusnas yang aktif\n\n• Akses dari dalam perpustakaan\n\n• Konsultasi dengan pustakawan referensi`,
       confidence: 0.85
     },
