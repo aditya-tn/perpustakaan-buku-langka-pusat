@@ -363,7 +363,7 @@ async function handleEnhancedRuleBased(message) {
 
         // === FOTOKOPI & SCAN BUKU LANGKA ===
     {
-      patterns: ['fotokopi', 'foto kopi', 'copy', 'photocopy', 'gandakan', 'penggandaan'],
+      patterns: ['fotokopi', 'foto kopi', 'copy', 'photocopy', 'gandakan', 'menggandakan','photo copy','penggandaan'],
       response: `🚫 **Kebijakan Fotokopi Buku Langka:**\n\nBuku langka **tidak dapat difotokopi** dengan alasan:\n\n• **Pelestarian Koleksi** - Mencegah kerusakan fisik pada buku langka\n\n• **Nilai Historis** - Menjaga keaslian dan kondisi naskah kuno\n\n• **Kebijakan Konservasi** - Standar internasional untuk preservasi koleksi langka\n\n📚 **Alternatif yang tersedia:**\n\n• Baca di tempat di Lantai 14\n\n• Konsultasi dengan pustakawan untuk akses terbatas\n\n• Akses digital melalui platform Khastara (jika tersedia)`,
       confidence: 0.9
     },
@@ -380,7 +380,7 @@ async function handleEnhancedRuleBased(message) {
       confidence: 0.9
     },
     {
-      patterns: ['khastara', 'buku digital','hasil scan','pdf', 'koleksi digital','hasil alih media', 'alih media', 'koleksi digital buku langka'],
+      patterns: ['khastara', 'buku digital','hasil scan','pdf', 'koleksi digital','hasil alih media', 'alih media', 'koleksi digital '],
       response: `🌐 **KHASTARA - Koleksi Digital Buku Langka:**\n\n**Akses melalui:** https://khastara.perpusnas.go.id/\n\n**Yang tersedia di Khastara:**\n\n• Naskah kuno terdigitalisasi\n\n• Buku langka hasil alih media\n\n• Majalah dan Surat Kabar Langka \n\n• Foto, Peta dan Lukisan\n\n**Keuntungan:**\n\n• Akses online 24/7\n\n• Tidak merusak fisik buku asli\n\n• Kualitas terjamin\n\n• Pencarian lebih mudah`,
       confidence: 0.85
     },
@@ -404,7 +404,7 @@ async function handleEnhancedRuleBased(message) {
 
     // === BUKU LANGKA - PROFESSIONAL ===
     {
-      patterns: ['buku langka', 'apa itu buku langka', 'pengertian buku langka', 'akses','rare book'],
+      patterns: ['layanan buku langka', 'apa itu buku langka', 'pengertian buku langka', 'akses','rare book'],
       response: `📚 **Layanan Koleksi Buku Langka Perpustakaan Nasional**
 
 **Pengertian Buku Langka:**
