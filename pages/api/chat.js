@@ -375,7 +375,7 @@ async function handleEnhancedRuleBased(message) {
   
     // === LAYANAN DIGITAL & E-BOOK ===
     {
-      patterns: ['e-book', 'ebook', 'buku digital', 'digital', 'ipusnas', 'bintangpusnas', 'aplikasi perpus'],
+      patterns: ['e-book', 'ebook','cara baca ebook','koleksi digital', 'buku digital', 'digital', 'ipusnas', 'bintangpusnas', 'aplikasi perpus'],
       response: `📱 **Akses Layanan Digital Perpustakaan Nasional:**\n\n**📚 E-Book & Buku Digital:**\n\n• **IPUSNAS** - Aplikasi mobile untuk akses koleksi digital\n\n• **BintangPusnas Edu** - Platform pembelajaran digital\n\n**🌐 Jurnal Online & E-Resources:**\n• **E-Resources** - https://e-resources.perpusnas.go.id\n\n   - Jurnal internasional\n\n   - Database penelitian\n\n   - Artikel akademik\n\n**📜 Koleksi Langka Digital:**\n\n• **KHASTARA** - https://khastara.perpusnas.go.id/\n\n   - Koleksi langka hasil alih media\n   - Naskah kuno digital\n\n   - Buku Langka dan koleksi langka Perpustakaan Nasional Lainnya\n\n**💡 Tips:**\n\n• Download aplikasi IPUSNAS di Play Store/App Store\n\n• Akses gratis dengan kartu anggota Perpusnas\n\n• Konsultasi dengan pustakawan untuk bantuan akses`,
       confidence: 0.9
     },
@@ -385,7 +385,7 @@ async function handleEnhancedRuleBased(message) {
       confidence: 0.85
     },
     {
-      patterns: ['e-resources', 'jurnal online', 'jurnal digital', 'database online'],
+      patterns: ['e-resources', 'cara baca jurnal','jurnal online', 'jurnal digital', 'database online'],
       response: `💻 **E-Resources Perpustakaan Nasional:**\n\n**Akses melalui:** https://e-resources.perpusnas.go.id\n\n**Konten yang tersedia:**\n\n• Jurnal internasional bereputasi\n\n• Database penelitian global\n\n• Artikel akademik terbaru\n\n• E-book dari penerbit ternama\n\n• Prosiding konferensi\n\n**Syarat akses:**\n\n• Kartu anggota Perpusnas yang aktif\n\n• Akses dari dalam perpustakaan\n\n• Konsultasi dengan pustakawan referensi`,
       confidence: 0.85
     },
