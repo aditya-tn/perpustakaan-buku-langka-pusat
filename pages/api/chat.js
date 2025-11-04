@@ -15,27 +15,33 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Message is required' });
     }
     
-    console.log('Processing message:', message);
-    
-    // 🎯 STEP 1: Prioritize Book Search
-    const searchResponse = await handleBookSearch(message);
-    if (searchResponse) {
-      return res.status(200).json([{ 
-        text: searchResponse,
-        type: 'book_search',
-        confidence: 0.9
-      }]);
-    }
+// Tambahkan logging di handler utama
+console.log('=== HYBRID CHAT API CALLED ===');
+console.log('Processing message:', message);
 
-    // 🎯 STEP 1.5: BOOK SPECIFIC QUESTIONS - SIMPLE AI APPROACH
-    const bookQuestionResponse = await handleBookSpecificQuestion(message);
-    if (bookQuestionResponse) {
-      return res.status(200).json([{ 
-        text: bookQuestionResponse,
-        type: 'book_detail',
-        confidence: 0.8
-      }]);
-    }
+// 🎯 STEP 1: Prioritize Book Search
+const searchResponse = await handleBookSearch(message);
+console.log('🔍 Book search result:', searchResponse ? 'MATCH' : 'NO MATCH');
+
+if (searchResponse) {
+  return res.status(200).json([{ 
+    text: searchResponse,
+    type: 'book_search',
+    confidence: 0.9
+  }]);
+}
+
+// 🎯 STEP 1.5: BOOK SPECIFIC QUESTIONS - IMPROVED
+const bookQuestionResponse = await handleBookSpecificQuestion(message);
+console.log('📖 Book question result:', bookQuestionResponse ? 'MATCH' : 'NO MATCH');
+
+if (bookQuestionResponse) {
+  return res.status(200).json([{ 
+    text: bookQuestionResponse,
+    type: 'book_detail',
+    confidence: 0.8
+  }]);
+}
     
     // 🎯 STEP 2: Enhanced Rule-Based dengan Confidence Scoring
     const ruleBasedResult = await handleEnhancedRuleBased(message);
@@ -114,27 +120,47 @@ export default async function handler(req, res) {
   }
 }
 
-// 🎯 **BOOK SPECIFIC QUESTIONS - SIMPLE AI APPROACH**
+// 🎯 **BOOK SPECIFIC QUESTIONS - FIXED VERSION**
 async function handleBookSpecificQuestion(message) {
-  const lowerMsg = message.toLowerCase();
+  const lowerMsg = message.toLowerCase().trim();
   
-  // Simple pattern detection - biar AI yang handle detailnya
+  // IMPROVED PATTERN DETECTION
   const isBookQuestion = 
-    lowerMsg.includes('mengenai apa') ||
+    // Pattern langsung
     lowerMsg.includes('tentang apa') ||
+    lowerMsg.includes('mengenai apa') ||
     lowerMsg.includes('abstrak') ||
     lowerMsg.includes('sinopsis') ||
     lowerMsg.includes('ringkasan') ||
     lowerMsg.includes('jelaskan buku') ||
     lowerMsg.includes('review buku') ||
     lowerMsg.includes('ceritakan buku') ||
+    lowerMsg.includes('isi buku') ||
+    // Pattern kombinasi
+    (lowerMsg.includes('buku') && lowerMsg.includes('tentang')) ||
     (lowerMsg.includes('buku') && lowerMsg.includes('apa')) ||
-    (lowerMsg.includes('judul') && lowerMsg.includes('tentang'));
+    (lowerMsg.includes('judul') && lowerMsg.includes('tentang')) ||
+    // Pattern untuk pertanyaan di akhir
+    /tentang apa\??$/.test(lowerMsg) ||
+    /mengenai apa\??$/.test(lowerMsg) ||
+    // Pattern spesifik
+    /^buku .+ tentang apa/i.test(message) ||
+    /^judul .+ tentang apa/i.test(message);
+
+  console.log('📖 Book question analysis:', {
+    message: message,
+    isBookQuestion: isBookQuestion,
+    patterns: {
+      hasTentangApa: lowerMsg.includes('tentang apa'),
+      hasBuku: lowerMsg.includes('buku'),
+      hasApa: lowerMsg.includes('apa'),
+      endWithTentangApa: /tentang apa\??$/.test(lowerMsg),
+      startWithBuku: /^buku .+ tentang apa/i.test(message)
+    }
+  });
 
   if (isBookQuestion) {
     console.log('📖 Book question detected - passing to AI');
-    
-    // Langsung serahkan ke AI
     return await letAIHandleBookQuestion(message);
   }
   
@@ -184,17 +210,21 @@ Jawablah pertanyaan tentang buku tersebut dengan informatif dan ramah. Jika ada 
   }
 }
 
-// 🎯 **EXTRACT POTENTIAL KEYWORDS - SIMPLE**
+// 🎯 **EXTRACT POTENTIAL KEYWORDS - IMPROVED**
 function extractPotentialKeywords(query) {
-  const stopWords = ['buku', 'judul', 'mengenai', 'tentang', 'apa', 'ini', 'itu', 'yang', 'di', 'ke', 'dari'];
-  const words = query.toLowerCase().split(' ');
+  const stopWords = ['buku', 'judul', 'mengenai', 'tentang', 'apa', 'ini', 'itu', 'yang', 'di', 'ke', 'dari', 'dibawah', 'revolusi', 'bendera'];
+  const words = query.toLowerCase()
+    .replace(/[^\w\s]/g, '') // Hapus punctuation
+    .split(' ')
+    .filter(word => 
+      !stopWords.includes(word) && 
+      word.length > 2 &&
+      !/^(tentang|mengenai|apa)$/.test(word) // Exclude question words
+    );
   
-  // Ambil kata-kata yang meaningful
-  const keywords = words.filter(word => 
-    !stopWords.includes(word) && word.length > 3
-  );
+  console.log('🔍 Extracted keywords:', words);
   
-  return keywords.slice(0, 3).join(' ') || null;
+  return words.slice(0, 3).join(' ') || null;
 }
 
 // 🎯 **BOOK SEARCH**
@@ -437,6 +467,13 @@ Koleksi buku langka kami mendapatkan perawatan khusus untuk menjaga kelestariann
       patterns: ['bye', 'dadah', 'selamat tinggal', 'sampai jumpa'],
       response: "Terima kasih sudah berkunjung! 👋 Sampai jumpa lagi di Perpustakaan Nasional!",
       confidence: 0.9
+    },
+    // 🎯 TAMBAH INTENT PATTERN KHUSUS DI RULE-BASED
+    {
+      patterns: ['tentang apa', 'mengenai apa'],
+      response: null, // Biarkan AI handle
+      confidence: 0.7,
+      isBookQuestion: true // Flag khusus
     }
   ];
 
