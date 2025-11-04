@@ -2,7 +2,7 @@
 import Link from 'next/link'
 
 const ActionItem = ({ icon, title, link, isMobile }) => (
-  <Link href={link} passHref>
+  <Link href={link} passHref legacyBehavior>
     <a style={{ 
       textDecoration: 'none',
       display: 'block'

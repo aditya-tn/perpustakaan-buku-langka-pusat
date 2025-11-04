@@ -1,141 +1,507 @@
 import { supabase } from '../../lib/supabase'
+import { generateAIResponse } from '../../lib/gemini'
 
 export default async function handler(req, res) {
-  console.log('=== API CHAT CALLED ===');
-  console.log('Method:', req.method);
+  console.log('=== HYBRID CHAT API CALLED ===');
   
-  // Only allow POST
   if (req.method !== 'POST') {
-    console.log('Method not allowed');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    console.log('Request body:', req.body);
+    const { message, chatHistory = [] } = req.body;
     
-    const { message } = req.body;
-    
-    // Validate
     if (!message) {
-      console.log('No message provided');
       return res.status(400).json({ error: 'Message is required' });
     }
     
     console.log('Processing message:', message);
     
-    const lowerMsg = message.toLowerCase();
+    // 🎯 STEP 1: Prioritize Book Search
+    const searchResponse = await handleBookSearch(message);
+    if (searchResponse) {
+      return res.status(200).json([{ 
+        text: searchResponse,
+        type: 'book_search',
+        confidence: 0.9
+      }]);
+    }
+
+    // 🎯 STEP 1.5: BOOK SPECIFIC QUESTIONS - SIMPLE AI APPROACH
+    const bookQuestionResponse = await handleBookSpecificQuestion(message);
+    if (bookQuestionResponse) {
+      return res.status(200).json([{ 
+        text: bookQuestionResponse,
+        type: 'book_detail',
+        confidence: 0.8
+      }]);
+    }
     
-    // 🎯 **FITUR BARU: BOOK SEARCH - BACA DATABASE**
-    if (lowerMsg.includes('cari') || lowerMsg.includes('carikan') || 
-        lowerMsg.includes('buku tentang') || lowerMsg.includes('rekomendasi') ||
-        lowerMsg.includes('ada buku') || lowerMsg.includes('koleksi') ||
-        lowerMsg.includes('pengarang') || lowerMsg.includes('judul')) {
+    // 🎯 STEP 2: Enhanced Rule-Based dengan Confidence Scoring
+    const ruleBasedResult = await handleEnhancedRuleBased(message);
+
+    // 🎯 STEP 2.5: SMART AI DECISION MAKING
+    const wordCount = message.split(' ').length;
+    const lowerMsg = message.toLowerCase();
+
+    // Tentukan complexity indicators
+    const hasComplexIndicators = 
+      (message.includes('?') && wordCount > 6) ||
+      lowerMsg.includes('bagaimana cara') ||
+      lowerMsg.includes('apakah ada program') ||
+      lowerMsg.includes('mohon penjelasan') ||
+      lowerMsg.includes('tolong jelaskan') ||
+      (lowerMsg.includes('program') && lowerMsg.includes('khusus')) ||
+      wordCount > 8;
+
+    // JANGAN gunakan AI untuk pertanyaan sederhana
+    const isRuleBasedQuestion = 
+      lowerMsg.includes('halo') || 
+      lowerMsg.includes('hai') ||
+      lowerMsg.includes('hi ') ||
+      lowerMsg.includes('hello') ||
+      lowerMsg.includes('terima kasih') ||
+      lowerMsg.includes('makasih') ||
+      lowerMsg.includes('thanks') ||
+      lowerMsg.includes('oke') ||
+      lowerMsg.includes('ok ') ||
+      lowerMsg.includes('baik') ||
+      lowerMsg.includes('jam buka') ||
+      lowerMsg.includes('lokasi') ||
+      lowerMsg.includes('alamat') ||
+      wordCount <= 3;
+
+    // Gunakan AI jika:
+    const shouldUseAI = 
+      !isRuleBasedQuestion && 
+      (ruleBasedResult.confidence < 0.3 || hasComplexIndicators);
+
+    console.log(`AI Decision - Confidence: ${ruleBasedResult.confidence}, RuleBased: ${isRuleBasedQuestion}, Complex: ${hasComplexIndicators}, Use AI: ${shouldUseAI}`);
+
+    if (shouldUseAI) {
+      console.log('🔄 Trying AI...');
+      const aiResponse = await generateAIResponse(message, {
+        chatHistory: chatHistory.slice(-2),
+        libraryContext: await getLibraryContext()
+      });
       
-      const searchTerms = extractSearchTerms(message);
-      console.log('Searching books for:', searchTerms);
-      
-      if (searchTerms) {
-        const bookResults = await searchBooks(searchTerms);
-        
-        if (bookResults.length > 0) {
-          const responseText = formatBookResults(bookResults, searchTerms);
-          return res.status(200).json([{ text: responseText }]);
-        } else {
-          return res.status(200).json([{ 
-            text: `❌ Maaf, tidak ditemukan buku tentang "${searchTerms}".\n\nCoba kata kunci lain atau kunjungi katalog online kami.` 
-          }]);
-        }
+      if (aiResponse) {
+        console.log('✅ Using AI response');
+        return res.status(200).json([{
+          text: aiResponse,
+          type: 'ai_generated',
+          confidence: 0.8
+        }]);
+      } else {
+        console.log('❌ AI not available, using rule-based fallback');
       }
     }
     
-    // 🎯 **PERTANYAAN LAIN YANG SUDAH ADA - TIDAK BERUBAH**
-    let responseText = "";
-    
-    // === GREETINGS ===
-    if (lowerMsg.includes('hai') || lowerMsg.includes('halo') || lowerMsg.includes('hello')) {
-      responseText = "Halo! 👋 Ada yang bisa saya bantu?";
-    }
-    else if (lowerMsg.includes('selamat pagi')) {
-      responseText = "Selamat pagi! 🌅 Ada yang bisa saya bantu hari ini?";
-    }
-    else if (lowerMsg.includes('selamat siang')) {
-      responseText = "Selamat siang! ☀️ Ada yang bisa saya bantu?";
-    }
-    else if (lowerMsg.includes('selamat sore')) {
-      responseText = "Selamat sore! 🌇 Ada yang bisa saya bantu?";
-    }
-    else if (lowerMsg.includes('selamat malam')) {
-      responseText = "Selamat malam! 🌙 Ada yang bisa saya bantu?";
-    }
-    else if (lowerMsg.includes('selamat')) {
-      responseText = "Halo! 👋 Selamat datang di Perpustakaan Nasional. Ada yang bisa saya bantu?";
-    }
-    
-    // === OPERATIONAL HOURS ===
-    else if (lowerMsg.includes('jam') || lowerMsg.includes('buka') || lowerMsg.includes('operasional')) {
-      responseText = "🕐 Perpustakaan buka:\n• Senin-Jumat: 08.00-19.00\n• Sabtu-Minggu: 09.00-16.00";
-    }
-    
-    // === LOCATION ===
-    else if (lowerMsg.includes('lokasi') || lowerMsg.includes('alamat') || lowerMsg.includes('dimana')) {
-      responseText = "📍 Gedung Perpustakaan Nasional Lantai 14\nJl. Medan Merdeka Selatan No.11, Jakarta";
-    }
-    
-    // === BOOK BORROWING ===
-    else if (lowerMsg.includes('pinjam') || lowerMsg.includes('buku') || lowerMsg.includes('meminjam')) {
-      responseText = "📚 Cara meminjam buku:\n1. Bawa kartu anggota\n2. Datang ke meja sirkulasi\n3. Maksimal 5 buku untuk sekali pinjam\n4. Buku hanya bisa dibaca ditempat ya, tidak diperkenankan dibawa ke lantai lain";
-    }
-    
-    // === MEMBERSHIP ===
-    else if (lowerMsg.includes('anggota') || lowerMsg.includes('syarat') || lowerMsg.includes('daftar') || lowerMsg.includes('kartu')) {
-      responseText = "📝 Syarat jadi anggota:\n• KTP asli / Pasport\n• Mengisi formulir pendaftaran pada laman keanggotaan.perpusnas.go.id\n• Validasi keanggotaan di lantai 2 gedung layanan perpustakaan Jl. Medan Merdeka Selatan No.11\n• Biaya: Gratis\n• Proses: 3 menit";
-    }
-    
-    // === CONTACT ===
-    else if (lowerMsg.includes('kontak') || lowerMsg.includes('telpon') || lowerMsg.includes('telepon') || lowerMsg.includes('email') || lowerMsg.includes('hubungi')) {
-      responseText = "📞 Kontak kami:\n• Whatsapp +6285717147303\n• Email: info_pujasintara@perpusnas.go.id \n• Lokasi: Gedung Perpustakaan Nasional Lantai 14";
-    }
-    
-    // === SERVICES ===
-    else if (lowerMsg.includes('layanan') || lowerMsg.includes('fasilitas') || lowerMsg.includes('apa saja')) {
-      responseText = "📋 Layanan kami:\n• Peminjaman buku \n• Peminjaman ruang baca khusus \n• Koleksi buku langka\n• Ruang baca nyaman\n• WiFi gratis \n• Konsultasi pustakawan\n• Database mandiri";
-    }
-    
-    // === RARE BOOKS ===
-    else if (lowerMsg.includes('langka') || lowerMsg.includes('kuno') || lowerMsg.includes('sejarah') || lowerMsg.includes('naskah')) {
-      responseText = "📜 Koleksi Buku Langka:\n• Akses terbatas (ruang khusus)\n• Syarat: penelitian akademis\n• Tidak boleh dipinjam bawa pulang\n• Hanya boleh dibaca di tempat\n• Wajib pakai sarung tangan";
-    }
-    
-    // === POLITE RESPONSES ===
-    else if (lowerMsg.includes('terima kasih') || lowerMsg.includes('makasih') || lowerMsg.includes('thanks') || lowerMsg.includes('thank you')) {
-      responseText = "Sama-sama! 😊 Senang bisa membantu. Jika ada pertanyaan lain, silakan tanyakan!";
-    }
-    else if (lowerMsg.includes('baik') || lowerMsg.includes('oke') || lowerMsg.includes('okay')) {
-      responseText = "Baik! 😊 Kalau ada yang lain yang bisa dibantu, silakan tanyakan ya!";
-    }
-    else if (lowerMsg.includes('bye') || lowerMsg.includes('dadah') || lowerMsg.includes('selamat tinggal') || lowerMsg.includes('sampai jumpa')) {
-      responseText = "Terima kasih sudah berkunjung! 👋 Sampai jumpa lagi di Perpustakaan Nasional!";
-    }
-    
-    // === FALLBACK ===
-    else {
-      responseText = "Halo! Saya asisten Perpustakaan Nasional. Tanyakan tentang:\n• Jam buka & lokasi\n• Peminjaman buku\n• Syarat keanggotaan\n• Kontak kami\n• Layanan perpustakaan\n• Koleksi buku langka\n• **Cari buku** (contoh: 'cari buku sejarah')";
-    }
-    
-    console.log('Sending response:', responseText);
-    return res.status(200).json([{ text: responseText }]);
+    // 🎯 STEP 3: Final fallback ke rule-based
+    console.log(`Using rule-based response (confidence: ${ruleBasedResult.confidence})`);
+    return res.status(200).json([{
+      text: ruleBasedResult.response,
+      type: 'rule_based',
+      confidence: ruleBasedResult.confidence
+    }]);
     
   } catch (error) {
     console.error('API ERROR:', error);
     return res.status(200).json([{ 
-      text: "Maaf, sedang ada gangguan teknis. Silakan hubungi kami langsung di WhatsApp: +6285717147303" 
+      text: "Maaf, sedang ada gangguan teknis. Silakan hubungi kami langsung di WhatsApp: +6285717147303",
+      type: 'error'
     }]);
   }
 }
 
-// 🎯 **FUNGSI BARU UNTUK BACA DATABASE**
+// 🎯 **BOOK SPECIFIC QUESTIONS - SIMPLE AI APPROACH**
+async function handleBookSpecificQuestion(message) {
+  const lowerMsg = message.toLowerCase();
+  
+  // Simple pattern detection - biar AI yang handle detailnya
+  const isBookQuestion = 
+    lowerMsg.includes('mengenai apa') ||
+    lowerMsg.includes('tentang apa') ||
+    lowerMsg.includes('abstrak') ||
+    lowerMsg.includes('sinopsis') ||
+    lowerMsg.includes('ringkasan') ||
+    lowerMsg.includes('jelaskan buku') ||
+    lowerMsg.includes('review buku') ||
+    lowerMsg.includes('ceritakan buku') ||
+    (lowerMsg.includes('buku') && lowerMsg.includes('apa')) ||
+    (lowerMsg.includes('judul') && lowerMsg.includes('tentang'));
+
+  if (isBookQuestion) {
+    console.log('📖 Book question detected - passing to AI');
+    
+    // Langsung serahkan ke AI
+    return await letAIHandleBookQuestion(message);
+  }
+  
+  return null;
+}
+
+// 🎯 **LET AI HANDLE BOOK QUESTIONS**
+async function letAIHandleBookQuestion(question) {
+  try {
+    // Cari buku yang mungkin relevan
+    const keywords = extractPotentialKeywords(question);
+    let bookContext = '';
+    
+    if (keywords) {
+      const bookResults = await searchBooks(keywords);
+      if (bookResults.length > 0) {
+        bookContext = `INFORMASI BUKU YANG MUNGKIN RELEVAN:\n`;
+        bookResults.slice(0, 2).forEach((book, index) => {
+          bookContext += `\nBUKU ${index + 1}:\n`;
+          bookContext += `- Judul: ${book.judul || 'Tidak tersedia'}\n`;
+          bookContext += `- Pengarang: ${book.pengarang || 'Tidak diketahui'}\n`;
+          bookContext += `- Penerbit: ${book.penerbit || 'Tidak diketahui'}\n`;
+          if (book.tahun_terbit) bookContext += `- Tahun: ${book.tahun_terbit}\n`;
+        });
+      }
+    }
+
+    const aiResponse = await generateAIResponse(
+      `Pertanyaan user tentang buku: "${question}"
+      
+${bookContext}
+
+Jawablah pertanyaan tentang buku tersebut dengan informatif dan ramah. Jika ada informasi buku yang relevan, gunakanlah. Jika tidak, berikan jawaban umum.`,
+      { libraryContext: await getLibraryContext() }
+    );
+    
+    if (aiResponse) {
+      return aiResponse;
+    } else {
+      // Fallback simple
+      return `Untuk pertanyaan tentang buku "${question}", silakan:\n\n• Gunakan pencarian: "cari buku [judul/pengarang]"\n• Kunjungi meja referensi\n• Konsultasi dengan pustakawan`;
+    }
+    
+  } catch (error) {
+    console.error('AI book question error:', error);
+    return `Untuk informasi detail tentang buku, silakan gunakan fitur pencarian atau konsultasi dengan pustakawan.`;
+  }
+}
+
+// 🎯 **EXTRACT POTENTIAL KEYWORDS - SIMPLE**
+function extractPotentialKeywords(query) {
+  const stopWords = ['buku', 'judul', 'mengenai', 'tentang', 'apa', 'ini', 'itu', 'yang', 'di', 'ke', 'dari'];
+  const words = query.toLowerCase().split(' ');
+  
+  // Ambil kata-kata yang meaningful
+  const keywords = words.filter(word => 
+    !stopWords.includes(word) && word.length > 3
+  );
+  
+  return keywords.slice(0, 3).join(' ') || null;
+}
+
+// 🎯 **BOOK SEARCH**
+async function handleBookSearch(message) {
+  const lowerMsg = message.toLowerCase();
+  
+  const hasExplicitSearchWords = 
+    (lowerMsg.includes('cari buku') || 
+     lowerMsg.includes('carikan buku') ||
+     lowerMsg.includes('pencarian buku') ||
+     (lowerMsg.includes('cari') && lowerMsg.includes('judul'))) &&
+    !lowerMsg.includes('?');
+  
+  const hasSimpleBookRequest = 
+    (lowerMsg.includes('buku tentang') || 
+     lowerMsg.includes('rekomendasi buku')) &&
+    lowerMsg.split(' ').length <= 6;
+  
+  if (hasExplicitSearchWords || hasSimpleBookRequest) {
+    const searchTerms = extractSearchTerms(message);
+    console.log('Searching books for:', searchTerms);
+    
+    if (searchTerms && searchTerms.length > 2) {
+      const bookResults = await searchBooks(searchTerms);
+      
+      if (bookResults.length > 0) {
+        return formatBookResults(bookResults, searchTerms);
+      } else {
+        return `❌ Tidak ditemukan buku tentang "${searchTerms}".\n\nCoba kata kunci lain atau kunjungi katalog online.`;
+      }
+    }
+  }
+  return null;
+}
+
+// 🎯 **ENHANCED RULE-BASED DENGAN PATTERN LENGKAP**
+async function handleEnhancedRuleBased(message) {
+  const lowerMsg = message.toLowerCase();
+  let bestMatch = { response: "", confidence: 0 };
+  
+  const intentPatterns = [
+    // === GREETINGS & BASIC ===
+    {
+      patterns: ['hai', 'halo', 'hello', 'hi', 'hey'],
+      response: "Halo! 👋 Ada yang bisa saya bantu?",
+      confidence: 0.95
+    },
+    {
+      patterns: ['selamat pagi'],
+      response: "Selamat pagi! 🌅 Ada yang bisa saya bantu hari ini?",
+      confidence: 0.9
+    },
+    {
+      patterns: ['selamat siang'],
+      response: "Selamat siang! ☀️ Ada yang bisa saya bantu?",
+      confidence: 0.9
+    },
+    {
+      patterns: ['selamat sore'],
+      response: "Selamat sore! 🌇 Ada yang bisa saya bantu?",
+      confidence: 0.9
+    },
+    {
+      patterns: ['selamat malam'],
+      response: "Selamat malam! 🌙 Ada yang bisa saya bantu?",
+      confidence: 0.9
+    },
+
+    // === FASILITAS & LAYANAN UMUM ===
+
+    {
+      patterns: ['cara meminjam', 'cara pinjam', 'pinjam buku', 'meminjam buku'],
+      response: "📚 **Cara Meminjam Buku:**\n1. Bawa kartu anggota\n2. Cari buku di web katalog buku langka / OPAC Perpusnas \n3. Isi formulir pemesanan buku \n4. Maksimal 5 buku\n5. Baca di tempat \n\n📍 **Buku Langka**: Hanya di Lantai 14, tidak boleh dipinjam keluar",
+      confidence: 0.95
+    },
+
+    {
+      patterns: ['jam', 'buka', 'tutup', 'operasional'],
+      response: "🕐 **Jam Operasional** \n\n  **Layanan Buku Langka,** \n\n**Perpustakaan Nasional:**\n\n Senin-Jumat: 08.00-19.00 WIB \n\n Sabtu-Minggu: 09.00-16.00 WIB",
+      confidence: 0.9
+    },
+    {
+      patterns: ['lokasi', 'alamat', 'dimana', 'tempat'],
+      response: "📍 **Alamat Perpustakaan Nasional RI:**\nGedung Fasilitas Layanan Perpustakaan Nasional\nJl. Medan Merdeka Selatan No.11, Jakarta 10110\n(Lokasi layanan tersebar di berbagai lantai)",
+      confidence: 0.9
+    },
+    {
+      patterns: ['tidur', 'istirahat', 'ngantuk'],
+      response: "Kami tidak menyediakan fasilitas khusus untuk tidur di perpustakaan. Namun, jika Anda tertidur karena kelelahan, itu merupakan hal yang wajar asalkan tidak mengganggu pengunjung lain.",
+      confidence: 0.85
+    },
+    {
+      patterns: ['colokan', 'stopkontak', 'ngecas', 'charger', 'listrik'],
+      response: "⚡ **Fasilitas Stop Kontak:**\nSetiap lantai layanan kami menyediakan stop kontak listrik yang dapat digunakan secara gratis oleh pengunjung untuk keperluan charging device.",
+      confidence: 0.9
+    },
+    {
+      patterns: ['wifi', 'internet', 'hotspot'],
+      response: "📶 **WiFi Perpustakaan Nasional:**\n• Nama: National Library of Indonesia\n• Password: smartlibrary\n• Kecepatan relatif cepat, tergantung jumlah pengguna\n• Gratis untuk semua pengunjung",
+      confidence: 0.9
+    },
+
+    // === BUKU & KOLEKSI ===
+    {
+      patterns: ['buku tertua', 'buku kuno', 'umur buku'],
+      response: "📜 **Buku Tertua Perpustakaan Nasional:**\nJudul: **Bartoli Commentaria In Primam Digesti: Veteris Partem Doctiss...**\nTahun: **1547** (berumur 476 tahun!)\n\nBuku ini berisi ulasan terhadap kumpulan hukum Romawi 'Digesta seu Pandectae' bagian hukum lama oleh Bartolus de Saxoferrato, profesor ilmu hukum di Italia, yang disempurnakan oleh Petrus Paulus Parisius.",
+      confidence: 0.9
+    },
+    {
+      patterns: ['komik', 'cerita bergambar'],
+      response: "🎨 **Koleksi Komik & Buku Bergambar:**\nTersedia di:\n• Layanan Monograf Tertutup (Lantai 12 & 13)\n• Layanan Monograf Terbuka (Lantai 21 & 22)\n• Layanan Anak (Lantai 7) untuk komik anak",
+      confidence: 0.85
+    },
+    {
+      patterns: ['buku jarang dibaca', 'paling sepi'],
+      response: "Tidak ada buku yang benar-benar jarang dibaca. Setiap buku memiliki pembacanya tersendiri dengan minat dan kebutuhan yang berbeda-beda. Semua koleksi kami berharga!",
+      confidence: 0.8
+    },
+
+    // === ATURAN & KEBIJAKAN ===
+    {
+      patterns: ['payung', 'hujan'],
+      response: "☔ **Kebijakan Payung:**\nBoleh membawa payung saat hujan. Silakan keringkan terlebih dahulu di lobi dan titipkan di locker yang disediakan sebelum masuk ke ruang baca.",
+      confidence: 0.9
+    },
+    {
+      patterns: ['makanan', 'minuman', 'makan', 'minum'],
+      response: "🚫 **Kebijakan Makanan & Minuman:**\nMakanan dan minuman tidak diperkenankan dibawa ke ruang baca koleksi. Area makan tersedia di lobi atau ruang khusus yang ditentukan.",
+      confidence: 0.9
+    },
+    {
+      patterns: ['anak', 'anak kecil', 'balita'],
+      response: "👶 **Layanan Anak:**\nAnak kecil sangat diperkenankan mengunjungi perpustakaan! Kami menyediakan:\n• Layanan Anak di Lantai 7\n• Buku anak-anak yang sesuai usia\n• Area membaca yang nyaman dan aman",
+      confidence: 0.9
+    },
+
+    // === SEJARAH & FAKTA UNIK ===
+    {
+      patterns: ['berdiri', 'didirikan', 'sejarah perpusnas'],
+      response: "🏛️ **Sejarah Berdiri Perpustakaan Nasional:**\nPerpustakaan Nasional RI secara resmi didirikan pada **17 Mei 1980** melalui penggabungan empat perpustakaan:\n1. Perpustakaan Museum Nasional\n2. Perpustakaan Sejarah, Politik dan Sosial\n3. Perpustakaan Wilayah DKI Jakarta\n4. Bidang Bibliografi dan Deposit",
+      confidence: 0.9
+    },
+    {
+      patterns: ['hantu', 'mistis', 'angker'],
+      response: "👻 **Fakta Unik:**\nBerdasarkan pengalaman beberapa pegawai dan pengunjung, ada cerita-cerita mistis di perpustakaan. Tapi jangan khawatir, suasana tetap nyaman untuk belajar dan membaca! 😊",
+      confidence: 0.8
+    },
+
+    // === BUKU LANGKA - PROFESSIONAL ===
+    {
+      patterns: ['buku langka', 'apa itu buku langka', 'pengertian buku langka','koleksi langka', 'akses','rare book'],
+      response: `📚 **Layanan Koleksi Buku Langka Perpustakaan Nasional**
+
+**Pengertian Buku Langka:**
+Koleksi Buku Langka adalah buku yang mengandung kekayaan informasi, bernilai historis serta kultural yang tinggi bagi ilmu pengetahuan dan berumur sekurang-kurangnya 50 tahun sejak diterbitkan.
+
+**Sistem Layanan:**
+\n• Close Access (Layanan Tertutup)
+\n• Pengunjung tidak dapat masuk ke ruang koleksi
+\n• Pustakawan yang akan mengambilkan koleksi sesuai permintaan
+\n• Buku hanya dapat dibaca di tempat
+\n• Tidak boleh dibawa keluar dari Lantai 14
+\n• Tidak boleh dipinjam bawa pulang
+
+**Prosedur Akses:**
+1. Menjadi anggota Perpustakaan Nasional
+2. Mencari judul buku di katalog koleksi buku langka
+3. Mengisi formulir pemesanan
+4. Menyerahkan kartu anggota sebagai jaminan
+5. Pustakawan akan mengambilkan buku dari rak
+6. Baca buku di area yang ditentukan
+7. Kembalikan buku ke pustakawan dan ambil kartu anggota
+
+**Lokasi:** Lantai 14 - Gedung Perpustakaan Nasional`,
+      confidence: 0.95
+    },
+    {
+      patterns: ['cara pinjam buku langka', 'pinjam buku','baca buku','akses buku','cara baca buku', 'cara baca','ambil ke rak','akses buku langka'],
+      response: `📖 **Cara Mengakses Buku Langka:**
+
+1. **Keanggotaan**: Pastikan sudah menjadi anggota Perpustakaan Nasional
+2. **Pencarian**: Cari judul buku di katalog online koleksi buku langka
+3. **Formulir**: Isi formulir pemesanan buku di meja sirkulasi Lantai 14
+4. **Jaminan**: Serahkan kartu anggota sebagai jaminan
+5. **Penyerahan**: Pustakawan akan mengambilkan buku dari rak tertutup
+6. **Pembacaan**: Baca buku di area yang telah ditentukan (tidak boleh dibawa keluar)
+7. **Pengembalian**: Kembalikan buku ke pustakawan dan ambil kartu anggota
+
+**Catatan:** Buku langka tidak boleh dipinjam bawa pulang atau dibawa keluar dari Lantai 14.`,
+      confidence: 0.9
+    },
+    {
+      patterns: ['syarat buku langka', 'kriteria buku langka'],
+      response: `📜 **Kriteria Buku Langka:**
+
+Buku dikategorikan sebagai **buku langka** jika memenuhi kriteria:
+• Berumur minimal **50 tahun** sejak diterbitkan
+• Memiliki **nilai historis** yang tinggi
+• Mengandung **kekayaan informasi** kultural
+• Bernilai penting bagi **ilmu pengetahuan**
+• Kondisi fisik yang memerlukan perlakuan khusus
+
+Koleksi buku langka kami mendapatkan perawatan khusus untuk menjaga kelestariannya.`,
+      confidence: 0.9
+    },
+
+    // === ANGGOTA & PENDAFTARAN ===
+    {
+      patterns: ['anggota', 'keanggotaan', 'syarat', 'daftar', 'kartu'],
+      response: "📝 **Syarat Keanggotaan Perpustakaan Nasional:**\n\n• KTP / KK / Paspor yang masih berlaku\n\n• Mengisi formulir pendaftaran online/offline\n\n• Validasi keanggotaan di lantai 2\n\n• **Gratis** - tidak ada biaya pendaftaran\n\n• Proses: ±3 menit setelah validasi",
+      confidence: 0.9
+    },
+
+    // === KONTAK ===
+    {
+      patterns: ['kontak', 'telpon', 'telepon', 'email', 'hubungi', 'whatsapp'],
+      response: "📞 **Kontak Perpustakaan Nasional:**\n\n• WhatsApp: +6285717147303\n\n• Email: info_pujasintara@perpusnas.go.id\n\n• Alamat: Jl. Medan Merdeka Selatan No.11, Jakarta\n\n• Layanan: Senin-Jumat 08.00-19.00, Sabtu-Minggu 09.00-16.00",
+      confidence: 0.9
+    },
+
+    // === LAYANAN LAINNYA ===
+    {
+      patterns: ['layanan', 'fasilitas', 'apa saja'],
+      response: "📋 **Layanan Perpustakaan Nasional:**\n• Peminjaman buku reguler\n• Koleksi buku langka (Lt. 14)\n• Layanan anak (Lt. 7)\n• Ruang baca nyaman\n• WiFi gratis\n• Konsultasi pustakawan\n• Akses database online\n• Layanan digital & e-book",
+      confidence: 0.85
+    },
+
+    // === POLITE RESPONSES ===
+    {
+      patterns: ['terima kasih', 'makasih', 'thanks', 'thank you'],
+      response: "Sama-sama! 😊 Senang bisa membantu. Jika ada pertanyaan lain, silakan tanyakan!",
+      confidence: 0.95
+    },
+    {
+      patterns: ['baik', 'oke', 'okay'],
+      response: "Baik! 😊 Kalau ada yang lain yang bisa dibantu, silakan tanyakan ya!",
+      confidence: 0.9
+    },
+    {
+      patterns: ['bye', 'dadah', 'selamat tinggal', 'sampai jumpa'],
+      response: "Terima kasih sudah berkunjung! 👋 Sampai jumpa lagi di Perpustakaan Nasional!",
+      confidence: 0.9
+    }
+  ];
+
+  // === SEARCH FOR BEST MATCH ===
+  for (const intent of intentPatterns) {
+    for (const pattern of intent.patterns) {
+      if (lowerMsg.includes(pattern)) {
+        const words = lowerMsg.split(' ');
+        const patternWords = pattern.split(' ');
+        
+        let matchQuality = 0;
+        
+        // Exact phrase match = high confidence
+        if (lowerMsg.includes(pattern) && patternWords.length > 1) {
+          matchQuality = 0.8;
+        } 
+        // Single word match in complex question = lower confidence
+        else if (patternWords.length === 1 && words.length > 4) {
+          matchQuality = 0.4;
+        }
+        // Single word match in simple question = medium confidence  
+        else {
+          matchQuality = 0.6;
+        }
+        
+        const totalConfidence = Math.min(0.95, intent.confidence * matchQuality);
+        
+        if (totalConfidence > bestMatch.confidence) {
+          bestMatch = {
+            response: intent.response,
+            confidence: totalConfidence
+          };
+        }
+      }
+    }
+  }
+
+  // === FALLBACK FOR UNKNOWN QUESTIONS ===
+  if (bestMatch.confidence < 0.3) {
+    bestMatch = {
+      response: `Halo! Saya asisten Perpustakaan Nasional. 
+
+Beberapa hal yang bisa saya bantu:
+\n📚 **Cari Buku** - "cari buku [topik]" 
+\n🕐 **Jam & Lokasi** - jam buka, alamat
+\n📝 **Keanggotaan** - syarat jadi anggota  
+\n📞 **Kontak** - WhatsApp, email
+\n💻 **Layanan Digital** - e-book, akses online
+\n📖 **Buku Langka** - prosedur akses koleksi langka
+
+Atau tanyakan hal spesifik lainnya!`,
+      confidence: 0.1
+    };
+  }
+
+  return bestMatch;
+}
+
+// 🎯 **FUNGSI BANTU**
+async function getLibraryContext() {
+  return `Perpustakaan Nasional: Buka Senin-Jumat 08.00-19.00, Sabtu-Minggu 09.00-16.00. Alamat: Jl. Medan Merdeka Selatan No.11, Jakarta. Layanan: peminjaman buku, koleksi langka, ruang baca, WiFi gratis.`;
+}
+
 function extractSearchTerms(query) {
-  const stopWords = ['cari', 'carikan', 'rekomendasi', 'buku', 'tentang', 'apa', 'ada', 'yang', 'di', 'ke', 'dengan', 'oleh'];
+  const stopWords = ['cari', 'carikan', 'rekomendasi', 'buku', 'tentang', 'apa', 'ada', 'yang', 'di', 'ke'];
   const words = query.toLowerCase().split(' ');
   const searchTerms = words.filter(word => 
     !stopWords.includes(word) && word.length > 2
@@ -144,13 +510,10 @@ function extractSearchTerms(query) {
   return searchTerms || 'buku';
 }
 
-// 🎯 **FUNGSI SEARCH DI DATABASE - SESUAI STRUCTURE ANDA**
 async function searchBooks(searchTerm) {
   try {
-    console.log('Searching database for:', searchTerm);
-    
     const { data, error } = await supabase
-      .from('books')  // Ganti dengan nama table yang benar
+      .from('books')
       .select('id, judul, pengarang, penerbit, tahun_terbit, deskripsi_fisik, nomor_panggil')
       .or(`judul.ilike.%${searchTerm}%,pengarang.ilike.%${searchTerm}%,penerbit.ilike.%${searchTerm}%`)
       .limit(5);
@@ -160,7 +523,6 @@ async function searchBooks(searchTerm) {
       return [];
     }
     
-    console.log('Found books:', data?.length || 0);
     return data || [];
     
   } catch (error) {
@@ -169,24 +531,19 @@ async function searchBooks(searchTerm) {
   }
 }
 
-// 🎯 **FORMAT HASIL PENCARIAN - SESUAI KOLOM ANDA**
 function formatBookResults(books, searchTerm) {
   if (books.length === 0) return `❌ Tidak ditemukan buku tentang "${searchTerm}"`;
   
   let response = `📚 Ditemukan ${books.length} buku tentang "${searchTerm}":\n\n`;
   
   books.slice(0, 3).forEach((book, index) => {
-    response += `${index + 1}. **${book.judul || 'Judul tidak tersedia'}**\n`;
+    response += `${index + 1}. ${book.judul || 'Judul tidak tersedia'}\n`;
     response += `   👤 ${book.pengarang || 'Pengarang tidak diketahui'}\n`;
     response += `   🏢 ${book.penerbit || 'Penerbit tidak diketahui'}\n`;
     response += `   📅 ${book.tahun_terbit || 'Tahun tidak diketahui'}\n`;
     
     if (book.nomor_panggil) {
       response += `   📍 No. Panggil: ${book.nomor_panggil}\n`;
-    }
-    
-    if (book.deskripsi_fisik) {
-      response += `   📖 ${book.deskripsi_fisik.substring(0, 80)}...\n`;
     }
     
     response += `\n`;
@@ -196,7 +553,7 @@ function formatBookResults(books, searchTerm) {
     response += `...dan ${books.length - 3} buku lainnya.\n\n`;
   }
   
-  response += `🔍 **Tips**: Kunjungi katalog online untuk pencarian lebih detail!`;
+  response += `🔍 Tips: Kunjungi katalog online untuk pencarian lebih detail!`;
   
   return response;
 }
