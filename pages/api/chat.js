@@ -369,7 +369,7 @@ async function handleEnhancedRuleBased(message) {
     },
     {
       patterns: ['scan', 'pindai', 'digitalisasi', 'foto digital', 'fotografi'],
-      response: `📄 **Layanan Scan/Pindai Buku Langka:**\n\n**Permintaan scan buku langka dapat dilakukan dengan:**\n\n**1. Scan Mandiri:**\n\n   • Bawa device sendiri (hanya diperkenankan menggunakan smartphone, tidak menggunakan kamera profesional)\n\n   • Izin pustakawan terlebih dahulu\n   • Tidak menggunakan flash\n   • Tidak menekan buku berlebihan\n\n**2. Scan oleh Perpustakaan Nasional:**\n\n   • Mengikuti SOP yang berlaku\n\n   • Syarat dan ketentuan khusus\n\n   • Waktu proses sesuai kompleksitas\n\n   • Biaya administrasi berlaku\n\n**📞 Untuk informasi lengkap:**\nSilakan hubungi langsung pustakawan layanan di Lantai 14 atau melalui WhatsApp: +6285717147303`,
+      response: `📄 **Layanan Scan/Pindai Buku Langka:**\n\n**Permintaan scan buku langka dapat dilakukan dengan:**\n\n**1. Scan Mandiri:**\n\n   • Bawa device sendiri (hanya diperkenankan menggunakan smartphone, tidak menggunakan kamera profesional)\n\n   • Izin pustakawan terlebih dahulu\n\n   • Tidak menggunakan flash\n\n   • Tidak menekan buku berlebihan\n\n**2. Scan oleh Perpustakaan Nasional:**\n\n   • Mengikuti SOP yang berlaku\n\n   • Syarat dan ketentuan khusus\n\n   • Waktu proses sesuai kompleksitas\n\n   • Biaya administrasi berlaku\n\n**📞 Untuk informasi lengkap:**\nSilakan hubungi langsung pustakawan layanan di Lantai 14 atau melalui WhatsApp: +6285717147303`,
       confidence: 0.9
     },
   
