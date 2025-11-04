@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
+import BookDescription from '../components/BookDescription'
 
 // Helper function untuk extract tahun dari berbagai format
 const extractYearFromString = (yearStr) => {
