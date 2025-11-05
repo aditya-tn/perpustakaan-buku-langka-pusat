@@ -1430,66 +1430,70 @@ export default function Home() {
           alignItems: 'flex-start'
         }}>
           
-          {/* COLUMN 1: Text Search */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem'
+        {/* COLUMN 1: Text Search - FIXED WIDTH */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+          minWidth: isMobile ? 'auto' : '200px',
+          maxWidth: isMobile ? '100%' : '280px',
+          flex: isMobile ? '1' : '0 1 auto'
+        }}>
+          <label style={{
+            display: 'block',
+            fontSize: '0.8rem',
+            fontWeight: '600',
+            color: '#4a5568',
+            marginBottom: '0.25rem'
           }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8rem',
-              fontWeight: '600',
-              color: '#4a5568',
-              marginBottom: '0.25rem'
-            }}>
-              🔤 Cari dalam hasil:
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                value={withinSearchTerm}
-                onChange={(e) => setWithinSearchTerm(e.target.value)}
-                placeholder="Filter judul, pengarang, penerbit..."
+            🔤 Cari dalam hasil:
+          </label>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <input
+              type="text"
+              value={withinSearchTerm}
+              onChange={(e) => setWithinSearchTerm(e.target.value)}
+              placeholder="Filter judul, pengarang..."
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                outline: 'none',
+                transition: 'all 0.2s ease',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#4299e1';
+                e.target.style.boxShadow = '0 0 0 3px rgba(66, 153, 225, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e2e8f0';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+            {withinSearchTerm && (
+              <button
+                onClick={() => setWithinSearchTerm('')}
                 style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  transition: 'all 0.2s ease'
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#718096',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  padding: '0.25rem'
                 }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#4299e1';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(66, 153, 225, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#e2e8f0';
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-              {withinSearchTerm && (
-                <button
-                  onClick={() => setWithinSearchTerm('')}
-                  style={{
-                    position: 'absolute',
-                    right: '0.75rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#718096',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    padding: '0.25rem'
-                  }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+              >
+                ✕
+              </button>
+            )}
           </div>
+        </div>
       
           {/* COLUMN 2: Period Quick Select */}
           <div style={{
