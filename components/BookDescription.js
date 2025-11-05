@@ -1,4 +1,4 @@
-// components/BookDescription.js - FIXED
+// components/BookDescription.js - FIXED DISPLAY
 import { useState } from 'react';
 import { generateRuleBasedDescription } from '../utils/ruleBasedDescriptions';
 
@@ -13,7 +13,7 @@ const BookDescription = ({ book }) => {
     setDescription(null);
     
     try {
-      console.log('🔍 Generating description for:', book.judul);
+      console.log('🔍 Generating description for:', book?.judul);
       const result = generateRuleBasedDescription(book);
       
       if (result && result.description) {
@@ -23,22 +23,10 @@ const BookDescription = ({ book }) => {
       }
     } catch (err) {
       console.error('❌ Error generating description:', err);
-      setError(`Gagal generate deskripsi. Error: ${err.message}`);
+      setError(`Gagal generate deskripsi. Silakan coba lagi.`);
     } finally {
       setLoading(false);
     }
-  };
-
-  const getLanguageLabel = (lang) => {
-    const labels = {
-      'id': 'Indonesia',
-      'en': 'English', 
-      'nl': 'Belanda',
-      'jv': 'Jawa',
-      'ar': 'Arab',
-      'unknown': 'Tidak diketahui'
-    };
-    return labels[lang] || lang;
   };
 
   return (
@@ -74,10 +62,7 @@ const BookDescription = ({ book }) => {
           color: '#c53030',
           fontSize: '0.8rem'
         }}>
-          <strong>Error:</strong> {error}
-          <div style={{ marginTop: '0.5rem', fontSize: '0.7rem' }}>
-            Coba refresh halaman atau gunakan buku lain.
-          </div>
+          {error}
         </div>
       )}
       
@@ -95,30 +80,63 @@ const BookDescription = ({ book }) => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            marginBottom: '0.5rem'
+            marginBottom: '0.5rem',
+            flexWrap: 'wrap',
+            gap: '0.5rem'
           }}>
-            <strong>📚 Deskripsi Kontekstual</strong>
+            <strong style={{ color: '#22543d' }}>📚 Deskripsi Kontekstual</strong>
             <span style={{
               fontSize: '0.7rem',
               backgroundColor: description.confidence > 0.7 ? '#48bb78' : '#ed8936',
               color: 'white',
               padding: '0.2rem 0.5rem',
-              borderRadius: '10px'
+              borderRadius: '10px',
+              fontWeight: '600'
             }}>
               {Math.round(description.confidence * 100)}% confidence
             </span>
           </div>
           
-          <p style={{ margin: 0 }}>{description.description}</p>
+          <p style={{ 
+            margin: '0 0 0.75rem 0',
+            color: '#2d3748'
+          }}>
+            {description.description}
+          </p>
           
           <div style={{
-            marginTop: '0.75rem',
-            padding: '0.5rem',
+            padding: '0.75rem',
             backgroundColor: 'rgba(154, 230, 180, 0.2)',
-            borderRadius: '4px',
-            fontSize: '0.75rem'
+            borderRadius: '6px',
+            fontSize: '0.75rem',
+            color: '#2d3748'
           }}>
-            <div><strong>Analisis:</strong> {description.characteristics.era} • {getLanguageLabel(description.characteristics.language)} • {description.characteristics.topics.join(', ')}</div>
+            <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Analisis Buku:</div>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gap: '0.5rem',
+              fontSize: '0.7rem'
+            }}>
+              <div>
+                <span style={{ color: '#718096' }}>Era: </span>
+                <strong>{description.characteristics.era}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#718096' }}>Bahasa: </span>
+                <strong>{description.characteristics.languageLabel}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#718096' }}>Topik: </span>
+                <strong>{description.characteristics.topics.join(', ')}</strong>
+              </div>
+              {description.characteristics.year && (
+                <div>
+                  <span style={{ color: '#718096' }}>Tahun: </span>
+                  <strong>{description.characteristics.year}</strong>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
