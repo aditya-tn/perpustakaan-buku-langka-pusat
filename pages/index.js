@@ -1877,11 +1877,6 @@ export default function Home() {
                   </div>
                 )}
                 
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'flex-start', 
-                  marginBottom: '0.75rem'
-                }}>
                   <h4 style={{ 
                     fontWeight: '600',
                     color: '#2d3748',
@@ -1892,10 +1887,7 @@ export default function Home() {
                   }}>
                     {book.judul}
                   </h4>
-                  
-                  {/* Clean Info Button */}
-                  <BookDescription book={book} />
-                </div>
+
                 
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ 
@@ -1947,7 +1939,8 @@ export default function Home() {
                   marginTop: '1.25rem', 
                   display: 'flex', 
                   gap: '0.75rem',
-                  flexWrap: 'wrap'
+                  flexWrap: 'wrap',
+                  alignItems: 'center' // Tambahkan ini untuk alignment
                 }}>
                   {book.lihat_opac && book.lihat_opac !== 'null' && (
                     <a 
@@ -1986,6 +1979,10 @@ export default function Home() {
                       📥 Pesan Koleksi
                     </a>
                   )}
+                
+                  {/* HANYA SATU BUTTON i DISINI */}
+                  <BookDescription book={book} />
+                </div>
                 
                   {/* TAMBAHKAN KOMPONEN BARU DI SINI */}
                   <BookDescription book={book} />
