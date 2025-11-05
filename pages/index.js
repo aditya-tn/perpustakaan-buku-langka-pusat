@@ -1634,94 +1634,125 @@ export default function Home() {
     </div>
   </div>
 
-  {/* FIXED Slider Container */}
-  <div style={{ 
-    position: 'relative', 
-    marginBottom: '0.5rem',
-    padding: '1rem 0.5rem'
+{/* FIXED Slider Container - PROPER Z-INDEX */}
+<div style={{ 
+  position: 'relative', 
+  marginBottom: '0.5rem',
+  padding: '1.5rem 0.5rem 0.5rem 0.5rem'
+}}>
+  {/* Track Background */}
+  <div style={{
+    height: '6px',
+    backgroundColor: '#e2e8f0',
+    borderRadius: '3px',
+    position: 'relative'
   }}>
-    {/* Track */}
-    <div style={{
-      height: '6px',
-      backgroundColor: '#e2e8f0',
-      borderRadius: '3px',
-      position: 'relative'
-    }}>
-      {/* Active Range */}
-      <div style={{
-        position: 'absolute',
-        height: '100%',
-        backgroundColor: '#4299e1',
-        borderRadius: '3px',
-        left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-        right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
-      }} />
-    </div>
-
-    {/* PROPER Range Inputs - Visible but styled */}
+    {/* Active Range */}
     <div style={{
       position: 'absolute',
-      top: '0',
-      left: '0',
-      right: '0',
-      height: '20px',
-      display: 'flex',
-      alignItems: 'center'
-    }}>
-      {/* Min Handle */}
-      <input
-        type="range"
-        min={MIN_YEAR}
-        max={MAX_YEAR}
-        value={activeFilters.tahunRange[0]}
-        onChange={(e) => {
-          const newMin = parseInt(e.target.value);
-          if (newMin <= activeFilters.tahunRange[1]) {
-            updateYearRange([newMin, activeFilters.tahunRange[1]]);
-          }
-        }}
-        style={{
-          width: '100%',
-          height: '20px',
-          appearance: 'none',
-          background: 'transparent',
-          pointerEvents: 'auto',
-          cursor: 'pointer',
-          position: 'absolute',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 3,
-          opacity: 0.01 // Hampir transparan tapi masih bisa di-click
-        }}
-      />
-      
-      {/* Max Handle */}
-      <input
-        type="range"
-        min={MIN_YEAR}
-        max={MAX_YEAR}
-        value={activeFilters.tahunRange[1]}
-        onChange={(e) => {
-          const newMax = parseInt(e.target.value);
-          if (newMax >= activeFilters.tahunRange[0]) {
-            updateYearRange([activeFilters.tahunRange[0], newMax]);
-          }
-        }}
-        style={{
-          width: '100%',
-          height: '20px',
-          appearance: 'none',
-          background: 'transparent',
-          pointerEvents: 'auto',
-          cursor: 'pointer',
-          position: 'absolute',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 3,
-          opacity: 0.01 // Hampir transparan tapi masih bisa di-click
-        }}
-      />
-    </div>
+      height: '100%',
+      backgroundColor: '#4299e1',
+      borderRadius: '3px',
+      left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+      right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
+    }} />
+  </div>
+
+  {/* PROPER Range Inputs dengan Z-Index yang Benar */}
+  <div style={{
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    right: '0',
+    height: '30px',
+    display: 'flex',
+    alignItems: 'center'
+  }}>
+    {/* Min Handle - DI ATAS Max Handle */}
+    <input
+      type="range"
+      min={MIN_YEAR}
+      max={MAX_YEAR}
+      value={activeFilters.tahunRange[0]}
+      onChange={(e) => {
+        const newMin = parseInt(e.target.value);
+        if (newMin <= activeFilters.tahunRange[1]) {
+          updateYearRange([newMin, activeFilters.tahunRange[1]]);
+        }
+      }}
+      style={{
+        width: '100%',
+        height: '30px',
+        appearance: 'none',
+        background: 'transparent',
+        pointerEvents: 'auto',
+        cursor: 'pointer',
+        position: 'absolute',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 4, // LEBIH TINGGI dari max handle
+        opacity: 0.01
+      }}
+    />
+    
+    {/* Max Handle - DI BAWAH Min Handle */}
+    <input
+      type="range"
+      min={MIN_YEAR}
+      max={MAX_YEAR}
+      value={activeFilters.tahunRange[1]}
+      onChange={(e) => {
+        const newMax = parseInt(e.target.value);
+        if (newMax >= activeFilters.tahunRange[0]) {
+          updateYearRange([activeFilters.tahunRange[0], newMax]);
+        }
+      }}
+      style={{
+        width: '100%',
+        height: '30px',
+        appearance: 'none',
+        background: 'transparent',
+        pointerEvents: 'auto',
+        cursor: 'pointer',
+        position: 'absolute',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 3, // LEBIH RENDAH dari min handle
+        opacity: 0.01
+      }}
+    />
+  </div>
+
+  {/* Custom Slider Handles - Visual Only */}
+  <div style={{
+    position: 'absolute',
+    left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+    top: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '20px',
+    height: '20px',
+    backgroundColor: '#4299e1',
+    border: '3px solid white',
+    borderRadius: '50%',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+    pointerEvents: 'none',
+    zIndex: 2
+  }} />
+  <div style={{
+    position: 'absolute',
+    left: `${((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+    top: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '20px',
+    height: '20px',
+    backgroundColor: '#4299e1',
+    border: '3px solid white',
+    borderRadius: '50%',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+    pointerEvents: 'none',
+    zIndex: 2
+  }} />
+</div>
 
     {/* Custom Slider Handles - Visual Only */}
     <div style={{
