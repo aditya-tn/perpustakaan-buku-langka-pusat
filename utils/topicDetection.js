@@ -1,129 +1,60 @@
-// utils/topicDetection.js
+// utils/topicDetection.js - IMPROVED VERSION
 
-// Comprehensive topic detection system
+// Enhanced topic detection dengan fallback yang lebih baik
 export const extractTopicsFromTitle = (judul) => {
-  if (!judul) return ['umum'];
+  if (!judul || typeof judul !== 'string') return ['literatur'];
   
   try {
     const judulLower = judul.toLowerCase();
+    const topics = [];
     
-    // Comprehensive topic taxonomy dengan weighted keywords
-    const topicTaxonomy = {
-      'sejarah': {
-        keywords: [
-          'sejarah', 'history', 'geschiedenis', 'tawarikh', 'historic', 
-          'chronicle', 'annals', 'historical', 'masa lalu', 'zaman', 'era'
-        ],
-        weight: 1.0
-      },
-      'hukum': {
-        keywords: [
-          'hukum', 'law', 'recht', 'undang-undang', 'legislation',
-          'legal', 'peraturan', 'regulation', 'yurisprudensi'
-        ],
-        weight: 1.0
-      },
-      'budaya': {
-        keywords: [
-          'budaya', 'culture', 'cultuur', 'adat', 'tradisi', 'traditions',
-          'kebudayaan', 'cultural', 'kesenian', 'art', 'seni'
-        ],
-        weight: 1.0
-      },
-      'agama': {
-        keywords: [
-          'islam', 'muslim', 'islamic', 'quran', 'koran', 'hadis', 'hadith',
-          'fiqh', 'tauhid', 'theology', 'sharia', 'syariah',
-          'kristen', 'christian', 'hindu', 'hinduism', 'buddha', 'buddhism'
-        ],
-        weight: 1.0
-      },
-      'bahasa': {
-        keywords: [
-          'bahasa', 'language', 'taal', 'kamus', 'dictionary', 'grammar',
-          'tata bahasa', 'linguistik', 'linguistics', 'filologi'
-        ],
-        weight: 1.0
-      },
-      'pendidikan': {
-        keywords: [
-          'pendidikan', 'education', 'onderwijs', 'sekolah', 'school',
-          'pengajaran', 'teaching', 'belajar', 'learning', 'mengajar'
-        ],
-        weight: 0.9
-      },
-      'ekonomi': {
-        keywords: [
-          'ekonomi', 'economy', 'economie', 'perekonomian', 'economic',
-          'keuangan', 'finance', 'financial', 'bank', 'perbankan'
-        ],
-        weight: 0.9
-      },
-      'politik': {
-        keywords: [
-          'politik', 'politics', 'politiek', 'pemerintah', 'government',
-          'negara', 'state', 'nasional', 'national', 'internasional'
-        ],
-        weight: 0.9
-      },
-      'sains': {
-        keywords: [
-          'sains', 'science', 'wetenschap', 'ilmu', 'knowledge', 'pengetahuan',
-          'fisika', 'physics', 'kimia', 'chemistry', 'biologi', 'biology'
-        ],
-        weight: 0.8
-      },
-      'teknik': {
-        keywords: [
-          'teknik', 'engineering', 'techniek', 'teknologi', 'technology',
-          'rekayasa', 'engineer', 'mesin', 'machine', 'elektro'
-        ],
-        weight: 0.8
-      },
-      'filsafat': {
-        keywords: [
-          'filsafat', 'philosophy', 'filosofi', 'pemikiran', 'thought',
-          'etika', 'ethics', 'moral', 'morality', 'logika', 'logic'
-        ],
-        weight: 0.7
-      },
-      'sosiologi': {
-        keywords: [
-          'sosiologi', 'sociology', 'masyarakat', 'society', 'sosial', 'social',
-          'komunitas', 'community', 'kelompok', 'group'
-        ],
-        weight: 0.7
-      }
+    // Enhanced topic mapping dengan lebih banyak keywords
+    const topicMapping = {
+      'sejarah': ['sejarah', 'history', 'geschiedenis', 'tawarikh', 'historic', 'chronicle', 'annals', 'masa lalu', 'zaman', 'era', 'abad'],
+      'hukum': ['hukum', 'law', 'recht', 'undang-undang', 'legislation', 'legal', 'peraturan', 'yurisprudensi', 'peradilan', 'justice'],
+      'budaya': ['budaya', 'culture', 'cultuur', 'adat', 'tradisi', 'kesenian', 'art', 'seni', 'warisan', 'heritage', 'folklor'],
+      'agama': ['islam', 'muslim', 'quran', 'hadis', 'fiqh', 'tauhid', 'sharia', 'kristen', 'christian', 'hindu', 'buddha', 'religion', 'kepercayaan'],
+      'bahasa': ['bahasa', 'language', 'taal', 'kamus', 'grammar', 'linguistik', 'sastra', 'literature', 'puisi', 'prosa'],
+      'pendidikan': ['pendidikan', 'education', 'onderwijs', 'sekolah', 'guru', 'murid', 'belajar', 'pengajaran'],
+      'ekonomi': ['ekonomi', 'economy', 'economie', 'keuangan', 'finance', 'bank', 'bisnis', 'perdagangan'],
+      'politik': ['politik', 'politics', 'politiek', 'pemerintah', 'government', 'negara', 'nasional', 'demokrasi'],
+      'sains': ['sains', 'science', 'ilmu', 'pengetahuan', 'fisika', 'kimia', 'biologi', 'matematika'],
+      'teknik': ['teknik', 'engineering', 'teknologi', 'rekayasa', 'mesin', 'elektro', 'komputer'],
+      'kesehatan': ['kesehatan', 'health', 'medis', 'kedokteran', 'dokter', 'obat', 'rumah sakit'],
+      'pertanian': ['pertanian', 'agriculture', 'petani', 'tanaman', 'padi', 'sawah'],
+      'filsafat': ['filsafat', 'philosophy', 'pemikiran', 'etika', 'moral', 'logika'],
+      'sosiologi': ['sosiologi', 'sociology', 'masyarakat', 'sosial', 'komunitas'],
+      'antropologi': ['antropologi', 'anthropology', 'manusia', 'etnis', 'suku'],
+      'seni': ['seni', 'art', 'lukisan', 'patung', 'fotografi', 'desain'],
+      'musik': ['musik', 'music', 'lagu', 'nada', 'instrumen', 'tembang']
     };
 
-    // Scoring system untuk topics
-    const topicScores = {};
-    Object.keys(topicTaxonomy).forEach(topic => {
-      topicScores[topic] = 0;
+    // Check each topic
+    Object.entries(topicMapping).forEach(([topic, keywords]) => {
+      if (keywords.some(keyword => judulLower.includes(keyword))) {
+        topics.push(topic);
+      }
     });
 
-    // Check setiap kata dalam judul terhadap taxonomy
-    const words = judulLower.split(/[\s\.,;:!?\(\)\[\]\-\–\—]+/).filter(word => word.length > 2);
-    
-    words.forEach(word => {
-      Object.entries(topicTaxonomy).forEach(([topic, data]) => {
-        if (data.keywords.includes(word)) {
-          topicScores[topic] += data.weight;
-        }
-      });
-    });
+    // Fallback: jika tidak ada topic terdeteksi, coba deteksi dari konteks
+    if (topics.length === 0) {
+      if (judulLower.match(/(jawa|sumatra|kalimantan|sulawesi|papua|bali|nusantara)/)) {
+        topics.push('budaya', 'sejarah');
+      } else if (judulLower.match(/(pemerintah|negara|politik|demokrasi)/)) {
+        topics.push('politik');
+      } else if (judulLower.match(/(ekonomi|keuangan|bisnis|perdagangan)/)) {
+        topics.push('ekonomi');
+      } else if (judulLower.match(/(pendidikan|sekolah|guru|belajar)/)) {
+        topics.push('pendidikan');
+      } else {
+        topics.push('literatur');
+      }
+    }
 
-    // Filter topics dengan score di atas threshold
-    const threshold = 0.5;
-    const detectedTopics = Object.entries(topicScores)
-      .filter(([topic, score]) => score >= threshold)
-      .sort(([, scoreA], [, scoreB]) => scoreB - scoreA)
-      .map(([topic]) => topic);
+    return topics.slice(0, 3); // Max 3 topics
 
-    return detectedTopics.length > 0 ? detectedTopics.slice(0, 3) : ['umum'];
-    
   } catch (error) {
     console.error('Error in extractTopicsFromTitle:', error);
-    return ['umum'];
+    return ['literatur']; // Safe fallback
   }
 };
