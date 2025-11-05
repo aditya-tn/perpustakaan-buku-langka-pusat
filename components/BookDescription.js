@@ -143,6 +143,31 @@ const BookDescription = ({ book }) => {
             {description.description}
           </div>
           
+
+          
+          {/* Metadata */}
+          <div style={{
+            padding: '0.875rem',
+            backgroundColor: '#f7fafc',
+            borderRadius: '6px',
+            fontSize: '0.8rem',
+            color: '#4a5568'
+          }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '0.5rem',
+              marginBottom: '0.5rem'
+            }}>
+              <div><strong>Era:</strong> {description.characteristics.era}</div>
+              <div><strong>Bahasa:</strong> {description.characteristics.languageLabel}</div>
+              <div><strong>Topik:</strong> {description.characteristics.topics.join(', ')}</div>
+              {description.characteristics.year && (
+                <div><strong>Tahun:</strong> {description.characteristics.year}</div>
+              )}
+            </div>
+          </div>
+
           {/* Rule-Based Notification */}
           <div style={{
             padding: '0.75rem',
@@ -170,30 +195,7 @@ const BookDescription = ({ book }) => {
                 </span>
               )}
             </div>
-          </div>
-          
-          {/* Metadata */}
-          <div style={{
-            padding: '0.875rem',
-            backgroundColor: '#f7fafc',
-            borderRadius: '6px',
-            fontSize: '0.8rem',
-            color: '#4a5568'
-          }}>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '0.5rem',
-              marginBottom: '0.5rem'
-            }}>
-              <div><strong>Era:</strong> {description.characteristics.era}</div>
-              <div><strong>Bahasa:</strong> {description.characteristics.languageLabel}</div>
-              <div><strong>Topik:</strong> {description.characteristics.topics.join(', ')}</div>
-              {description.characteristics.year && (
-                <div><strong>Tahun:</strong> {description.characteristics.year}</div>
-              )}
-            </div>
-          </div>
+          </div>      
         </div>
       )}
       
