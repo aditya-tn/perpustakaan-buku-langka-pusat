@@ -1367,10 +1367,12 @@ export default function Home() {
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
 
-          {/* Search-within-Search Panel - COMPACT LAYOUT */}
+          // Cari bagian Search-within-Search Panel dan ganti dengan:
+          
+          {/* Search-within-Search Panel - OPTIMIZED LAYOUT */}
           <div style={{
             backgroundColor: 'white',
-            padding: '1.25rem',
+            padding: isMobile ? '1rem' : '1.25rem',
             borderRadius: '12px',
             boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
             marginBottom: '2rem',
@@ -1385,7 +1387,7 @@ export default function Home() {
               gap: '1rem'
             }}>
               <h3 style={{ 
-                fontSize: '1.25rem', 
+                fontSize: isMobile ? '1.1rem' : '1.25rem', 
                 fontWeight: '700',
                 color: '#2d3748',
                 margin: 0
@@ -1397,13 +1399,13 @@ export default function Home() {
                 <button
                   onClick={clearWithinSearch}
                   style={{
-                    padding: '0.5rem 1rem',
+                    padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
                     backgroundColor: '#f7fafc',
                     color: '#718096',
                     border: '1px solid #e2e8f0',
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    fontSize: '0.8rem',
+                    fontSize: isMobile ? '0.75rem' : '0.8rem',
                     fontWeight: '500'
                   }}
                 >
@@ -1412,18 +1414,19 @@ export default function Home() {
               )}
             </div>
           
-            {/* COMPACT FILTER ROW */}
+            {/* RESPONSIVE FILTER LAYOUT */}
             <div style={{
               display: 'flex',
-              gap: '1.5rem',
-              alignItems: 'flex-start',
-              flexWrap: 'nowrap',
-              overflowX: 'auto',
-              paddingBottom: '0.5rem'
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: isMobile ? '1rem' : '1.5rem',
+              alignItems: isMobile ? 'stretch' : 'flex-start'
             }}>
               
-              {/* Text Search - Compact */}
-              <div style={{ minWidth: '200px', flexShrink: 0 }}>
+              {/* Text Search */}
+              <div style={{ 
+                flex: isMobile ? '0' : '1',
+                minWidth: isMobile ? 'auto' : '200px'
+              }}>
                 <label style={{
                   display: 'block',
                   fontSize: '0.8rem',
@@ -1449,8 +1452,11 @@ export default function Home() {
                 />
               </div>
           
-              {/* Period Quick Select - Compact */}
-              <div style={{ minWidth: '280px', flexShrink: 0 }}>
+              {/* Period Quick Select - DROPDOWN */}
+              <div style={{ 
+                flex: isMobile ? '0' : '1',
+                minWidth: isMobile ? 'auto' : '200px'
+              }}>
                 <label style={{
                   display: 'block',
                   fontSize: '0.8rem',
@@ -1460,67 +1466,65 @@ export default function Home() {
                 }}>
                   Periode Historis:
                 </label>
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '0.4rem', 
-                  flexWrap: 'nowrap',
-                  alignItems: 'center'
-                }}>
+                <select
+                  value={activePeriod || ''}
+                  onChange={(e) => {
+                    const selectedPeriod = historicalPeriods.find(p => p.label === e.target.value);
+                    if (selectedPeriod) {
+                      handlePeriodSelect(selectedPeriod.range, selectedPeriod.label);
+                    } else {
+                      clearActivePeriod();
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 0.75rem',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    backgroundColor: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">Pilih periode...</option>
                   {historicalPeriods.map(period => (
-                    <button
-                      key={period.label}
-                      onClick={() => handlePeriodSelect(period.range, period.label)}
-                      style={{
-                        padding: '0.35rem 0.6rem',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '16px',
-                        backgroundColor: activePeriod === period.label ? '#4299e1' : 'white',
-                        color: activePeriod === period.label ? 'white' : '#4a5568',
-                        fontSize: '0.65rem',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        flexShrink: 0,
-                        whiteSpace: 'nowrap'
-                      }}
-                      onMouseOver={(e) => {
-                        if (activePeriod !== period.label) {
-                          e.target.style.backgroundColor = '#f7fafc';
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        if (activePeriod !== period.label) {
-                          e.target.style.backgroundColor = 'white';
-                        }
-                      }}
-                      title={period.description}
-                    >
-                      {period.label}
-                      <span style={{
-                        fontSize: '0.55rem',
-                        backgroundColor: activePeriod === period.label ? 'rgba(255,255,255,0.3)' : '#e2e8f0',
-                        color: activePeriod === period.label ? 'white' : '#718096',
-                        padding: '0.1rem 0.25rem',
-                        borderRadius: '8px',
-                        minWidth: '1rem',
-                        textAlign: 'center'
-                      }}>
-                        {getPeriodBookCount(period.range)}
-                      </span>
-                    </button>
+                    <option key={period.label} value={period.label}>
+                      {period.label} ({getPeriodBookCount(period.range)} buku)
+                    </option>
                   ))}
-                </div>
+                </select>
+                {activePeriod && (
+                  <button
+                    onClick={clearActivePeriod}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#4299e1',
+                      cursor: 'pointer',
+                      fontSize: '0.7rem',
+                      textDecoration: 'underline',
+                      marginTop: '0.25rem',
+                      padding: '0'
+                    }}
+                  >
+                    Hapus periode
+                  </button>
+                )}
               </div>
           
-              {/* Year Slider - Compact */}
-              <div style={{ minWidth: '300px', flexGrow: 1, flexShrink: 0 }}>
+              {/* Year Slider - Optimized */}
+              <div style={{ 
+                flex: isMobile ? '0' : '2',
+                minWidth: isMobile ? 'auto' : '300px'
+              }}>
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '0.5rem'
+                  marginBottom: '0.75rem',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem'
                 }}>
                   <label style={{
                     fontSize: '0.8rem',
@@ -1529,24 +1533,34 @@ export default function Home() {
                   }}>
                     Rentang Tahun:
                   </label>
-                  <span style={{ 
-                    backgroundColor: '#4299e1',
-                    color: 'white',
-                    padding: '0.2rem 0.6rem',
-                    borderRadius: '12px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600'
-                  }}>
-                    {activeFilters.tahunRange[0]} - {activeFilters.tahunRange[1]}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ 
+                      backgroundColor: '#4299e1',
+                      color: 'white',
+                      padding: '0.3rem 0.7rem',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      minWidth: '85px',
+                      textAlign: 'center'
+                    }}>
+                      {activeFilters.tahunRange[0]} - {activeFilters.tahunRange[1]}
+                    </span>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      color: '#718096'
+                    }}>
+                      {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
+                    </span>
+                  </div>
                 </div>
           
-                {/* Compact Slider */}
-                <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+                {/* Slider */}
+                <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
                   <div style={{
-                    height: '4px',
+                    height: '6px',
                     backgroundColor: '#e2e8f0',
-                    borderRadius: '2px',
+                    borderRadius: '3px',
                     position: 'relative'
                   }}>
                     {/* Active Range */}
@@ -1554,7 +1568,7 @@ export default function Home() {
                       position: 'absolute',
                       height: '100%',
                       backgroundColor: '#4299e1',
-                      borderRadius: '2px',
+                      borderRadius: '3px',
                       left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
                       right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
                     }} />
@@ -1572,8 +1586,8 @@ export default function Home() {
                       style={{
                         position: 'absolute',
                         width: '100%',
-                        top: '-6px',
-                        height: '16px',
+                        top: '-8px',
+                        height: '20px',
                         appearance: 'none',
                         background: 'transparent',
                         pointerEvents: 'none',
@@ -1594,8 +1608,8 @@ export default function Home() {
                       style={{
                         position: 'absolute',
                         width: '100%',
-                        top: '-6px',
-                        height: '16px',
+                        top: '-8px',
+                        height: '20px',
                         appearance: 'none',
                         background: 'transparent',
                         pointerEvents: 'none',
@@ -1605,20 +1619,24 @@ export default function Home() {
                   </div>
                 </div>
           
-                {/* Compact Stats */}
+                {/* Stats */}
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  fontSize: '0.65rem',
-                  color: '#718096'
+                  fontSize: '0.7rem',
+                  color: '#718096',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem'
                 }}>
-                  <span>📅 {countValidYears(filteredResults)}/{filteredResults.length} valid</span>
-                  <span>📊 Rata-rata: {calculateAverageYear(filteredResults)}</span>
+                  <span>📅 {countValidYears(filteredResults)} dari {filteredResults.length} buku memiliki tahun valid</span>
+                  {calculateAverageYear(filteredResults) !== '-' && (
+                    <span>📊 Rata-rata: {calculateAverageYear(filteredResults)}</span>
+                  )}
                 </div>
               </div>
             </div>
           
-            {/* Synonyms Filter Status - Tetap di bawah */}
+            {/* Synonyms Filter Status */}
             {searchResults.length > 0 && (
               <div style={{
                 marginTop: '1rem',
@@ -1634,7 +1652,8 @@ export default function Home() {
                   alignItems: 'center', 
                   gap: '0.5rem',
                   marginBottom: synonymsEnabled && activeSynonyms.length > 0 ? '0.5rem' : '0',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  flexWrap: 'wrap'
                 }}>
                   {synonymsEnabled ? '🌐 Pencarian dengan Synonyms' : '🔤 Pencarian Exact Match Only'}
                   <button
@@ -1701,23 +1720,6 @@ export default function Home() {
                   !activePeriod && ` • Tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
                 {` • ${filteredResults.length} hasil (dari ${searchResults.length})`}
                 {` • 📅 ${countValidYears(filteredResults)} buku dengan tahun valid`}
-                
-                {activePeriod && (
-                  <button
-                    onClick={clearActivePeriod}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#2b6cb0',
-                      cursor: 'pointer',
-                      fontSize: '0.7rem',
-                      textDecoration: 'underline',
-                      marginLeft: '0.5rem'
-                    }}
-                  >
-                    Hapus periode
-                  </button>
-                )}
               </div>
             )}
           </div>
