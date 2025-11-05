@@ -1947,8 +1947,7 @@ export default function Home() {
                   marginTop: '1.25rem', 
                   display: 'flex', 
                   gap: '0.75rem',
-                  flexWrap: 'wrap',
-                  alignItems: 'center' // Tambahkan ini untuk alignment
+                  flexWrap: 'wrap'
                 }}>
                   {book.lihat_opac && book.lihat_opac !== 'null' && (
                     <a 
@@ -1987,10 +1986,7 @@ export default function Home() {
                       📥 Pesan Koleksi
                     </a>
                   )}
-                </div>
                 
-                  {/* TAMBAHKAN KOMPONEN BARU DI SINI */}
-                  <BookDescription book={book} />
                 </div>
               </div>
             ))}
