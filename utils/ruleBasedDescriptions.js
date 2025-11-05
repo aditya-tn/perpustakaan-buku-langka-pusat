@@ -67,22 +67,46 @@ export const getEraDescription = (year) => {
   return `era Reformasi`;
 };
 
-// SAFE TOPIC HANDLING - FIXED
+// ENHANCED TOPIC JOINING dengan natural language - OPSI 1
 const safeJoinTopics = (topics, language = 'id') => {
   try {
     if (!topics) return language === 'en' ? 'general topics' : 'topik umum';
+    
+    // Handle non-array inputs
     if (!Array.isArray(topics)) {
       if (typeof topics === 'string') return topics;
       return language === 'en' ? 'general topics' : 'topik umum';
     }
     
-    const safeTopics = topics.filter(topic => typeof topic === 'string');
+    // Filter hanya string yang valid
+    const safeTopics = topics.filter(topic => 
+      typeof topic === 'string' && topic.trim().length > 0
+    );
+    
     if (safeTopics.length === 0) {
       return language === 'en' ? 'general topics' : 'topik umum';
     }
     
-    const separator = language === 'en' ? ' and ' : ' dan ';
-    return safeTopics.join(separator);
+    // Remove duplicates
+    const uniqueTopics = [...new Set(safeTopics)];
+    
+    // Natural language joining berdasarkan jumlah topics
+    if (uniqueTopics.length === 1) {
+      return uniqueTopics[0];
+    }
+    
+    if (uniqueTopics.length === 2) {
+      const separator = language === 'en' ? ' and ' : ' dan ';
+      return uniqueTopics.join(separator);
+    }
+    
+    // Untuk 3 atau lebih topics: "sejarah, hukum, dan budaya"
+    if (language === 'en') {
+      return uniqueTopics.slice(0, -1).join(', ') + ', and ' + uniqueTopics[uniqueTopics.length - 1];
+    } else {
+      return uniqueTopics.slice(0, -1).join(', ') + ', dan ' + uniqueTopics[uniqueTopics.length - 1];
+    }
+    
   } catch (error) {
     console.error('Error in safeJoinTopics:', error);
     return language === 'en' ? 'general topics' : 'topik umum';
@@ -321,7 +345,7 @@ const defaultTemplate = (book, chars, topicDesc) => {
   return `Buku tentang ${topicDesc}.${physicalDesc} ${authorPart}${yearPart}${publisherPart}Koleksi Perpustakaan Nasional RI yang merepresentasikan khazanah literatur Indonesia dan kontribusi terhadap perkembangan ilmu pengetahuan nasional.`;
 };
 
-// Main template generator dengan enhanced logic dan SAFE TOPIC HANDLING
+// Main template generator dengan enhanced logic dan IMPROVED TOPIC JOINING
 export const generateRuleBasedDescription = (book) => {
   try {
     console.log('📖 Processing book:', book?.judul);
@@ -333,7 +357,7 @@ export const generateRuleBasedDescription = (book) => {
     const chars = detectBookCharacteristics(book);
     console.log('📊 Book characteristics detected:', chars);
     
-    // SAFE TOPIC FORMATTING - FIXED
+    // IMPROVED TOPIC FORMATTING - OPSI 1
     const topicDesc = safeJoinTopics(chars.topics, chars.language);
     console.log('🎯 Formatted topic description:', topicDesc);
     
