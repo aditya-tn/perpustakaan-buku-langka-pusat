@@ -1,4 +1,4 @@
-// components/BookDescription.js - FIXED DISPLAY
+// components/BookDescription.js - FLOATING VERSION
 import { useState } from 'react';
 import { generateRuleBasedDescription } from '../utils/ruleBasedDescriptions';
 
@@ -6,11 +6,16 @@ const BookDescription = ({ book }) => {
   const [description, setDescription] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const generateDescription = async () => {
+    if (description) {
+      setDescription(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    setDescription(null);
     
     try {
       console.log('🔍 Generating description for:', book?.judul);
@@ -30,71 +35,103 @@ const BookDescription = ({ book }) => {
   };
 
   return (
-    <div className="book-description">
+    <div className="book-description" style={{ display: 'inline', position: 'relative' }}>
+      {/* Floating Button di sebelah judul */}
       <button
         onClick={generateDescription}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
         disabled={loading}
         style={{
-          padding: '0.5rem 1rem',
-          backgroundColor: loading ? '#cbd5e0' : '#4299e1',
-          color: 'white',
+          backgroundColor: 'transparent',
           border: 'none',
-          borderRadius: '6px',
           cursor: loading ? 'not-allowed' : 'pointer',
-          fontSize: '0.8rem',
-          display: 'flex',
+          fontSize: '1.1rem',
+          padding: '0.2rem 0.5rem',
+          marginLeft: '0.5rem',
+          borderRadius: '4px',
+          transition: 'all 0.2s ease',
+          opacity: loading ? 0.6 : 1,
+          position: 'relative',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.5rem',
-          transition: 'all 0.2s ease'
+          justifyContent: 'center'
         }}
+        title="Deskripsi Kontekstual"
       >
-        {loading ? '⏳' : '🤖'} 
-        {loading ? 'Menganalisis...' : 'Deskripsi Kontekstual'}
+        {loading ? '⏳' : description ? '📚' : '💡'}
+        
+        {/* Tooltip */}
+        {showTooltip && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#2d3748',
+            color: 'white',
+            padding: '0.5rem 0.75rem',
+            borderRadius: '6px',
+            fontSize: '0.75rem',
+            whiteSpace: 'nowrap',
+            zIndex: 1000,
+            marginTop: '0.5rem',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+          }}>
+            {description ? 'Sembunyikan deskripsi' : 'Tampilkan deskripsi kontekstual'}
+            <div style={{
+              position: 'absolute',
+              top: '-4px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '0',
+              height: '0',
+              borderLeft: '4px solid transparent',
+              borderRight: '4px solid transparent',
+              borderBottom: '4px solid #2d3748'
+            }} />
+          </div>
+        )}
       </button>
       
-      {error && (
-        <div style={{
-          marginTop: '1rem',
-          padding: '0.75rem',
-          backgroundColor: '#fed7d7',
-          border: '1px solid #feb2b2',
-          borderRadius: '6px',
-          color: '#c53030',
-          fontSize: '0.8rem'
-        }}>
-          {error}
-        </div>
-      )}
-      
+      {/* Floating Description Box */}
       {description && (
         <div style={{
-          marginTop: '1rem',
-          padding: '1rem',
-          backgroundColor: '#f0fff4',
-          border: '1px solid #9ae6b4',
+          position: 'absolute',
+          top: '100%',
+          left: '0',
+          right: '0',
+          backgroundColor: 'white',
+          border: '1px solid #e2e8f0',
           borderRadius: '8px',
-          fontSize: '0.9rem',
+          padding: '1rem',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+          zIndex: 1000,
+          marginTop: '0.5rem',
+          maxWidth: '400px',
+          fontSize: '0.85rem',
           lineHeight: '1.5'
         }}>
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            marginBottom: '0.5rem',
-            flexWrap: 'wrap',
-            gap: '0.5rem'
+            marginBottom: '0.75rem'
           }}>
             <strong style={{ color: '#22543d' }}>📚 Deskripsi Kontekstual</strong>
-            <span style={{
-              fontSize: '0.7rem',
-              backgroundColor: description.confidence > 0.7 ? '#48bb78' : '#ed8936',
-              color: 'white',
-              padding: '0.2rem 0.5rem',
-              borderRadius: '10px',
-              fontWeight: '600'
-            }}>
-              {Math.round(description.confidence * 100)}% confidence
-            </span>
+            <button
+              onClick={() => setDescription(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '1rem',
+                cursor: 'pointer',
+                color: '#718096',
+                padding: '0'
+              }}
+            >
+              ✕
+            </button>
           </div>
           
           <p style={{ 
@@ -106,38 +143,42 @@ const BookDescription = ({ book }) => {
           
           <div style={{
             padding: '0.75rem',
-            backgroundColor: 'rgba(154, 230, 180, 0.2)',
+            backgroundColor: '#f7fafc',
             borderRadius: '6px',
             fontSize: '0.75rem',
-            color: '#2d3748'
+            color: '#4a5568'
           }}>
-            <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Analisis Buku:</div>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-              gap: '0.5rem',
-              fontSize: '0.7rem'
-            }}>
-              <div>
-                <span style={{ color: '#718096' }}>Era: </span>
-                <strong>{description.characteristics.era}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#718096' }}>Bahasa: </span>
-                <strong>{description.characteristics.languageLabel}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#718096' }}>Topik: </span>
-                <strong>{description.characteristics.topics.join(', ')}</strong>
-              </div>
-              {description.characteristics.year && (
-                <div>
-                  <span style={{ color: '#718096' }}>Tahun: </span>
-                  <strong>{description.characteristics.year}</strong>
-                </div>
-              )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <span><strong>Era:</strong> {description.characteristics.era}</span>
+              <span><strong>Bahasa:</strong> {description.characteristics.languageLabel}</span>
+              <span><strong>Topik:</strong> {description.characteristics.topics.join(', ')}</span>
             </div>
+            {description.characteristics.year && (
+              <div style={{ marginTop: '0.25rem' }}>
+                <strong>Tahun:</strong> {description.characteristics.year}
+              </div>
+            )}
           </div>
+        </div>
+      )}
+      
+      {/* Error Message */}
+      {error && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: '0',
+          right: '0',
+          backgroundColor: '#fed7d7',
+          border: '1px solid #feb2b2',
+          borderRadius: '6px',
+          padding: '0.75rem',
+          color: '#c53030',
+          fontSize: '0.8rem',
+          marginTop: '0.5rem',
+          zIndex: 1000
+        }}>
+          {error}
         </div>
       )}
     </div>
