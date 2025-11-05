@@ -1,4 +1,4 @@
-// components/BookDescription.js
+// components/BookDescription.js - FIXED
 import { useState } from 'react';
 import { generateRuleBasedDescription } from '../utils/ruleBasedDescriptions';
 
@@ -10,14 +10,20 @@ const BookDescription = ({ book }) => {
   const generateDescription = async () => {
     setLoading(true);
     setError(null);
+    setDescription(null);
     
     try {
-      // Instant - no API call needed
+      console.log('🔍 Generating description for:', book.judul);
       const result = generateRuleBasedDescription(book);
-      setDescription(result);
+      
+      if (result && result.description) {
+        setDescription(result);
+      } else {
+        throw new Error('Invalid response from description generator');
+      }
     } catch (err) {
-      setError('Gagal generate deskripsi. Silakan coba lagi.');
-      console.error('Error generating description:', err);
+      console.error('❌ Error generating description:', err);
+      setError(`Gagal generate deskripsi. Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -26,18 +32,13 @@ const BookDescription = ({ book }) => {
   const getLanguageLabel = (lang) => {
     const labels = {
       'id': 'Indonesia',
-      'nl': 'Belanda', 
+      'en': 'English', 
+      'nl': 'Belanda',
       'jv': 'Jawa',
       'ar': 'Arab',
       'unknown': 'Tidak diketahui'
     };
     return labels[lang] || lang;
-  };
-
-  const getConfidenceColor = (confidence) => {
-    if (confidence > 0.7) return '#48bb78'; // green
-    if (confidence > 0.5) return '#ed8936'; // orange
-    return '#e53e3e'; // red
   };
 
   return (
@@ -56,27 +57,11 @@ const BookDescription = ({ book }) => {
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
-          transition: 'all 0.2s ease',
-          opacity: loading ? 0.7 : 1
-        }}
-        onMouseOver={(e) => {
-          if (!loading) e.target.style.backgroundColor = '#3182ce';
-        }}
-        onMouseOut={(e) => {
-          if (!loading) e.target.style.backgroundColor = '#4299e1';
+          transition: 'all 0.2s ease'
         }}
       >
-        {loading ? (
-          <>
-            <span>⏳</span>
-            <span>Menganalisis...</span>
-          </>
-        ) : (
-          <>
-            <span>🤖</span>
-            <span>Deskripsi Kontekstual</span>
-          </>
-        )}
+        {loading ? '⏳' : '🤖'} 
+        {loading ? 'Menganalisis...' : 'Deskripsi Kontekstual'}
       </button>
       
       {error && (
@@ -89,7 +74,10 @@ const BookDescription = ({ book }) => {
           color: '#c53030',
           fontSize: '0.8rem'
         }}>
-          {error}
+          <strong>Error:</strong> {error}
+          <div style={{ marginTop: '0.5rem', fontSize: '0.7rem' }}>
+            Coba refresh halaman atau gunakan buku lain.
+          </div>
         </div>
       )}
       
@@ -107,73 +95,30 @@ const BookDescription = ({ book }) => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            marginBottom: '0.5rem',
-            flexWrap: 'wrap',
-            gap: '0.5rem'
+            marginBottom: '0.5rem'
           }}>
-            <strong style={{ color: '#22543d' }}>📚 Deskripsi Kontekstual</strong>
+            <strong>📚 Deskripsi Kontekstual</strong>
             <span style={{
               fontSize: '0.7rem',
-              backgroundColor: getConfidenceColor(description.confidence),
+              backgroundColor: description.confidence > 0.7 ? '#48bb78' : '#ed8936',
               color: 'white',
               padding: '0.2rem 0.5rem',
-              borderRadius: '10px',
-              fontWeight: '600'
+              borderRadius: '10px'
             }}>
               {Math.round(description.confidence * 100)}% confidence
             </span>
           </div>
           
-          <p style={{ 
-            margin: '0 0 0.75rem 0',
-            color: '#2d3748'
-          }}>
-            {description.description}
-          </p>
+          <p style={{ margin: 0 }}>{description.description}</p>
           
           <div style={{
-            padding: '0.75rem',
+            marginTop: '0.75rem',
+            padding: '0.5rem',
             backgroundColor: 'rgba(154, 230, 180, 0.2)',
-            borderRadius: '6px',
-            fontSize: '0.75rem',
-            color: '#2d3748'
+            borderRadius: '4px',
+            fontSize: '0.75rem'
           }}>
-            <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Analisis Buku:</div>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-              gap: '0.5rem',
-              fontSize: '0.7rem'
-            }}>
-              <div>
-                <span style={{ color: '#718096' }}>Era: </span>
-                <strong>{description.characteristics.era}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#718096' }}>Bahasa: </span>
-                <strong>{getLanguageLabel(description.characteristics.language)}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#718096' }}>Topik: </span>
-                <strong>{description.characteristics.topics.join(', ')}</strong>
-              </div>
-              {description.characteristics.year && (
-                <div>
-                  <span style={{ color: '#718096' }}>Tahun: </span>
-                  <strong>{description.characteristics.year}</strong>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div style={{
-            marginTop: '0.5rem',
-            fontSize: '0.65rem',
-            color: '#718096',
-            textAlign: 'center',
-            fontStyle: 'italic'
-          }}>
-            Generated by Rule-Based System • Zero Cost • Instant Response
+            <div><strong>Analisis:</strong> {description.characteristics.era} • {getLanguageLabel(description.characteristics.language)} • {description.characteristics.topics.join(', ')}</div>
           </div>
         </div>
       )}
