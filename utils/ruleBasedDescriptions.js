@@ -289,16 +289,16 @@ const dutchColonialTemplate = (book, chars, topicDesc) => {
 };
 
 const englishAcademicTemplate = (book, chars, topicDesc) => {
-  const authorPart = chars.hasAuthor ? `by ${book.pengarang}` : 'academic work';
-  const publisherPart = chars.hasPublisher ? `, published by ${book.penerbit}` : '';
-  const yearInfo = chars.year ? ` in ${chars.year}` : '';
+  const authorPart = chars.hasAuthor ? `karya ${book.pengarang}` : 'karya akademik';
+  const publisherPart = chars.hasPublisher ? `, terbitan ${book.penerbit}` : '';
+  const yearInfo = chars.year ? ` pada tahun ${chars.year}` : '';
   
   const templates = [
-    `English academic work on ${topicDesc}. ${authorPart}${publisherPart}${yearInfo}. Important contribution to ${chars.era} scholarship, providing international perspective on Indonesian studies and bridging local knowledge with global academic discourse.`,
+    `Karya akademik berbahasa Inggris tentang ${topicDesc}. ${authorPart}${publisherPart}${yearInfo}. Kontribusi penting untuk studi ${chars.era} yang memberikan perspektif internasional tentang kajian Indonesia.`,
     
-    `Scholarly publication in English focusing on ${topicDesc}. ${authorPart}${publisherPart}${yearInfo}, represents ${chars.era} academic research methodology and contributes to global understanding of Indonesian society, culture, and development.`,
+    `Publikasi ilmiah dalam bahasa Inggris yang fokus pada ${topicDesc}. ${authorPart}${publisherPart}${yearInfo}, merepresentasikan metodologi penelitian akademik ${chars.era} dan berkontribusi pada pemahaman global tentang masyarakat dan budaya Indonesia.`,
     
-    `Academic literature in English about ${topicDesc}. ${authorPart}${publisherPart}${yearInfo}, significant work in its field of study that demonstrates rigorous research approach and adds valuable insights to the international body of knowledge about Indonesia.`
+    `Literatur akademik berbahasa Inggris mengenai ${topicDesc}. ${authorPart}${publisherPart}${yearInfo}, karya signifikan dalam bidang studinya yang menunjukkan pendekatan penelitian yang rigor dan menambah wawasan berharga bagi pengetahuan internasional tentang Indonesia.`
   ];
   
   return templates[Math.floor(Math.random() * templates.length)];
