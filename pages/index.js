@@ -1779,6 +1779,7 @@ export default function Home() {
     )}
   </div>
 </div>
+    </div>
       
         {/* Synonyms Status Bar */}
         {searchResults.length > 0 && (
