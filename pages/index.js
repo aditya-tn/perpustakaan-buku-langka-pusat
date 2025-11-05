@@ -1586,7 +1586,7 @@ export default function Home() {
             )}
           </div>
       
-{/* COLUMN 3: Year Slider - FIXED FUNCTIONALITY */}
+{/* COLUMN 3: Year Slider - BACK TO ORIGINAL WORKING VERSION */}
 <div style={{
   display: 'flex',
   flexDirection: 'column',
@@ -1634,13 +1634,12 @@ export default function Home() {
     </div>
   </div>
 
-  {/* FIXED Slider Container */}
+  {/* SIMPLE & WORKING Slider Container */}
   <div style={{ 
     position: 'relative', 
     marginBottom: '0.5rem',
-    padding: '1.5rem 0.5rem 0.5rem 0.5rem'
+    padding: '0.5rem 0'
   }}>
-    {/* Track Background */}
     <div style={{
       height: '6px',
       backgroundColor: '#e2e8f0',
@@ -1656,101 +1655,85 @@ export default function Home() {
         left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
         right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
       }} />
-    </div>
-
-    {/* PROPER Range Inputs dengan Z-Index yang Benar */}
-    <div style={{
-      position: 'absolute',
-      top: '0',
-      left: '0',
-      right: '0',
-      height: '30px',
-      display: 'flex',
-      alignItems: 'center'
-    }}>
-      {/* Min Handle - DI ATAS Max Handle */}
+      
+      {/* Hidden Range Inputs - INI YANG AWALNYA SUDAH WORK */}
       <input
         type="range"
         min={MIN_YEAR}
         max={MAX_YEAR}
         value={activeFilters.tahunRange[0]}
-        onChange={(e) => {
-          const newMin = parseInt(e.target.value);
-          if (newMin <= activeFilters.tahunRange[1]) {
-            updateYearRange([newMin, activeFilters.tahunRange[1]]);
-          }
-        }}
+        onChange={(e) => updateYearRange([
+          parseInt(e.target.value),
+          activeFilters.tahunRange[1]
+        ])}
         style={{
+          position: 'absolute',
           width: '100%',
-          height: '30px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          height: '20px',
           appearance: 'none',
           background: 'transparent',
           pointerEvents: 'auto',
           cursor: 'pointer',
-          position: 'absolute',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 4,
-          opacity: 0.01
+          zIndex: 2,
+          opacity: 0
         }}
       />
       
-      {/* Max Handle - DI BAWAH Min Handle */}
       <input
         type="range"
         min={MIN_YEAR}
         max={MAX_YEAR}
         value={activeFilters.tahunRange[1]}
-        onChange={(e) => {
-          const newMax = parseInt(e.target.value);
-          if (newMax >= activeFilters.tahunRange[0]) {
-            updateYearRange([activeFilters.tahunRange[0], newMax]);
-          }
-        }}
+        onChange={(e) => updateYearRange([
+          activeFilters.tahunRange[0],
+          parseInt(e.target.value)
+        ])}
         style={{
+          position: 'absolute',
           width: '100%',
-          height: '30px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          height: '20px',
           appearance: 'none',
           background: 'transparent',
           pointerEvents: 'auto',
           cursor: 'pointer',
-          position: 'absolute',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          zIndex: 3,
-          opacity: 0.01
+          zIndex: 2,
+          opacity: 0
         }}
       />
     </div>
 
-    {/* Custom Slider Handles - Visual Only */}
+    {/* Simple Custom Handles */}
     <div style={{
       position: 'absolute',
       left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
       top: '50%',
       transform: 'translate(-50%, -50%)',
-      width: '20px',
-      height: '20px',
+      width: '18px',
+      height: '18px',
       backgroundColor: '#4299e1',
       border: '3px solid white',
       borderRadius: '50%',
-      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
       pointerEvents: 'none',
-      zIndex: 2
+      zIndex: 1
     }} />
     <div style={{
       position: 'absolute',
       left: `${((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
       top: '50%',
       transform: 'translate(-50%, -50%)',
-      width: '20px',
-      height: '20px',
+      width: '18px',
+      height: '18px',
       backgroundColor: '#4299e1',
       border: '3px solid white',
       borderRadius: '50%',
-      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
       pointerEvents: 'none',
-      zIndex: 2
+      zIndex: 1
     }} />
   </div>
 
@@ -1782,7 +1765,7 @@ export default function Home() {
       </div>
     )}
   </div>
- </div>
+</div>
 </div>
       
         {/* Synonyms Status Bar */}
