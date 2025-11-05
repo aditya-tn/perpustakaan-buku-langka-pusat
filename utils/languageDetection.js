@@ -1,83 +1,57 @@
-// utils/languageDetection.js
+// utils/languageDetection.js - IMPROVED VERSION
 
-// Enhanced language detection dengan vocabulary yang comprehensive
+// Enhanced language detection dengan fallback yang lebih baik
 export const detectLanguage = (text) => {
-  if (!text) return 'unknown';
+  if (!text || typeof text !== 'string') return 'id'; // Default to Indonesian
   
   try {
-    const textLower = text.toLowerCase();
+    const textLower = text.toLowerCase().trim();
+    if (textLower.length < 3) return 'id';
     
-    // Expanded vocabulary untuk setiap bahasa
-    const languagePatterns = {
+    // Simple but effective pattern matching
+    const patterns = {
       'id': [
-        // Common Indonesian words
-        'yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'pada', 'dengan', 'ini', 'itu', 
-        'tidak', 'akan', 'ada', 'atau', 'juga', 'dalam', 'dapat', 'saat', 'lebih',
-        'orang', 'telah', 'oleh', 'karena', 'namun', 'untuk', 'sebagai', 'masih',
-        'hadap', 'rata', 'sama', 'atas', 'bawah', 'depan', 'belakang', 'kiri', 'kanan',
-        // Indonesian prefixes/suffixes
-        'ber', 'ter', 'me', 'pe', 'di', 'ke', 'se', 'nya', 'kah', 'lah', 'pun'
+        /\b(yang|dan|di|ke|dari|untuk|pada|dengan|ini|itu|tidak|akan|ada|atau|juga|dalam|dapat|saat|lebih|orang|telah|oleh|karena|namun|sebagai|masih|sama|atas|bawah|depan|belakang|kiri|kanan|sejarah|budaya|sastra|hukum|politik|ekonomi|sosial|pendidikan|kesehatan|pertanian|teknologi|lingkungan|pengantar|dasar|teori|praktikum|studi|analisis|perkembangan|perubahan|transformasi|modernisasi|indonesia|jawa|sumatra|kalimantan|sulawesi|papua|nusantara|nasional|daerah|lokal|tradisional|adat|tradisi|kesenian|warisan|masyarakat|negara|pemerintah|rakyat|bangsa|bahasa|kata|kalimat|tulisan|buku|karya|penulis|pengarang|penerbit|terbit|tahun|abad|zaman|masa|periode|era)\b/gi
       ],
       'en': [
-        // Common English words
-        'the', 'and', 'of', 'to', 'a', 'in', 'is', 'it', 'you', 'that', 'he', 'was',
-        'for', 'on', 'are', 'as', 'with', 'his', 'they', 'i', 'at', 'be', 'this', 'have',
-        'from', 'or', 'one', 'had', 'by', 'word', 'but', 'not', 'what', 'all', 'were', 'we',
-        'when', 'your', 'can', 'said', 'there', 'use', 'an', 'each', 'which', 'she', 'do',
-        'how', 'their', 'if', 'will', 'up', 'other', 'about', 'out', 'many', 'then', 'them',
-        'these', 'so', 'some', 'her', 'would', 'make', 'like', 'him', 'into', 'time', 'has'
+        /\b(the|and|of|to|a|in|is|it|you|that|he|was|for|on|are|as|with|his|they|i|at|be|this|have|from|or|one|had|by|word|but|not|what|all|were|we|when|your|can|said|there|use|an|each|which|she|do|how|their|if|will|up|other|about|out|many|then|them|these|so|some|her|would|make|like|him|into|time|has|two|more|write|go|see|number|no|way|could|people|my|than|first|water|been|call|who|oil|its|now|find|long|down|day|did|get|come|made|may|part|over|new|work|world|life|study|research|analysis|development|history|culture|literature|law|politics|economy|social|education|health|agriculture|technology|environment|introduction|basic|theory|practice|methodology|perspective|approach|concept|principle|system|handbook|guide|manual|textbook)\b/gi
       ],
       'nl': [
-        // Dutch words common in old book titles
-        'de', 'het', 'en', 'van', 'tot', 'voor', 'met', 'zijn', 'een', 'als', 'door',
-        'over', 'onder', 'tussen', 'door', 'om', 'te', 'bij', 'naar', 'uit', 'zo', 'er',
-        'maar', 'ook', 'dan', 'of', 'want', 'dus', 'toch', 'al', 'op', 'aan', 'in', 'dat',
-        'die', 'dit', 'deze', 'die', 'wat', 'wie', 'waar', 'hoe', 'waarom', 'welke'
+        /\b(de|het|en|van|tot|voor|met|zijn|een|als|door|over|onder|tussen|om|te|bij|naar|uit|zo|er|maar|ook|dan|of|want|dus|toch|al|op|aan|in|dat|die|dit|deze|wat|wie|waar|hoe|waarom|welke|geschiedenis|cultuur|literatuur|recht|politiek|economie|onderwijs|gezondheid|landbouw|technologie|milieu|inleiding|handleiding|studie|onderzoek|analyse|ontwikkeling|verandering|transformatie|modernisering|nederlands|indisch|koloniaal|inlandsch|beschaving)\b/gi
       ],
       'jv': [
-        // Javanese words
-        'jawa', 'kawi', 'serat', 'babad', 'kraton', 'sastra', 'tembang', 'wayang',
-        'gamelan', 'batik', 'sultan', 'pangeran', 'raden', 'mas', 'mbak', 'pak', 'bu'
+        /\b(jawa|kawi|serat|babad|kraton|sastra|tembang|wayang|gamelan|batik|sultan|pangeran|raden|mas|mbak|pak|bu|ing|saka|kang|sing|iku|kabeh|ana|ora|wis|arep|bakal|sampun|saged|boten|mriki|mrono|kene|kono)\b/gi
       ],
       'ar': [
-        // Arabic words common in religious texts
-        'islam', 'quran', 'hadis', 'fiqh', 'tauhid', 'sharia', 'sufi', 'syariah',
-        'allah', 'muhammad', 'nabi', 'rasul', 'iman', 'islam', 'muslim', 'shalat'
+        /\b(islam|quran|hadis|fiqh|tauhid|sharia|sufi|syariah|allah|muhammad|nabi|rasul|iman|muslim|shalat|zakat|puasa|haji|sunni|syiah|tasawuf|tarikat|ulama)\b/gi
       ]
     };
 
-    // Hitung score untuk setiap bahasa
-    const scores = {};
-    Object.keys(languagePatterns).forEach(lang => {
-      scores[lang] = 0;
-    });
-
-    // Split text into words and check against each language
-    const words = textLower.split(/[\s\.,;:!?\(\)\[\]\-\–\—]+/).filter(word => word.length > 2);
+    const scores = { id: 0, en: 0, nl: 0, jv: 0, ar: 0 };
     
-    words.forEach(word => {
-      Object.entries(languagePatterns).forEach(([lang, patterns]) => {
-        if (patterns.includes(word)) {
-          scores[lang] += 1;
+    // Count matches for each language
+    Object.entries(patterns).forEach(([lang, regexes]) => {
+      regexes.forEach(regex => {
+        const matches = textLower.match(regex);
+        if (matches) {
+          scores[lang] += matches.length;
         }
       });
     });
 
-    // Special cases untuk judul buku
-    if (textLower.includes('history') || textLower.includes('culture') || 
-        textLower.includes('study') || textLower.includes('research') ||
-        textLower.includes('analysis') || textLower.includes('development')) {
-      scores['en'] += 3;
+    // Special boost for obvious cases
+    if (textLower.includes('history') || textLower.includes('culture') || textLower.includes('study')) {
+      scores['en'] += 5;
+    }
+    if (textLower.includes('sejarah') || textLower.includes('budaya') || textLower.includes('studi')) {
+      scores['id'] += 5;
+    }
+    if (textLower.includes('geschiedenis') || textLower.includes('cultuur')) {
+      scores['nl'] += 5;
     }
 
-    if (textLower.includes('sejarah') || textLower.includes('budaya') || 
-        textLower.includes('studi') || textLower.includes('penelitian') ||
-        textLower.includes('analisis') || textLower.includes('perkembangan')) {
-      scores['id'] += 3;
-    }
-
-    // Cari bahasa dengan score tertinggi
-    let bestLang = 'unknown';
+    // Find best language
+    let bestLang = 'id'; // Default to Indonesian
     let bestScore = 0;
 
     Object.entries(scores).forEach(([lang, score]) => {
@@ -87,91 +61,49 @@ export const detectLanguage = (text) => {
       }
     });
 
-    // Minimum threshold untuk confidence
+    // If no strong signal, use word length analysis
     if (bestScore < 2) {
-      // Fallback: check for obvious patterns
-      if (textLower.match(/\b(the|and|of|to|a|in|is|it)\b/)) {
-        return 'en';
-      }
-      if (textLower.match(/\b(yang|dan|di|ke|dari|untuk)\b/)) {
-        return 'id';
-      }
-      if (textLower.match(/\b(de|het|en|van|tot|voor)\b/)) {
-        return 'nl';
-      }
+      const words = textLower.split(/\s+/);
+      const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
+      
+      // Indonesian tends to have longer words, English shorter
+      if (avgWordLength > 6) return 'id';
+      if (avgWordLength < 5) return 'en';
     }
 
     return bestLang;
+
   } catch (error) {
     console.error('Error in detectLanguage:', error);
-    return 'unknown';
+    return 'id'; // Fallback to Indonesian
   }
 };
 
-// Specialized function untuk judul buku
+// Simplified title detection
 export const detectLanguageFromTitle = (title) => {
-  if (!title) return 'unknown';
+  if (!title || typeof title !== 'string') return 'id';
   
   try {
     const titleLower = title.toLowerCase();
     
-    // Common patterns in book titles untuk setiap bahasa
-    const titlePatterns = {
-      'id': [
-        'sejarah', 'budaya', 'sastra', 'hukum', 'politik', 'ekonomi', 'sosial',
-        'pendidikan', 'kesehatan', 'pertanian', 'teknologi', 'lingkungan',
-        'pengantar', 'dasar', 'teori', 'praktikum', 'studi', 'analisis',
-        'perkembangan', 'perubahan', 'transformasi', 'modernisasi'
-      ],
-      'en': [
-        'history', 'culture', 'literature', 'law', 'politics', 'economy', 'social',
-        'education', 'health', 'agriculture', 'technology', 'environment',
-        'introduction', 'basic', 'theory', 'practice', 'study', 'analysis',
-        'development', 'change', 'transformation', 'modernization'
-      ],
-      'nl': [
-        'geschiedenis', 'cultuur', 'literatuur', 'recht', 'politiek', 'economie',
-        'onderwijs', 'gezondheid', 'landbouw', 'technologie', 'milieu',
-        'inleiding', 'handleiding', 'studie', 'onderzoek', 'analyse'
-      ],
-      'jv': [
-        'serat', 'babad', 'sastra', 'tembang', 'wayang', 'gamelan', 'batik',
-        'kraton', 'kasultanan', 'priyayi'
-      ]
-    };
-
-    const scores = {};
-    Object.keys(titlePatterns).forEach(lang => {
-      scores[lang] = 0;
-    });
-
-    // Check untuk setiap pattern
-    Object.entries(titlePatterns).forEach(([lang, patterns]) => {
-      patterns.forEach(pattern => {
-        if (titleLower.includes(pattern)) {
-          scores[lang] += 2;
-        }
-      });
-    });
-
-    // Cari bahasa dengan score tertinggi
-    let bestLang = 'unknown';
-    let bestScore = 0;
-
-    Object.entries(scores).forEach(([lang, score]) => {
-      if (score > bestScore) {
-        bestScore = score;
-        bestLang = lang;
-      }
-    });
-
-    if (bestLang === 'unknown' || bestScore < 1) {
-      return detectLanguage(title);
+    // Quick checks for obvious cases
+    if (titleLower.includes('geschiedenis') || titleLower.includes('cultuur') || titleLower.includes('nederlands')) {
+      return 'nl';
     }
-
-    return bestLang;
+    if (titleLower.includes('history') || titleLower.includes('culture') || titleLower.includes('study')) {
+      return 'en';
+    }
+    if (titleLower.includes('serat') || titleLower.includes('babad') || titleLower.includes('jawa')) {
+      return 'jv';
+    }
+    if (titleLower.includes('islam') || titleLower.includes('quran') || titleLower.includes('fiqh')) {
+      return 'ar';
+    }
+    
+    // Default to general detection
+    return detectLanguage(title);
   } catch (error) {
     console.error('Error in detectLanguageFromTitle:', error);
-    return 'unknown';
+    return 'id';
   }
 };
