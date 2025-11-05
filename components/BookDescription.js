@@ -7,9 +7,10 @@ const BookDescription = ({ book }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState(0);
 
-  const generateDescription = async () => {
-    if (description) {
+  const generateDescription = async (templateIndex = 0) => {
+    if (description && templateIndex === currentTemplate) {
       setDescription(null);
       return;
     }
@@ -18,10 +19,13 @@ const BookDescription = ({ book }) => {
     setError(null);
     
     try {
-      const result = generateRuleBasedDescription(book);
+      // Simulate template variation by modifying the book object slightly
+      const bookWithTemplate = { ...book, _templateVariant: templateIndex };
+      const result = generateRuleBasedDescription(bookWithTemplate);
       
       if (result && result.description) {
         setDescription(result);
+        setCurrentTemplate(templateIndex);
       } else {
         throw new Error('Invalid response from description generator');
       }
@@ -33,11 +37,16 @@ const BookDescription = ({ book }) => {
     }
   };
 
+  const cycleTemplate = () => {
+    const nextTemplate = (currentTemplate + 1) % 3; // Cycle through 3 templates
+    generateDescription(nextTemplate);
+  };
+
   return (
     <div style={{ display: 'inline-block', position: 'relative' }}>
       {/* Clean Info Button */}
       <button
-        onClick={generateDescription}
+        onClick={() => generateDescription(0)}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
         disabled={loading}
@@ -111,26 +120,47 @@ const BookDescription = ({ book }) => {
               fontSize: '1rem',
               fontWeight: '600'
             }}>
-              Deskripsi Kontekstual
+              📚 Deskripsi Kontekstual
             </h4>
-            <button
-              onClick={() => setDescription(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '1.25rem',
-                cursor: 'pointer',
-                color: '#718096',
-                padding: '0',
-                width: '24px',
-                height: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              ×
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* Template Cycle Button */}
+              <button
+                onClick={cycleTemplate}
+                style={{
+                  background: 'none',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '4px',
+                  padding: '0.25rem 0.5rem',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  color: '#4a5568',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#f7fafc'}
+                onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                title="Ganti template deskripsi"
+              >
+                🔄
+              </button>
+              <button
+                onClick={() => setDescription(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.25rem',
+                  cursor: 'pointer',
+                  color: '#718096',
+                  padding: '0',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                ×
+              </button>
+            </div>
           </div>
           
           {/* Description Content */}
@@ -155,26 +185,34 @@ const BookDescription = ({ book }) => {
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '0.5rem'
+              gap: '0.5rem',
+              marginBottom: '0.5rem'
             }}>
-              <div>Era: {description.characteristics.era}</div>
-              <div>Bahasa: {description.characteristics.languageLabel}</div>
-              <div>Topik: {description.characteristics.topics.join(', ')}</div>
+              <div><strong>Era:</strong> {description.characteristics.era}</div>
+              <div><strong>Bahasa:</strong> {description.characteristics.languageLabel}</div>
+              <div><strong>Topik:</strong> {description.characteristics.topics.join(', ')}</div>
               {description.characteristics.year && (
-                <div>Tahun: {description.characteristics.year}</div>
+                <div><strong>Tahun:</strong> {description.characteristics.year}</div>
               )}
             </div>
           </div>
 
-          {/* Clean Rule-Based Notification */}
+          {/* Rule-Based Notification - DI BAWAH METADATA */}
           <div style={{
+            padding: '0.75rem',
+            backgroundColor: '#f7fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '6px',
             fontSize: '0.75rem',
             color: '#718096',
-            textAlign: 'center',
-            padding: '0.5rem',
-            borderTop: '1px solid #e2e8f0'
+            textAlign: 'center'
           }}>
             Deskripsi dibuat oleh sistem komputer • Tingkat kepercayaan: {Math.round(description.confidence * 100)}%
+            {description.confidence < 0.7 && (
+              <span style={{ display: 'block', fontSize: '0.7rem', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                Hasil mungkin tidak sempurna
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -195,7 +233,7 @@ const BookDescription = ({ book }) => {
           marginTop: '0.75rem',
           zIndex: 1001
         }}>
-          <div style={{ marginBottom: '0.25rem' }}>Error</div>
+          <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Error</div>
           {error}
         </div>
       )}
