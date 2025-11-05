@@ -1,4 +1,4 @@
-// utils/ruleBasedDescriptions.js - UPDATED VERSION
+// utils/ruleBasedDescriptions.js - BUG FIXED VERSION
 import { detectLanguage, detectLanguageFromTitle } from './languageDetection';
 import { extractTopicsFromTitle } from './topicDetection';
 
@@ -67,6 +67,28 @@ export const getEraDescription = (year) => {
   return `era Reformasi`;
 };
 
+// SAFE TOPIC HANDLING - FIXED
+const safeJoinTopics = (topics, language = 'id') => {
+  try {
+    if (!topics) return language === 'en' ? 'general topics' : 'topik umum';
+    if (!Array.isArray(topics)) {
+      if (typeof topics === 'string') return topics;
+      return language === 'en' ? 'general topics' : 'topik umum';
+    }
+    
+    const safeTopics = topics.filter(topic => typeof topic === 'string');
+    if (safeTopics.length === 0) {
+      return language === 'en' ? 'general topics' : 'topik umum';
+    }
+    
+    const separator = language === 'en' ? ' and ' : ' dan ';
+    return safeTopics.join(separator);
+  } catch (error) {
+    console.error('Error in safeJoinTopics:', error);
+    return language === 'en' ? 'general topics' : 'topik umum';
+  }
+};
+
 // Detect book characteristics dengan enhanced analysis
 export const detectBookCharacteristics = (book) => {
   try {
@@ -85,9 +107,21 @@ export const detectBookCharacteristics = (book) => {
     const era = getHistoricalEra(year);
     const eraDescription = getEraDescription(year);
     
-    // Pastikan topics selalu ada minimal 1
-    const safeTopics = topics && topics.length > 0 ? topics : ['literatur'];
-    
+    // SAFE TOPICS HANDLING - FIXED
+    let safeTopics;
+    try {
+      if (!topics) {
+        safeTopics = ['literatur'];
+      } else if (!Array.isArray(topics)) {
+        safeTopics = ['literatur'];
+      } else {
+        safeTopics = topics.length > 0 ? topics : ['literatur'];
+      }
+    } catch (error) {
+      console.error('Error processing topics:', error);
+      safeTopics = ['literatur'];
+    }
+
     // Language label mapping
     const getLanguageLabel = (lang) => {
       const labels = {
@@ -198,10 +232,9 @@ export const calculateConfidence = (chars) => {
   }
 };
 
-// ENHANCED TEMPLATE SYSTEM dengan variasi yang lebih kaya
-const ancientManuscriptTemplate = (book, chars, topics) => {
+// ENHANCED TEMPLATE SYSTEM dengan SAFE TOPIC HANDLING
+const ancientManuscriptTemplate = (book, chars, topicDesc) => {
   const eraDesc = chars.eraDescription;
-  const topicDesc = topics.join(' dan ');
   const physicalDesc = book.deskripsi_fisik ? ` ${book.deskripsi_fisik}.` : '';
   
   const templates = [
@@ -215,10 +248,9 @@ const ancientManuscriptTemplate = (book, chars, topics) => {
   return templates[Math.floor(Math.random() * templates.length)];
 };
 
-const dutchColonialTemplate = (book, chars, topics) => {
+const dutchColonialTemplate = (book, chars, topicDesc) => {
   const authorPart = chars.hasAuthor ? `karya ${book.pengarang}` : 'karya penulis era kolonial';
   const publisherPart = chars.hasPublisher ? `, terbitan ${book.penerbit}` : '';
-  const topicDesc = topics.join(' dan ');
   const yearInfo = chars.year ? ` pada tahun ${chars.year}` : '';
   
   const templates = [
@@ -232,10 +264,9 @@ const dutchColonialTemplate = (book, chars, topics) => {
   return templates[Math.floor(Math.random() * templates.length)];
 };
 
-const englishAcademicTemplate = (book, chars, topics) => {
+const englishAcademicTemplate = (book, chars, topicDesc) => {
   const authorPart = chars.hasAuthor ? `by ${book.pengarang}` : 'academic work';
   const publisherPart = chars.hasPublisher ? `, published by ${book.penerbit}` : '';
-  const topicDesc = topics.join(' and ');
   const yearInfo = chars.year ? ` in ${chars.year}` : '';
   
   const templates = [
@@ -249,10 +280,9 @@ const englishAcademicTemplate = (book, chars, topics) => {
   return templates[Math.floor(Math.random() * templates.length)];
 };
 
-const colonialEraTemplate = (book, chars, topics) => {
+const colonialEraTemplate = (book, chars, topicDesc) => {
   const authorPart = chars.hasAuthor ? `karya ${book.pengarang}` : '';
   const publisherPart = chars.hasPublisher ? `, terbitan ${book.penerbit}` : '';
-  const topicDesc = topics.join(' dan ');
   const yearInfo = chars.year ? ` pada tahun ${chars.year}` : '';
   
   const templates = [
@@ -266,10 +296,9 @@ const colonialEraTemplate = (book, chars, topics) => {
   return templates[Math.floor(Math.random() * templates.length)];
 };
 
-const modernEraTemplate = (book, chars, topics) => {
+const modernEraTemplate = (book, chars, topicDesc) => {
   const authorPart = chars.hasAuthor ? `karya ${book.pengarang}` : 'karya penulis Indonesia';
   const publisherPart = chars.hasPublisher ? `, terbitan ${book.penerbit}` : '';
-  const topicDesc = topics.join(' dan ');
   const yearInfo = chars.year ? ` pada tahun ${chars.year}` : '';
   
   const templates = [
@@ -283,17 +312,16 @@ const modernEraTemplate = (book, chars, topics) => {
   return templates[Math.floor(Math.random() * templates.length)];
 };
 
-const defaultTemplate = (book, chars, topics) => {
+const defaultTemplate = (book, chars, topicDesc) => {
   const authorPart = chars.hasAuthor ? `Karya ${book.pengarang}. ` : '';
   const yearPart = chars.year ? `Terbit tahun ${chars.year}. ` : '';
   const publisherPart = chars.hasPublisher ? `Diterbitkan oleh ${book.penerbit}. ` : '';
-  const topicDesc = topics.join(' dan ');
   const physicalDesc = book.deskripsi_fisik ? ` ${book.deskripsi_fisik}.` : '';
   
   return `Buku tentang ${topicDesc}.${physicalDesc} ${authorPart}${yearPart}${publisherPart}Koleksi Perpustakaan Nasional RI yang merepresentasikan khazanah literatur Indonesia dan kontribusi terhadap perkembangan ilmu pengetahuan nasional.`;
 };
 
-// Main template generator dengan enhanced logic
+// Main template generator dengan enhanced logic dan SAFE TOPIC HANDLING
 export const generateRuleBasedDescription = (book) => {
   try {
     console.log('📖 Processing book:', book?.judul);
@@ -305,29 +333,25 @@ export const generateRuleBasedDescription = (book) => {
     const chars = detectBookCharacteristics(book);
     console.log('📊 Book characteristics detected:', chars);
     
-    // Format topics berdasarkan bahasa
-    let topicsFormatted;
-    if (chars.isEnglish) {
-      topicsFormatted = chars.topics.join(' and ');
-    } else {
-      topicsFormatted = chars.topics.join(' dan ');
-    }
+    // SAFE TOPIC FORMATTING - FIXED
+    const topicDesc = safeJoinTopics(chars.topics, chars.language);
+    console.log('🎯 Formatted topic description:', topicDesc);
     
     // Template selection logic dengan priority
     let template;
     
     if (chars.isAncient) {
-      template = ancientManuscriptTemplate(book, chars, topicsFormatted);
+      template = ancientManuscriptTemplate(book, chars, topicDesc);
     } else if (chars.isDutch) {
-      template = dutchColonialTemplate(book, chars, topicsFormatted);
+      template = dutchColonialTemplate(book, chars, topicDesc);
     } else if (chars.isEnglish) {
-      template = englishAcademicTemplate(book, chars, topicsFormatted);
+      template = englishAcademicTemplate(book, chars, topicDesc);
     } else if (chars.isColonial) {
-      template = colonialEraTemplate(book, chars, topicsFormatted);
+      template = colonialEraTemplate(book, chars, topicDesc);
     } else if (chars.isPostIndependence) {
-      template = modernEraTemplate(book, chars, topicsFormatted);
+      template = modernEraTemplate(book, chars, topicDesc);
     } else {
-      template = defaultTemplate(book, chars, topicsFormatted);
+      template = defaultTemplate(book, chars, topicDesc);
     }
     
     const result = {
@@ -387,5 +411,6 @@ export const __test__ = {
   extractYearFromString,
   getHistoricalEra,
   detectBookCharacteristics,
-  calculateConfidence
+  calculateConfidence,
+  safeJoinTopics
 };
