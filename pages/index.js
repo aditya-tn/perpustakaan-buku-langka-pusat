@@ -1877,15 +1877,27 @@ export default function Home() {
                   </div>
                 )}
                 
-                <h4 style={{ 
-                  fontWeight: '600',
-                  color: '#2d3748',
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  justifyContent: 'space-between',
                   marginBottom: '0.75rem',
-                  fontSize: isMobile ? '1rem' : '1.1rem',
-                  lineHeight: '1.4'
+                  gap: '0.5rem'
                 }}>
-                  {book.judul}
-                </h4>
+                  <h4 style={{ 
+                    fontWeight: '600',
+                    color: '#2d3748',
+                    fontSize: isMobile ? '1rem' : '1.1rem',
+                    lineHeight: '1.4',
+                    margin: '0',
+                    flex: 1
+                  }}>
+                    {book.judul}
+                  </h4>
+                  
+                  {/* Floating Description Button */}
+                  <BookDescription book={book} />
+                </div>
                 
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ 
