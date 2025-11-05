@@ -1367,362 +1367,542 @@ export default function Home() {
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
 
-          // Cari bagian Search-within-Search Panel dan ganti dengan:
           
-          {/* Search-within-Search Panel - OPTIMIZED LAYOUT */}
-          <div style={{
-            backgroundColor: 'white',
-            padding: isMobile ? '1rem' : '1.25rem',
-            borderRadius: '12px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-            marginBottom: '2rem',
-            border: '1px solid #e2e8f0'
+      {/* Search-within-Search Panel - FIXED SPACING & MOBILE OPTIMIZED */}
+      <div style={{
+        backgroundColor: 'white',
+        padding: isMobile ? '1.25rem' : '1.5rem',
+        borderRadius: '12px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+        marginBottom: '2rem',
+        border: '1px solid #e2e8f0'
+      }}>
+        {/* Header dengan spacing yang proper */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1.5rem',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <h3 style={{ 
+            fontSize: isMobile ? '1.2rem' : '1.25rem', 
+            fontWeight: '700',
+            color: '#2d3748',
+            margin: 0
           }}>
+            🔎 Filter Hasil Pencarian
+          </h3>
+          
+          {isWithinSearchActive && (
+            <button
+              onClick={clearWithinSearch}
+              style={{
+                padding: isMobile ? '0.5rem 1rem' : '0.6rem 1.2rem',
+                backgroundColor: '#f7fafc',
+                color: '#718096',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: isMobile ? '0.8rem' : '0.85rem',
+                fontWeight: '500',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#edf2f7';
+                e.target.style.color = '#4a5568';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#f7fafc';
+                e.target.style.color = '#718096';
+              }}
+            >
+              ✕ Hapus Semua Filter
+            </button>
+          )}
+        </div>
+      
+        {/* MAIN FILTER LAYOUT - IMPROVED SPACING */}
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '1.5rem' : '2rem',
+          alignItems: isMobile ? 'stretch' : 'flex-start',
+          marginBottom: '1.5rem'
+        }}>
+          
+          {/* Text Search - IMPROVED SPACING */}
+          <div style={{ 
+            flex: isMobile ? '0' : '1',
+            minWidth: isMobile ? 'auto' : '220px'
+          }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              color: '#4a5568',
+              marginBottom: '0.75rem'
+            }}>
+              🔍 Cari dalam hasil:
+            </label>
+            <input
+              type="text"
+              value={withinSearchTerm}
+              onChange={(e) => setWithinSearchTerm(e.target.value)}
+              placeholder="Filter judul, pengarang, penerbit..."
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                outline: 'none',
+                transition: 'border-color 0.2s ease'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#4299e1'}
+              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+            />
+          </div>
+      
+          {/* Period Quick Select - DROPDOWN dengan spacing */}
+          <div style={{ 
+            flex: isMobile ? '0' : '1',
+            minWidth: isMobile ? 'auto' : '240px'
+          }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              color: '#4a5568',
+              marginBottom: '0.75rem'
+            }}>
+              🕰️ Periode Historis:
+            </label>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={activePeriod || ''}
+                onChange={(e) => {
+                  const selectedPeriod = historicalPeriods.find(p => p.label === e.target.value);
+                  if (selectedPeriod) {
+                    handlePeriodSelect(selectedPeriod.range, selectedPeriod.label);
+                  } else {
+                    clearActivePeriod();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#4299e1'}
+                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+              >
+                <option value="">Pilih periode historis...</option>
+                {historicalPeriods.map(period => (
+                  <option key={period.label} value={period.label}>
+                    {period.label} • {getPeriodBookCount(period.range)} buku • {period.description}
+                  </option>
+                ))}
+              </select>
+              <div style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                pointerEvents: 'none',
+                color: '#718096'
+              }}>
+                ▼
+              </div>
+            </div>
+            
+            {/* Active Period Display */}
+            {activePeriod && (
+              <div style={{
+                marginTop: '0.75rem',
+                padding: '0.6rem 0.8rem',
+                backgroundColor: '#ebf8ff',
+                border: '1px solid #bee3f8',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                color: '#2b6cb0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span>
+                  <strong>{activePeriod}</strong> • {getPeriodBookCount(
+                    historicalPeriods.find(p => p.label === activePeriod)?.range || [0,0]
+                  )} buku
+                </span>
+                <button
+                  onClick={clearActivePeriod}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#4299e1',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    padding: '0.2rem 0.5rem'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+      
+          {/* Year Slider - OPTIMIZED dengan spacing */}
+          <div style={{ 
+            flex: isMobile ? '0' : '2',
+            minWidth: isMobile ? 'auto' : '320px'
+          }}>
+            {/* Slider Header dengan spacing */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: '1rem',
               flexWrap: 'wrap',
-              gap: '1rem'
+              gap: '0.75rem'
             }}>
-              <h3 style={{ 
-                fontSize: isMobile ? '1.1rem' : '1.25rem', 
-                fontWeight: '700',
-                color: '#2d3748',
-                margin: 0
+              <label style={{
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                color: '#4a5568'
               }}>
-                🔎 Filter Hasil Pencarian
-              </h3>
-              
-              {isWithinSearchActive && (
-                <button
-                  onClick={clearWithinSearch}
-                  style={{
-                    padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                    backgroundColor: '#f7fafc',
-                    color: '#718096',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: isMobile ? '0.75rem' : '0.8rem',
-                    fontWeight: '500'
-                  }}
-                >
-                  ✕ Hapus Filter
-                </button>
-              )}
-            </div>
-          
-            {/* RESPONSIVE FILTER LAYOUT */}
-            <div style={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: isMobile ? '1rem' : '1.5rem',
-              alignItems: isMobile ? 'stretch' : 'flex-start'
-            }}>
-              
-              {/* Text Search */}
+                📅 Rentang Tahun:
+              </label>
               <div style={{ 
-                flex: isMobile ? '0' : '1',
-                minWidth: isMobile ? 'auto' : '200px'
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.75rem', 
+                flexWrap: 'wrap' 
               }}>
-                <label style={{
-                  display: 'block',
+                <span style={{ 
+                  backgroundColor: '#4299e1',
+                  color: 'white',
+                  padding: '0.4rem 0.8rem',
+                  borderRadius: '12px',
                   fontSize: '0.8rem',
                   fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '0.5rem'
+                  minWidth: '100px',
+                  textAlign: 'center'
                 }}>
-                  Cari dalam hasil:
-                </label>
+                  {activeFilters.tahunRange[0]} - {activeFilters.tahunRange[1]}
+                </span>
+                <span style={{
+                  fontSize: '0.75rem',
+                  color: '#718096',
+                  fontWeight: '500'
+                }}>
+                  {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
+                </span>
+              </div>
+            </div>
+      
+            {/* Slider Container */}
+            <div style={{ 
+              position: 'relative', 
+              marginBottom: '1rem',
+              padding: isMobile ? '0.5rem 0' : '0.75rem 0'
+            }}>
+              <div style={{
+                height: '6px',
+                backgroundColor: '#e2e8f0',
+                borderRadius: '3px',
+                position: 'relative',
+                margin: '0 10px'
+              }}>
+                {/* Active Range */}
+                <div style={{
+                  position: 'absolute',
+                  height: '100%',
+                  backgroundColor: '#4299e1',
+                  borderRadius: '3px',
+                  left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+                  right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
+                }} />
+                
+                {/* Custom Slider Handles */}
+                <div style={{
+                  position: 'absolute',
+                  left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '20px',
+                  height: '20px',
+                  backgroundColor: '#4299e1',
+                  border: '3px solid white',
+                  borderRadius: '50%',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                  cursor: 'pointer',
+                  zIndex: 3
+                }} />
+                
+                <div style={{
+                  position: 'absolute',
+                  left: `${((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '20px',
+                  height: '20px',
+                  backgroundColor: '#4299e1',
+                  border: '3px solid white',
+                  borderRadius: '50%',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                  cursor: 'pointer',
+                  zIndex: 3
+                }} />
+                
+                {/* Hidden Inputs for Accessibility */}
                 <input
-                  type="text"
-                  value={withinSearchTerm}
-                  onChange={(e) => setWithinSearchTerm(e.target.value)}
-                  placeholder="Filter judul, pengarang..."
+                  type="range"
+                  min={MIN_YEAR}
+                  max={MAX_YEAR}
+                  value={activeFilters.tahunRange[0]}
+                  onChange={(e) => updateYearRange([
+                    parseInt(e.target.value),
+                    activeFilters.tahunRange[1]
+                  ])}
                   style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    outline: 'none'
+                    position: 'absolute',
+                    width: 'calc(100% + 20px)',
+                    left: '-10px',
+                    height: '20px',
+                    opacity: 0,
+                    cursor: 'pointer',
+                    zIndex: 4
+                  }}
+                />
+                
+                <input
+                  type="range"
+                  min={MIN_YEAR}
+                  max={MAX_YEAR}
+                  value={activeFilters.tahunRange[1]}
+                  onChange={(e) => updateYearRange([
+                    activeFilters.tahunRange[0],
+                    parseInt(e.target.value)
+                  ])}
+                  style={{
+                    position: 'absolute',
+                    width: 'calc(100% + 20px)',
+                    left: '-10px',
+                    height: '20px',
+                    opacity: 0,
+                    cursor: 'pointer',
+                    zIndex: 4
                   }}
                 />
               </div>
-          
-              {/* Period Quick Select - DROPDOWN */}
-              <div style={{ 
-                flex: isMobile ? '0' : '1',
-                minWidth: isMobile ? 'auto' : '200px'
+              
+              {/* Year Labels */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: '0.5rem',
+                fontSize: '0.75rem',
+                color: '#718096',
+                padding: '0 10px'
               }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '0.5rem'
-                }}>
-                  Periode Historis:
-                </label>
-                <select
-                  value={activePeriod || ''}
-                  onChange={(e) => {
-                    const selectedPeriod = historicalPeriods.find(p => p.label === e.target.value);
-                    if (selectedPeriod) {
-                      handlePeriodSelect(selectedPeriod.range, selectedPeriod.label);
-                    } else {
-                      clearActivePeriod();
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    outline: 'none',
-                    backgroundColor: 'white',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">Pilih periode...</option>
-                  {historicalPeriods.map(period => (
-                    <option key={period.label} value={period.label}>
-                      {period.label} ({getPeriodBookCount(period.range)} buku)
-                    </option>
-                  ))}
-                </select>
-                {activePeriod && (
-                  <button
-                    onClick={clearActivePeriod}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#4299e1',
-                      cursor: 'pointer',
-                      fontSize: '0.7rem',
-                      textDecoration: 'underline',
-                      marginTop: '0.25rem',
-                      padding: '0'
-                    }}
-                  >
-                    Hapus periode
-                  </button>
-                )}
-              </div>
-          
-              {/* Year Slider - Optimized */}
-              <div style={{ 
-                flex: isMobile ? '0' : '2',
-                minWidth: isMobile ? 'auto' : '300px'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.75rem',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem'
-                }}>
-                  <label style={{
-                    fontSize: '0.8rem',
-                    fontWeight: '600',
-                    color: '#4a5568'
-                  }}>
-                    Rentang Tahun:
-                  </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ 
-                      backgroundColor: '#4299e1',
-                      color: 'white',
-                      padding: '0.3rem 0.7rem',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      minWidth: '85px',
-                      textAlign: 'center'
-                    }}>
-                      {activeFilters.tahunRange[0]} - {activeFilters.tahunRange[1]}
-                    </span>
-                    <span style={{
-                      fontSize: '0.7rem',
-                      color: '#718096'
-                    }}>
-                      {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
-                    </span>
-                  </div>
-                </div>
-          
-                {/* Slider */}
-                <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
-                  <div style={{
-                    height: '6px',
-                    backgroundColor: '#e2e8f0',
-                    borderRadius: '3px',
-                    position: 'relative'
-                  }}>
-                    {/* Active Range */}
-                    <div style={{
-                      position: 'absolute',
-                      height: '100%',
-                      backgroundColor: '#4299e1',
-                      borderRadius: '3px',
-                      left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-                      right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
-                    }} />
-                    
-                    {/* Min Handle */}
-                    <input
-                      type="range"
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      value={activeFilters.tahunRange[0]}
-                      onChange={(e) => updateYearRange([
-                        parseInt(e.target.value),
-                        activeFilters.tahunRange[1]
-                      ])}
-                      style={{
-                        position: 'absolute',
-                        width: '100%',
-                        top: '-8px',
-                        height: '20px',
-                        appearance: 'none',
-                        background: 'transparent',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                    
-                    {/* Max Handle */}
-                    <input
-                      type="range"
-                      min={MIN_YEAR}
-                      max={MAX_YEAR}
-                      value={activeFilters.tahunRange[1]}
-                      onChange={(e) => updateYearRange([
-                        activeFilters.tahunRange[0],
-                        parseInt(e.target.value)
-                      ])}
-                      style={{
-                        position: 'absolute',
-                        width: '100%',
-                        top: '-8px',
-                        height: '20px',
-                        appearance: 'none',
-                        background: 'transparent',
-                        pointerEvents: 'none',
-                        zIndex: 2
-                      }}
-                    />
-                  </div>
-                </div>
-          
-                {/* Stats */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '0.7rem',
-                  color: '#718096',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem'
-                }}>
-                  <span>📅 {countValidYears(filteredResults)} dari {filteredResults.length} buku memiliki tahun valid</span>
-                  {calculateAverageYear(filteredResults) !== '-' && (
-                    <span>📊 Rata-rata: {calculateAverageYear(filteredResults)}</span>
-                  )}
-                </div>
+                <span>{MIN_YEAR}</span>
+                <span>{MAX_YEAR}</span>
               </div>
             </div>
-          
-            {/* Synonyms Filter Status */}
-            {searchResults.length > 0 && (
-              <div style={{
-                marginTop: '1rem',
-                padding: '0.75rem',
-                backgroundColor: synonymsEnabled ? '#f0fff4' : '#f7fafc',
-                border: synonymsEnabled ? '1px solid #9ae6b4' : '1px solid #e2e8f0',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                color: synonymsEnabled ? '#22543d' : '#4a5568'
+      
+            {/* Stats dengan spacing */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '0.8rem',
+              color: '#718096',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              padding: '0.75rem 0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>📊</span>
+                <span>
+                  <strong>{countValidYears(filteredResults)}</strong> dari <strong>{filteredResults.length}</strong> buku memiliki tahun valid
+                </span>
+              </div>
+              {calculateAverageYear(filteredResults) !== '-' && (
+                <div style={{ 
+                  backgroundColor: '#f0fff4',
+                  padding: '0.3rem 0.6rem',
+                  borderRadius: '12px',
+                  color: '#22543d',
+                  fontWeight: '500'
+                }}>
+                  📈 Rata-rata: {calculateAverageYear(filteredResults)}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      
+        {/* Synonyms Status - IMPROVED SPACING */}
+        {searchResults.length > 0 && (
+          <div style={{
+            padding: '1rem',
+            backgroundColor: synonymsEnabled ? '#f0fff4' : '#f7fafc',
+            border: synonymsEnabled ? '1px solid #9ae6b4' : '1px solid #e2e8f0',
+            borderRadius: '8px',
+            marginBottom: '1rem'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              marginBottom: synonymsEnabled && activeSynonyms.length > 0 ? '0.75rem' : '0',
+              flexWrap: 'wrap',
+              gap: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.1rem' }}>
+                  {synonymsEnabled ? '🌐' : '🔤'}
+                </span>
+                <span style={{ 
+                  fontSize: '0.85rem', 
+                  fontWeight: '600',
+                  color: synonymsEnabled ? '#22543d' : '#4a5568'
+                }}>
+                  {synonymsEnabled ? 'Pencarian dengan Synonyms' : 'Pencarian Exact Match Only'}
+                </span>
+              </div>
+              
+              <button
+                onClick={toggleSynonyms}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: synonymsEnabled ? '#2b6cb0' : '#38a169',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  padding: '0.4rem 0.8rem',
+                  borderRadius: '6px',
+                  backgroundColor: synonymsEnabled ? 'rgba(66, 153, 225, 0.1)' : 'rgba(56, 161, 105, 0.1)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = synonymsEnabled ? 'rgba(66, 153, 225, 0.2)' : 'rgba(56, 161, 105, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = synonymsEnabled ? 'rgba(66, 153, 225, 0.1)' : 'rgba(56, 161, 105, 0.1)';
+                }}
+              >
+                {synonymsEnabled ? '🔤 Matikan Synonyms' : '🌐 Nyalakan Synonyms'}
+              </button>
+            </div>
+            
+            {/* Active Synonyms Display */}
+            {synonymsEnabled && activeSynonyms.length > 0 && (
+              <div style={{ 
+                borderTop: '1px solid rgba(0,0,0,0.1)',
+                paddingTop: '0.75rem'
               }}>
                 <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.5rem',
-                  marginBottom: synonymsEnabled && activeSynonyms.length > 0 ? '0.5rem' : '0',
-                  fontWeight: '600',
-                  flexWrap: 'wrap'
+                  fontSize: '0.8rem', 
+                  color: '#2d3748',
+                  marginBottom: '0.5rem',
+                  fontWeight: '500'
                 }}>
-                  {synonymsEnabled ? '🌐 Pencarian dengan Synonyms' : '🔤 Pencarian Exact Match Only'}
-                  <button
-                    onClick={toggleSynonyms}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: synonymsEnabled ? '#2b6cb0' : '#38a169',
-                      cursor: 'pointer',
-                      fontSize: '0.7rem',
-                      textDecoration: 'underline',
-                      marginLeft: 'auto'
-                    }}
-                  >
-                    {synonymsEnabled ? 'Matikan synonyms' : 'Nyalakan synonyms'}
-                  </button>
+                  Termasuk pencarian untuk:
                 </div>
-                
-                {synonymsEnabled && activeSynonyms.length > 0 && (
-                  <div style={{ color: '#2d3748' }}>
-                    <div style={{ marginBottom: '0.25rem' }}>Termasuk pencarian untuk:</div>
-                    <div style={{ 
-                      display: 'flex', 
-                      flexWrap: 'wrap', 
-                      gap: '0.5rem',
-                      alignItems: 'center'
-                    }}>
-                      {activeSynonyms.map((synonym, index) => (
-                        <span
-                          key={index}
-                          style={{
-                            backgroundColor: '#e6fffa',
-                            color: '#234e52',
-                            padding: '0.2rem 0.5rem',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            border: '1px solid #81e6d9'
-                          }}
-                        >
-                          {synonym}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          
-            {/* Enhanced Filter Status */}
-            {isWithinSearchActive && (
-              <div style={{
-                marginTop: '1rem',
-                padding: '0.75rem',
-                backgroundColor: '#e6fffa',
-                border: '1px solid #81e6d9',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                color: '#234e52'
-              }}>
-                🔍 Filter aktif: 
-                {activePeriod && ` Periode: ${activePeriod}`}
-                {withinSearchTerm && ` • Teks: "${withinSearchTerm}"`}
-                {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-                  !activePeriod && ` • Tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
-                {` • ${filteredResults.length} hasil (dari ${searchResults.length})`}
-                {` • 📅 ${countValidYears(filteredResults)} buku dengan tahun valid`}
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: '0.5rem',
+                  alignItems: 'center'
+                }}>
+                  {activeSynonyms.map((synonym, index) => (
+                    <span
+                      key={index}
+                      style={{
+                        backgroundColor: '#e6fffa',
+                        color: '#234e52',
+                        padding: '0.3rem 0.6rem',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        border: '1px solid #81e6d9',
+                        fontWeight: '500'
+                      }}
+                    >
+                      {synonym}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
+        )}
+      
+        {/* Active Filters Summary - IMPROVED */}
+        {isWithinSearchActive && (
+          <div style={{
+            padding: '1rem',
+            backgroundColor: '#e6fffa',
+            border: '1px solid #81e6d9',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            color: '#234e52'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              marginBottom: '0.5rem',
+              fontWeight: '600'
+            }}>
+              🔍 Filter Aktif:
+            </div>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              alignItems: 'center'
+            }}>
+              {activePeriod && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  🕰️ <strong>{activePeriod}</strong>
+                </span>
+              )}
+              {withinSearchTerm && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  🔤 <strong>"{withinSearchTerm}"</strong>
+                </span>
+              )}
+              {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+                !activePeriod && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  📅 <strong>{activeFilters.tahunRange[0]}-{activeFilters.tahunRange[1]}</strong>
+                </span>
+              )}
+              <span style={{ 
+                marginLeft: 'auto',
+                backgroundColor: '#b2f5ea',
+                padding: '0.3rem 0.6rem',
+                borderRadius: '12px',
+                fontWeight: '600'
+              }}>
+                📊 {filteredResults.length} hasil (dari {searchResults.length})
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
           {/* Results Header */}
           <div style={{
