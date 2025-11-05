@@ -1880,9 +1880,7 @@ export default function Home() {
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'flex-start', 
-                  justifyContent: 'space-between',
-                  marginBottom: '0.75rem',
-                  gap: '0.5rem'
+                  marginBottom: '0.75rem'
                 }}>
                   <h4 style={{ 
                     fontWeight: '600',
@@ -1895,7 +1893,7 @@ export default function Home() {
                     {book.judul}
                   </h4>
                   
-                  {/* Floating Description Button */}
+                  {/* Clean Info Button */}
                   <BookDescription book={book} />
                 </div>
                 
