@@ -1,4 +1,4 @@
-// components/BookDescription.js - IMPROVED FLOATING VERSION
+// components/BookDescription.js - CLEAN VERSION
 import { useState } from 'react';
 import { generateRuleBasedDescription } from '../utils/ruleBasedDescriptions';
 
@@ -35,7 +35,7 @@ const BookDescription = ({ book }) => {
 
   return (
     <div style={{ display: 'inline-block', position: 'relative' }}>
-      {/* Clean Info Button - HANYA SATU */}
+      {/* Clean Info Button */}
       <button
         onClick={generateDescription}
         onMouseEnter={() => setShowTooltip(true)}
@@ -83,19 +83,19 @@ const BookDescription = ({ book }) => {
         </div>
       )}
       
-      {/* Floating Description Box - POSISI KIRI */}
+      {/* Floating Description Box */}
       {description && (
         <div style={{
           position: 'absolute',
           top: '100%',
-          right: '0', // Muncul di kiri button
+          right: '0',
           width: '380px',
           backgroundColor: 'white',
           border: '1px solid #e2e8f0',
           borderRadius: '8px',
           padding: '1.25rem',
           boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-          zIndex: 1001, // Lebih tinggi dari card lain
+          zIndex: 1001,
           marginTop: '0.75rem'
         }}>
           {/* Header */}
@@ -111,7 +111,7 @@ const BookDescription = ({ book }) => {
               fontSize: '1rem',
               fontWeight: '600'
             }}>
-              📚 Deskripsi Kontekstual
+              Deskripsi Kontekstual
             </h4>
             <button
               onClick={() => setDescription(null)}
@@ -143,59 +143,39 @@ const BookDescription = ({ book }) => {
             {description.description}
           </div>
           
-
-          
           {/* Metadata */}
           <div style={{
             padding: '0.875rem',
             backgroundColor: '#f7fafc',
             borderRadius: '6px',
             fontSize: '0.8rem',
-            color: '#4a5568'
+            color: '#4a5568',
+            marginBottom: '0.75rem'
           }}>
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '0.5rem',
-              marginBottom: '0.5rem'
+              gap: '0.5rem'
             }}>
-              <div><strong>Era:</strong> {description.characteristics.era}</div>
-              <div><strong>Bahasa:</strong> {description.characteristics.languageLabel}</div>
-              <div><strong>Topik:</strong> {description.characteristics.topics.join(', ')}</div>
+              <div>Era: {description.characteristics.era}</div>
+              <div>Bahasa: {description.characteristics.languageLabel}</div>
+              <div>Topik: {description.characteristics.topics.join(', ')}</div>
               {description.characteristics.year && (
-                <div><strong>Tahun:</strong> {description.characteristics.year}</div>
+                <div>Tahun: {description.characteristics.year}</div>
               )}
             </div>
           </div>
 
-          {/* Rule-Based Notification */}
+          {/* Clean Rule-Based Notification */}
           <div style={{
-            padding: '0.75rem',
-            backgroundColor: '#fffaf0',
-            border: '1px solid #feebc8',
-            borderRadius: '6px',
-            marginBottom: '1rem',
-            fontSize: '0.8rem',
-            color: '#744210'
+            fontSize: '0.75rem',
+            color: '#718096',
+            textAlign: 'center',
+            padding: '0.5rem',
+            borderTop: '1px solid #e2e8f0'
           }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem',
-              marginBottom: '0.25rem'
-            }}>
-              <span style={{ fontSize: '1rem' }}>🤖</span>
-              <strong>Deskripsi dibuat oleh sistem komputer</strong>
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#8b5a2b' }}>
-              Tingkat kepercayaan analisis: <strong>{Math.round(description.confidence * 100)}%</strong>
-              {description.confidence < 0.7 && (
-                <span style={{ fontStyle: 'italic' }}>
-                  {' '}(Hasil mungkin tidak sempurna)
-                </span>
-              )}
-            </div>
-          </div>      
+            Deskripsi dibuat oleh sistem komputer • Tingkat kepercayaan: {Math.round(description.confidence * 100)}%
+          </div>
         </div>
       )}
       
@@ -215,7 +195,7 @@ const BookDescription = ({ book }) => {
           marginTop: '0.75rem',
           zIndex: 1001
         }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Error</div>
+          <div style={{ marginBottom: '0.25rem' }}>Error</div>
           {error}
         </div>
       )}
