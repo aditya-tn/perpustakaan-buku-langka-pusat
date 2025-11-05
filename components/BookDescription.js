@@ -1,4 +1,4 @@
-// components/BookDescription.js - CLEAN FLOATING VERSION
+// components/BookDescription.js - IMPROVED FLOATING VERSION
 import { useState } from 'react';
 import { generateRuleBasedDescription } from '../utils/ruleBasedDescriptions';
 
@@ -34,8 +34,8 @@ const BookDescription = ({ book }) => {
   };
 
   return (
-    <div style={{ display: 'inline-block', position: 'relative', marginLeft: '0.5rem' }}>
-      {/* Clean Info Button */}
+    <div style={{ display: 'inline-block', position: 'relative' }}>
+      {/* Clean Info Button - HANYA SATU */}
       <button
         onClick={generateDescription}
         onMouseEnter={() => setShowTooltip(true)}
@@ -55,7 +55,8 @@ const BookDescription = ({ book }) => {
           alignItems: 'center',
           justifyContent: 'center',
           transition: 'all 0.2s ease',
-          opacity: loading ? 0.6 : 1
+          opacity: loading ? 0.6 : 1,
+          marginLeft: '0.5rem'
         }}
         title="Deskripsi Kontekstual"
       >
@@ -82,19 +83,19 @@ const BookDescription = ({ book }) => {
         </div>
       )}
       
-      {/* Floating Description Box - PROPORTIONAL SIZE */}
+      {/* Floating Description Box - POSISI KIRI */}
       {description && (
         <div style={{
           position: 'absolute',
           top: '100%',
-          left: '0',
+          right: '0', // Muncul di kiri button
           width: '380px',
           backgroundColor: 'white',
           border: '1px solid #e2e8f0',
           borderRadius: '8px',
           padding: '1.25rem',
           boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-          zIndex: 1000,
+          zIndex: 1001, // Lebih tinggi dari card lain
           marginTop: '0.75rem'
         }}>
           {/* Header */}
@@ -142,6 +143,35 @@ const BookDescription = ({ book }) => {
             {description.description}
           </div>
           
+          {/* Rule-Based Notification */}
+          <div style={{
+            padding: '0.75rem',
+            backgroundColor: '#fffaf0',
+            border: '1px solid #feebc8',
+            borderRadius: '6px',
+            marginBottom: '1rem',
+            fontSize: '0.8rem',
+            color: '#744210'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              marginBottom: '0.25rem'
+            }}>
+              <span style={{ fontSize: '1rem' }}>🤖</span>
+              <strong>Deskripsi dibuat oleh sistem komputer</strong>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#8b5a2b' }}>
+              Tingkat kepercayaan analisis: <strong>{Math.round(description.confidence * 100)}%</strong>
+              {description.confidence < 0.7 && (
+                <span style={{ fontStyle: 'italic' }}>
+                  {' '}(Hasil mungkin tidak sempurna)
+                </span>
+              )}
+            </div>
+          </div>
+          
           {/* Metadata */}
           <div style={{
             padding: '0.875rem',
@@ -163,28 +193,6 @@ const BookDescription = ({ book }) => {
                 <div><strong>Tahun:</strong> {description.characteristics.year}</div>
               )}
             </div>
-            
-            {/* Confidence Score */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: '0.75rem',
-              color: '#718096'
-            }}>
-              <span>Tingkat kepercayaan:</span>
-              <span style={{
-                backgroundColor: description.confidence > 0.7 ? '#48bb78' : 
-                                 description.confidence > 0.5 ? '#ed8936' : '#e53e3e',
-                color: 'white',
-                padding: '0.2rem 0.5rem',
-                borderRadius: '12px',
-                fontWeight: '600',
-                fontSize: '0.7rem'
-              }}>
-                {Math.round(description.confidence * 100)}%
-              </span>
-            </div>
           </div>
         </div>
       )}
@@ -194,7 +202,7 @@ const BookDescription = ({ book }) => {
         <div style={{
           position: 'absolute',
           top: '100%',
-          left: '0',
+          right: '0',
           width: '300px',
           backgroundColor: '#fed7d7',
           border: '1px solid #feb2b2',
@@ -203,7 +211,7 @@ const BookDescription = ({ book }) => {
           color: '#c53030',
           fontSize: '0.8rem',
           marginTop: '0.75rem',
-          zIndex: 1000
+          zIndex: 1001
         }}>
           <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Error</div>
           {error}
