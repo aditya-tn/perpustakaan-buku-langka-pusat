@@ -1586,7 +1586,7 @@ export default function Home() {
             )}
           </div>
       
-{/* COLUMN 3: Year Slider - FIXED */}
+{/* COLUMN 3: Year Slider - FIXED FUNCTIONALITY */}
 <div style={{
   display: 'flex',
   flexDirection: 'column',
@@ -1634,13 +1634,13 @@ export default function Home() {
     </div>
   </div>
 
-  {/* FIXED Slider Container - WORKING VERSION */}
+  {/* FIXED Slider Container */}
   <div style={{ 
     position: 'relative', 
     marginBottom: '0.5rem',
     padding: '1rem 0.5rem'
   }}>
-    {/* Custom Slider Track */}
+    {/* Track */}
     <div style={{
       height: '6px',
       backgroundColor: '#e2e8f0',
@@ -1654,17 +1654,19 @@ export default function Home() {
         backgroundColor: '#4299e1',
         borderRadius: '3px',
         left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-        width: `${((activeFilters.tahunRange[1] - activeFilters.tahunRange[0]) / (MAX_YEAR - MIN_YEAR)) * 100}%`
+        right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
       }} />
     </div>
 
-    {/* VISIBLE Range Inputs - FIXED OPACITY */}
+    {/* PROPER Range Inputs - Visible but styled */}
     <div style={{
       position: 'absolute',
-      top: '50%',
-      left: '0.5rem',
-      right: '0.5rem',
-      transform: 'translateY(-50%)'
+      top: '0',
+      left: '0',
+      right: '0',
+      height: '20px',
+      display: 'flex',
+      alignItems: 'center'
     }}>
       {/* Min Handle */}
       <input
@@ -1681,14 +1683,15 @@ export default function Home() {
         style={{
           width: '100%',
           height: '20px',
-          margin: '0',
           appearance: 'none',
           background: 'transparent',
+          pointerEvents: 'auto',
           cursor: 'pointer',
           position: 'absolute',
-          top: '0',
-          left: '0',
-          zIndex: 3
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 3,
+          opacity: 0.01 // Hampir transparan tapi masih bisa di-click
         }}
       />
       
@@ -1707,22 +1710,23 @@ export default function Home() {
         style={{
           width: '100%',
           height: '20px',
-          margin: '0',
           appearance: 'none',
           background: 'transparent',
+          pointerEvents: 'auto',
           cursor: 'pointer',
           position: 'absolute',
-          top: '0',
-          left: '0',
-          zIndex: 3
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 3,
+          opacity: 0.01 // Hampir transparan tapi masih bisa di-click
         }}
       />
     </div>
 
-    {/* Custom Slider Handles - VISUAL ONLY */}
+    {/* Custom Slider Handles - Visual Only */}
     <div style={{
       position: 'absolute',
-      left: `calc(${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}% + 0.5rem)`,
+      left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
       top: '50%',
       transform: 'translate(-50%, -50%)',
       width: '20px',
@@ -1731,12 +1735,12 @@ export default function Home() {
       border: '3px solid white',
       borderRadius: '50%',
       boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-      pointerEvents: 'none',
+      pointerEvents: 'none', // Hanya visual, tidak bisa di-click
       zIndex: 2
     }} />
     <div style={{
       position: 'absolute',
-      left: `calc(${((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}% + 0.5rem)`,
+      left: `${((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
       top: '50%',
       transform: 'translate(-50%, -50%)',
       width: '20px',
@@ -1745,7 +1749,7 @@ export default function Home() {
       border: '3px solid white',
       borderRadius: '50%',
       boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-      pointerEvents: 'none',
+      pointerEvents: 'none', // Hanya visual, tidak bisa di-click
       zIndex: 2
     }} />
   </div>
@@ -1778,8 +1782,8 @@ export default function Home() {
       </div>
     )}
   </div>
+ </div>
 </div>
-    </div>
       
         {/* Synonyms Status Bar */}
         {searchResults.length > 0 && (
