@@ -1586,187 +1586,199 @@ export default function Home() {
             )}
           </div>
       
-          {/* COLUMN 3: Year Slider */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '0.5rem'
-            }}>
-              <label style={{
-                fontSize: '0.8rem',
-                fontWeight: '600',
-                color: '#4a5568'
-              }}>
-                📅 Rentang Tahun:
-              </label>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                flexWrap: 'wrap'
-              }}>
-                <span style={{ 
-                  backgroundColor: '#4299e1',
-                  color: 'white',
-                  padding: '0.4rem 0.8rem',
-                  borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                  minWidth: '100px',
-                  textAlign: 'center'
-                }}>
-                  {activeFilters.tahunRange[0]} - {activeFilters.tahunRange[1]}
-                </span>
-                <span style={{
-                  fontSize: '0.7rem',
-                  color: '#718096',
-                  fontWeight: '500'
-                }}>
-                  {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
-                </span>
-              </div>
-            </div>
+{/* COLUMN 3: Year Slider - FIXED */}
+<div style={{
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.75rem'
+}}>
+  <div style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '0.5rem'
+  }}>
+    <label style={{
+      fontSize: '0.8rem',
+      fontWeight: '600',
+      color: '#4a5568'
+    }}>
+      📅 Rentang Tahun:
+    </label>
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '0.5rem',
+      flexWrap: 'wrap'
+    }}>
+      <span style={{ 
+        backgroundColor: '#4299e1',
+        color: 'white',
+        padding: '0.4rem 0.8rem',
+        borderRadius: '20px',
+        fontSize: '0.75rem',
+        fontWeight: '600',
+        minWidth: '100px',
+        textAlign: 'center'
+      }}>
+        {activeFilters.tahunRange[0]} - {activeFilters.tahunRange[1]}
+      </span>
+      <span style={{
+        fontSize: '0.7rem',
+        color: '#718096',
+        fontWeight: '500'
+      }}>
+        {activeFilters.tahunRange[1] - activeFilters.tahunRange[0]} tahun
+      </span>
+    </div>
+  </div>
+
+  {/* FIXED Slider Container - WORKING VERSION */}
+  <div style={{ 
+    position: 'relative', 
+    marginBottom: '0.5rem',
+    padding: '1rem 0.5rem'
+  }}>
+    {/* Custom Slider Track */}
+    <div style={{
+      height: '6px',
+      backgroundColor: '#e2e8f0',
+      borderRadius: '3px',
+      position: 'relative'
+    }}>
+      {/* Active Range */}
+      <div style={{
+        position: 'absolute',
+        height: '100%',
+        backgroundColor: '#4299e1',
+        borderRadius: '3px',
+        left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
+        width: `${((activeFilters.tahunRange[1] - activeFilters.tahunRange[0]) / (MAX_YEAR - MIN_YEAR)) * 100}%`
+      }} />
+    </div>
+
+    {/* VISIBLE Range Inputs - FIXED OPACITY */}
+    <div style={{
+      position: 'absolute',
+      top: '50%',
+      left: '0.5rem',
+      right: '0.5rem',
+      transform: 'translateY(-50%)'
+    }}>
+      {/* Min Handle */}
+      <input
+        type="range"
+        min={MIN_YEAR}
+        max={MAX_YEAR}
+        value={activeFilters.tahunRange[0]}
+        onChange={(e) => {
+          const newMin = parseInt(e.target.value);
+          if (newMin <= activeFilters.tahunRange[1]) {
+            updateYearRange([newMin, activeFilters.tahunRange[1]]);
+          }
+        }}
+        style={{
+          width: '100%',
+          height: '20px',
+          margin: '0',
+          appearance: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          position: 'absolute',
+          top: '0',
+          left: '0',
+          zIndex: 3
+        }}
+      />
       
-            {/* Enhanced Slider Container */}
-            <div style={{ 
-              position: 'relative', 
-              marginBottom: '0.5rem',
-              padding: '0.5rem 0'
-            }}>
-              <div style={{
-                height: '6px',
-                backgroundColor: '#e2e8f0',
-                borderRadius: '3px',
-                position: 'relative'
-              }}>
-                {/* Active Range Track */}
-                <div style={{
-                  position: 'absolute',
-                  height: '100%',
-                  backgroundColor: '#4299e1',
-                  borderRadius: '3px',
-                  left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-                  right: `${100 - ((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`
-                }} />
-                
-                {/* Hidden Range Inputs for Better Control */}
-                <input
-                  type="range"
-                  min={MIN_YEAR}
-                  max={MAX_YEAR}
-                  value={activeFilters.tahunRange[0]}
-                  onChange={(e) => updateYearRange([
-                    parseInt(e.target.value),
-                    activeFilters.tahunRange[1]
-                  ])}
-                  style={{
-                    position: 'absolute',
-                    width: '100%',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    height: '20px',
-                    appearance: 'none',
-                    background: 'transparent',
-                    pointerEvents: 'auto',
-                    cursor: 'pointer',
-                    zIndex: 2,
-                    opacity: 0
-                  }}
-                />
-                
-                <input
-                  type="range"
-                  min={MIN_YEAR}
-                  max={MAX_YEAR}
-                  value={activeFilters.tahunRange[1]}
-                  onChange={(e) => updateYearRange([
-                    activeFilters.tahunRange[0],
-                    parseInt(e.target.value)
-                  ])}
-                  style={{
-                    position: 'absolute',
-                    width: '100%',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    height: '20px',
-                    appearance: 'none',
-                    background: 'transparent',
-                    pointerEvents: 'auto',
-                    cursor: 'pointer',
-                    zIndex: 2,
-                    opacity: 0
-                  }}
-                />
-              </div>
-      
-              {/* Custom Slider Handles */}
-              <div style={{
-                position: 'absolute',
-                left: `${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '20px',
-                height: '20px',
-                backgroundColor: '#4299e1',
-                border: '3px solid white',
-                borderRadius: '50%',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                cursor: 'pointer',
-                zIndex: 3
-              }} />
-              <div style={{
-                position: 'absolute',
-                left: `${((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}%`,
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '20px',
-                height: '20px',
-                backgroundColor: '#4299e1',
-                border: '3px solid white',
-                borderRadius: '50%',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                cursor: 'pointer',
-                zIndex: 3
-              }} />
-            </div>
-      
-            {/* Year Stats */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '0.7rem',
-              color: '#718096',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-              padding: '0.25rem 0'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <span>📊</span>
-                <span>{countValidYears(filteredResults)}/{filteredResults.length} buku bertahun</span>
-              </div>
-              {calculateAverageYear(filteredResults) !== '-' && (
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.3rem',
-                  fontWeight: '600',
-                  color: '#4299e1'
-                }}>
-                  <span>📈</span>
-                  <span>Rata-rata: {calculateAverageYear(filteredResults)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Max Handle */}
+      <input
+        type="range"
+        min={MIN_YEAR}
+        max={MAX_YEAR}
+        value={activeFilters.tahunRange[1]}
+        onChange={(e) => {
+          const newMax = parseInt(e.target.value);
+          if (newMax >= activeFilters.tahunRange[0]) {
+            updateYearRange([activeFilters.tahunRange[0], newMax]);
+          }
+        }}
+        style={{
+          width: '100%',
+          height: '20px',
+          margin: '0',
+          appearance: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          position: 'absolute',
+          top: '0',
+          left: '0',
+          zIndex: 3
+        }}
+      />
+    </div>
+
+    {/* Custom Slider Handles - VISUAL ONLY */}
+    <div style={{
+      position: 'absolute',
+      left: `calc(${((activeFilters.tahunRange[0] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}% + 0.5rem)`,
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '20px',
+      height: '20px',
+      backgroundColor: '#4299e1',
+      border: '3px solid white',
+      borderRadius: '50%',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+      pointerEvents: 'none',
+      zIndex: 2
+    }} />
+    <div style={{
+      position: 'absolute',
+      left: `calc(${((activeFilters.tahunRange[1] - MIN_YEAR) / (MAX_YEAR - MIN_YEAR)) * 100}% + 0.5rem)`,
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '20px',
+      height: '20px',
+      backgroundColor: '#4299e1',
+      border: '3px solid white',
+      borderRadius: '50%',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+      pointerEvents: 'none',
+      zIndex: 2
+    }} />
+  </div>
+
+  {/* Year Stats */}
+  <div style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '0.7rem',
+    color: '#718096',
+    flexWrap: 'wrap',
+    gap: '0.5rem',
+    padding: '0.25rem 0'
+  }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+      <span>📊</span>
+      <span>{countValidYears(filteredResults)}/{filteredResults.length} buku bertahun</span>
+    </div>
+    {calculateAverageYear(filteredResults) !== '-' && (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '0.3rem',
+        fontWeight: '600',
+        color: '#4299e1'
+      }}>
+        <span>📈</span>
+        <span>Rata-rata: {calculateAverageYear(filteredResults)}</span>
+      </div>
+    )}
+  </div>
+</div>
       
         {/* Synonyms Status Bar */}
         {searchResults.length > 0 && (
