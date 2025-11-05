@@ -1877,6 +1877,11 @@ export default function Home() {
                   </div>
                 )}
                 
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  marginBottom: '0.75rem'
+                }}>
                   <h4 style={{ 
                     fontWeight: '600',
                     color: '#2d3748',
@@ -1887,7 +1892,10 @@ export default function Home() {
                   }}>
                     {book.judul}
                   </h4>
-
+                  
+                  {/* Clean Info Button */}
+                  <BookDescription book={book} />
+                </div>
                 
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ 
@@ -1979,9 +1987,6 @@ export default function Home() {
                       📥 Pesan Koleksi
                     </a>
                   )}
-                
-                  {/* HANYA SATU BUTTON i DISINI */}
-                  <BookDescription book={book} />
                 </div>
                 
                   {/* TAMBAHKAN KOMPONEN BARU DI SINI */}
