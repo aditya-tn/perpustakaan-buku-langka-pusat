@@ -2157,7 +2157,7 @@ export default function Home() {
         }}
       >
         <span style={{ fontSize: '0.65rem' }}>🌐</span>
-        Cari di OPAC
+        Cari di OPAC Perpusnas
       </a>
     </div>
   </div>
