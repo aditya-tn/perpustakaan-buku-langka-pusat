@@ -2069,86 +2069,140 @@ export default function Home() {
   )}
 </div>
 
-          {/* Results Header */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: isMobile ? 'flex-start' : 'center',
-            marginBottom: '2rem',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            flexDirection: isMobile ? 'column' : 'row'
-          }}>
-            <div style={{ flex: 1 }}>
-              <h3 style={{ 
-                fontSize: isMobile ? '1.5rem' : '1.75rem', 
-                fontWeight: '700',
-                color: '#2d3748',
-                margin: 0
-              }}>
-                Hasil Pencarian
-              </h3>
-              
-              <p style={{ 
-                color: '#718096',
-                margin: '0.5rem 0 0 0',
-                fontSize: isMobile ? '0.9rem' : '1rem'
-              }}>
-                {isWithinSearchActive ? (
-                  <>
-                    <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
-                    {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
-                    {` untuk "${searchTerm}"`}
-                    {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
-                    {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-                      ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
-                  </>
-                ) : (
-                  <>
-                    <strong>{searchResults.length}</strong> buku ditemukan
-                    {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
-                    {` untuk "${searchTerm}"`}
-                    {activeSynonyms.length > 0 && synonymsEnabled && (
-                      <span style={{color: '#4299e1', fontWeight: '600'}}>
-                        {' '}• {activeSynonyms.length} synonyms
-                      </span>
-                    )}
-                  </>
-                )}
-              </p>
-            </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '1rem',
-              flexWrap: 'wrap'
-            }}>
-              <span style={{ 
-                fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                color: '#4a5568', 
-                fontWeight: '500' 
-              }}>
-                Tampilkan:
-              </span>
-              <select 
-                value={itemsPerPage}
-                onChange={handleItemsPerPageChange}
-                style={{
-                  padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  backgroundColor: 'white',
-                  fontSize: isMobile ? '0.8rem' : '0.9rem',
-                  outline: 'none'
-                }}
-              >
-                <option value={20}>20 per halaman</option>
-                <option value={50}>50 per halaman</option>
-                <option value={100}>100 per halaman</option>
-              </select>
-            </div>
-          </div>
+{/* Results Header */}
+<div style={{
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: isMobile ? 'flex-start' : 'center',
+  marginBottom: '2rem',
+  flexWrap: 'wrap',
+  gap: '1rem',
+  flexDirection: isMobile ? 'column' : 'row'
+}}>
+  <div style={{ flex: 1 }}>
+    <h3 style={{ 
+      fontSize: isMobile ? '1.5rem' : '1.75rem', 
+      fontWeight: '700',
+      color: '#2d3748',
+      margin: 0
+    }}>
+      Hasil Pencarian
+    </h3>
+    
+    <p style={{ 
+      color: '#718096',
+      margin: '0.5rem 0 0 0',
+      fontSize: isMobile ? '0.9rem' : '1rem'
+    }}>
+      {isWithinSearchActive ? (
+        <>
+          <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
+          {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
+          {` untuk "${searchTerm}"`}
+          {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
+          {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+            ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
+        </>
+      ) : (
+        <>
+          <strong>{searchResults.length}</strong> buku ditemukan
+          {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
+          {` untuk "${searchTerm}"`}
+          {activeSynonyms.length > 0 && synonymsEnabled && (
+            <span style={{color: '#4299e1', fontWeight: '600'}}>
+              {' '}• {activeSynonyms.length} synonyms
+            </span>
+          )}
+        </>
+      )}
+    </p>
+
+    {/* NEW: Tombol Cari di OPAC Perpusnas */}
+    <div style={{
+      marginTop: '0.75rem',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      flexWrap: 'wrap'
+    }}>
+      <a 
+        href={`https://opac.perpusnas.go.id/Home/Result?keyword=${encodeURIComponent(searchTerm)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.4rem',
+          backgroundColor: '#f7fafc',
+          color: '#2d3748',
+          padding: '0.4rem 0.8rem',
+          borderRadius: '6px',
+          textDecoration: 'none',
+          fontWeight: '500',
+          fontSize: '0.8rem',
+          border: '1px solid #e2e8f0',
+          transition: 'all 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.target.style.backgroundColor = '#edf2f7';
+          e.target.style.borderColor = '#cbd5e0';
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.backgroundColor = '#f7fafc';
+          e.target.style.borderColor = '#e2e8f0';
+        }}
+      >
+        <span style={{ fontSize: '0.9rem' }}>🌐</span>
+        Cari di OPAC Perpusnas untuk "{searchTerm}"
+        <span style={{ fontSize: '0.7rem', opacity: 0.7, marginLeft: '0.2rem' }}>→</span>
+      </a>
+      
+      {/* Info tambahan */}
+      <span style={{
+        fontSize: '0.75rem',
+        color: '#718096',
+        backgroundColor: '#f7fafc',
+        padding: '0.2rem 0.5rem',
+        borderRadius: '4px',
+        border: '1px solid #e2e8f0'
+      }}>
+        📚 4Jt+ koleksi lengkap
+      </span>
+    </div>
+  </div>
+  
+  <div style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '1rem',
+    flexWrap: 'wrap'
+  }}>
+    <span style={{ 
+      fontSize: isMobile ? '0.8rem' : '0.9rem', 
+      color: '#4a5568', 
+      fontWeight: '500' 
+    }}>
+      Tampilkan:
+    </span>
+    <select 
+      value={itemsPerPage}
+      onChange={handleItemsPerPageChange}
+      style={{
+        padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+        border: '1px solid #e2e8f0',
+        borderRadius: '8px',
+        backgroundColor: 'white',
+        fontSize: isMobile ? '0.8rem' : '0.9rem',
+        outline: 'none'
+      }}
+    >
+      <option value={20}>20 per halaman</option>
+      <option value={50}>50 per halaman</option>
+      <option value={100}>100 per halaman</option>
+    </select>
+  </div>
+</div>
+
 
           {/* Book Grid */}
           <div style={{
