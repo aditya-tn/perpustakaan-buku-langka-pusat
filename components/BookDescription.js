@@ -1,10 +1,11 @@
-// components/BookDescription.js - CLEAN VERSION
+// components/BookDescription.js - FINAL INTEGRATED VERSION
 import { useState } from 'react';
 import { generateRuleBasedDescription } from '../utils/ruleBasedDescriptions';
 
 const BookDescription = ({ book }) => {
   const [description, setDescription] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(0);
@@ -19,7 +20,6 @@ const BookDescription = ({ book }) => {
     setError(null);
     
     try {
-      // Simulate template variation by modifying the book object slightly
       const bookWithTemplate = { ...book, _templateVariant: templateIndex };
       const result = generateRuleBasedDescription(bookWithTemplate);
       
@@ -37,8 +37,64 @@ const BookDescription = ({ book }) => {
     }
   };
 
+  const askAIForBetterDescription = async () => {
+    if (!book?.id) {
+      setError('Book ID tidak tersedia');
+      return;
+    }
+
+    setAiLoading(true);
+    setError(null);
+
+    try {
+      // Gunakan API route baru yang terintegrasi dengan system Gemini Anda
+      const response = await fetch('/api/generate-ai-description', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookId: book.id,
+          bookTitle: book.judul,
+          bookYear: book.tahun_terbit,
+          bookAuthor: book.pengarang,
+          currentDescription: description?.description
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal memproses permintaan AI');
+      }
+
+      if (result.success && result.data) {
+        // Update state dengan hasil AI yang sudah disimpan ke database
+        setDescription({
+          description: result.data.deskripsi_buku,
+          confidence: result.data.deskripsi_confidence || 0.95,
+          source: 'ai-enhanced',
+          characteristics: description?.characteristics || {},
+          metadata: {
+            ...description?.metadata,
+            aiGenerated: true,
+            savedToDb: true,
+            source: result.source // 'database-cache' atau 'ai-generated'
+          }
+        });
+
+        console.log('✅ AI description:', result.source);
+      }
+    } catch (err) {
+      console.error('❌ Error asking AI:', err);
+      setError(`Gagal mendapatkan deskripsi AI: ${err.message}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const cycleTemplate = () => {
-    const nextTemplate = (currentTemplate + 1) % 3; // Cycle through 3 templates
+    const nextTemplate = (currentTemplate + 1) % 3;
     generateDescription(nextTemplate);
   };
 
@@ -98,7 +154,7 @@ const BookDescription = ({ book }) => {
           position: 'absolute',
           top: '100%',
           right: '0',
-          width: '380px',
+          width: '420px',
           backgroundColor: 'white',
           border: '1px solid #e2e8f0',
           borderRadius: '8px',
@@ -120,28 +176,30 @@ const BookDescription = ({ book }) => {
               fontSize: '1rem',
               fontWeight: '600'
             }}>
-              📚 Deskripsi Kontekstual
+              {description.source === 'ai-enhanced' ? '🤖 Deskripsi AI' : '📚 Deskripsi Kontekstual'}
             </h4>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {/* Template Cycle Button */}
-              <button
-                onClick={cycleTemplate}
-                style={{
-                  background: 'none',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '4px',
-                  padding: '0.25rem 0.5rem',
-                  fontSize: '0.7rem',
-                  cursor: 'pointer',
-                  color: '#4a5568',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
-                title="Ganti template deskripsi"
-              >
-                🔄
-              </button>
+              {/* Template Cycle Button - hanya untuk rule-based */}
+              {description.source !== 'ai-enhanced' && (
+                <button
+                  onClick={cycleTemplate}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '4px',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.7rem',
+                    cursor: 'pointer',
+                    color: '#4a5568',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#f7fafc'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                  title="Ganti template deskripsi"
+                >
+                  🔄
+                </button>
+              )}
               <button
                 onClick={() => setDescription(null)}
                 style={{
@@ -195,23 +253,76 @@ const BookDescription = ({ book }) => {
                 <div><strong>Tahun:</strong> {description.characteristics.year}</div>
               )}
             </div>
+            
+            {/* Source Indicator */}
+            <div style={{ 
+              fontSize: '0.7rem', 
+              color: '#718096',
+              textAlign: 'center',
+              fontStyle: 'italic'
+            }}>
+              {description.metadata?.source === 'database-cache' && '📀 Diambil dari cache database'}
+              {description.metadata?.source === 'ai-generated' && '🔄 Baru digenerate oleh AI'}
+            </div>
           </div>
 
-          {/* Rule-Based Notification - DI BAWAH METADATA */}
+          {/* Notification + AI Button */}
           <div style={{
             padding: '0.75rem',
-            backgroundColor: '#f7fafc',
-            border: '1px solid #e2e8f0',
+            backgroundColor: description.source === 'ai-enhanced' ? '#f0fff4' : '#f7fafc',
+            border: description.source === 'ai-enhanced' ? '1px solid #9ae6b4' : '1px solid #e2e8f0',
             borderRadius: '6px',
             fontSize: '0.75rem',
-            color: '#718096',
+            color: description.source === 'ai-enhanced' ? '#2f855a' : '#718096',
             textAlign: 'center'
           }}>
-            Deskripsi dibuat oleh sistem komputer • Tingkat kepercayaan: {Math.round(description.confidence * 100)}%
-            {description.confidence < 0.7 && (
-              <span style={{ display: 'block', fontSize: '0.7rem', marginTop: '0.25rem', fontStyle: 'italic' }}>
-                Hasil mungkin tidak sempurna
-              </span>
+            <div style={{ marginBottom: description.source === 'ai-enhanced' ? '0' : '0.5rem' }}>
+              {description.source === 'ai-enhanced' ? (
+                '✅ Deskripsi AI tersimpan di database'
+              ) : (
+                `Deskripsi dibuat oleh sistem komputer • Tingkat kepercayaan: ${Math.round(description.confidence * 100)}%`
+              )}
+            </div>
+            
+            {description.source !== 'ai-enhanced' && (
+              <button
+                onClick={askAIForBetterDescription}
+                disabled={aiLoading}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  backgroundColor: '#48bb78',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  cursor: aiLoading ? 'not-allowed' : 'pointer',
+                  opacity: aiLoading ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  if (!aiLoading) e.target.style.backgroundColor = '#38a169';
+                }}
+                onMouseOut={(e) => {
+                  if (!aiLoading) e.target.style.backgroundColor = '#48bb78';
+                }}
+              >
+                {aiLoading ? (
+                  <>
+                    <span>⏳</span>
+                    Memproses AI...
+                  </>
+                ) : (
+                  <>
+                    <span>🤖</span>
+                    Tanya AI untuk hasil lebih akurat
+                  </>
+                )}
+              </button>
             )}
           </div>
         </div>
