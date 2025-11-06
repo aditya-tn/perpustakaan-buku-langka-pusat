@@ -1412,7 +1412,7 @@ export default function Home() {
               marginRight: 'auto'
             }}>
               Maaf, kami tidak menemukan buku dengan kata kunci <strong>"{lastSearchTerm}"</strong> 
-              dalam koleksi digital kami. Coba gunakan kata kunci yang lebih umum atau 
+              dalam koleksi buku langka kami. Coba gunakan kata kunci yang lebih umum atau 
               jelajahi koleksi yang lebih luas di OPAC Perpustakaan Nasional.
             </p>
 
@@ -1475,7 +1475,7 @@ export default function Home() {
                 marginBottom: '1.5rem'
               }}>
                 Koleksi Perpustakaan Nasional RI memiliki lebih dari 4 juta judul buku. 
-                Cari di katalog lengkap mereka untuk menemukan lebih banyak referensi.
+                Cari di katalog induk Perpustakaan Nasional kami untuk menemukan lebih banyak referensi.
               </p>
               <a 
                 href={`https://opac.perpusnas.go.id/ResultListOpac.aspx?pDataItem=${encodeURIComponent(lastSearchTerm)}&pType=Title&pLembarkerja=-1&pLokasi=-1&pPilihan=default`}
