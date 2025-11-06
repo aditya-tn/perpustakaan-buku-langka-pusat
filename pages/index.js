@@ -2069,7 +2069,7 @@ export default function Home() {
   )}
 </div>
 
-{/* Results Header - Compact Version */}
+{/* Results Header */}
 <div style={{
   display: 'flex',
   justifyContent: 'space-between',
@@ -2080,82 +2080,86 @@ export default function Home() {
   flexDirection: isMobile ? 'column' : 'row'
 }}>
   <div style={{ flex: 1 }}>
+    <h3 style={{ 
+      fontSize: isMobile ? '1.5rem' : '1.75rem', 
+      fontWeight: '700',
+      color: '#2d3748',
+      margin: 0,
+      marginBottom: '0.5rem'
+    }}>
+      Hasil Pencarian
+    </h3>
+    
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      gap: '1rem',
-      marginBottom: '0.5rem',
+      gap: '0.75rem',
       flexWrap: 'wrap'
     }}>
-      <h3 style={{ 
-        fontSize: isMobile ? '1.5rem' : '1.75rem', 
-        fontWeight: '700',
-        color: '#2d3748',
-        margin: 0
+      <p style={{ 
+        color: '#718096',
+        margin: 0,
+        fontSize: isMobile ? '0.9rem' : '1rem'
       }}>
-        Hasil Pencarian
-      </h3>
-      
-      {/* NEW: Compact OPAC Button */}
+        {isWithinSearchActive ? (
+          <>
+            <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
+            {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
+            {` untuk "${searchTerm}"`}
+            {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
+            {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+              ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
+          </>
+        ) : (
+          <>
+            <strong>{searchResults.length}</strong> buku ditemukan
+            {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
+            {` untuk "${searchTerm}"`}
+            {activeSynonyms.length > 0 && synonymsEnabled && (
+              <span style={{color: '#4299e1', fontWeight: '600'}}>
+                {' '}• {activeSynonyms.length} synonyms
+              </span>
+            )}
+          </>
+        )}
+      </p>
+
+      {/* NEW: Small OPAC Button next to results info */}
       <a 
-        href={`https://opac.perpusnas.go.id/Home/Result?keyword=${encodeURIComponent(searchTerm)}`}
+        href={`https://opac.perpusnas.go.id/ResultListOpac.aspx?pDataItem=${encodeURIComponent(searchTerm)}&pType=Title&pLembarkerja=-1&pLokasi=-1&pPilihan=default`}
         target="_blank"
         rel="noopener noreferrer"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.3rem',
-          backgroundColor: '#ebf8ff',
-          color: '#2b6cb0',
-          padding: '0.3rem 0.7rem',
-          borderRadius: '6px',
+          gap: '0.25rem',
+          backgroundColor: '#f8fafc',
+          color: '#475569',
+          padding: '0.25rem 0.5rem',
+          borderRadius: '4px',
           textDecoration: 'none',
           fontWeight: '500',
-          fontSize: '0.75rem',
-          border: '1px solid #bee3f8',
-          transition: 'all 0.2s ease'
+          fontSize: '0.7rem',
+          border: '1px solid #e2e8f0',
+          transition: 'all 0.2s ease',
+          lineHeight: '1',
+          whiteSpace: 'nowrap'
         }}
         onMouseEnter={(e) => {
-          e.target.style.backgroundColor = '#bee3f8';
+          e.target.style.backgroundColor = '#f1f5f9';
+          e.target.style.borderColor = '#cbd5e1';
           e.target.style.transform = 'translateY(-1px)';
         }}
         onMouseLeave={(e) => {
-          e.target.style.backgroundColor = '#ebf8ff';
+          e.target.style.backgroundColor = '#f8fafc';
+          e.target.style.borderColor = '#e2e8f0';
           e.target.style.transform = 'translateY(0)';
         }}
       >
-        <span style={{ fontSize: '0.8rem' }}>🌐</span>
+        <span style={{ fontSize: '0.65rem' }}>🌐</span>
         Cari di OPAC
       </a>
     </div>
-    
-    <p style={{ 
-      color: '#718096',
-      margin: '0',
-      fontSize: isMobile ? '0.9rem' : '1rem'
-    }}>
-      {isWithinSearchActive ? (
-        <>
-          <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
-          {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
-          {` untuk "${searchTerm}"`}
-          {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
-          {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-            ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
-        </>
-      ) : (
-        <>
-          <strong>{searchResults.length}</strong> buku ditemukan
-          {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
-          {` untuk "${searchTerm}"`}
-          {activeSynonyms.length > 0 && synonymsEnabled && (
-            <span style={{color: '#4299e1', fontWeight: '600'}}>
-              {' '}• {activeSynonyms.length} synonyms
-            </span>
-          )}
-        </>
-      )}
-    </p>
   </div>
   
   <div style={{ 
@@ -2189,7 +2193,6 @@ export default function Home() {
     </select>
   </div>
 </div>
-
 
           {/* Book Grid */}
           <div style={{
