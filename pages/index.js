@@ -1478,7 +1478,7 @@ export default function Home() {
                 Cari di katalog lengkap mereka untuk menemukan lebih banyak referensi.
               </p>
               <a 
-                href={`https://opac.perpusnas.go.id/Home/Result?keyword=${encodeURIComponent(lastSearchTerm)}`}
+                href={`https://opac.perpusnas.go.id/ResultListOpac.aspx?pDataItem=${encodeURIComponent(lastSearchTerm)}&pType=Title&pLembarkerja=-1&pLokasi=-1&pPilihan=default`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
