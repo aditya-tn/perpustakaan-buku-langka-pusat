@@ -1368,67 +1368,126 @@ export default function Home() {
         }}>
 
           
-      {/* Search-within-Search Panel - FIXED RESPONSIVE LAYOUT */}
-      <div style={{
-        backgroundColor: 'white',
-        padding: isMobile ? '1.25rem' : '1.5rem',
-        borderRadius: '12px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-        marginBottom: '2rem',
-        border: '1px solid #e2e8f0'
+{/* Search-within-Search Panel - SIMPLIFIED */}
+<div style={{
+  backgroundColor: 'white',
+  padding: isMobile ? '1.25rem' : '1.5rem',
+  borderRadius: '12px',
+  boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+  marginBottom: '2rem',
+  border: '1px solid #e2e8f0'
+}}>
+  <div style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1.25rem',
+    flexWrap: 'wrap',
+    gap: '1rem'
+  }}>
+    <h3 style={{ 
+      fontSize: isMobile ? '1.1rem' : '1.25rem', 
+      fontWeight: '700',
+      color: '#2d3748',
+      margin: 0
+    }}>
+      🔎 Filter Hasil Pencarian
+    </h3>
+    
+    {isWithinSearchActive && (
+      <button
+        onClick={clearWithinSearch}
+        style={{
+          padding: isMobile ? '0.5rem 0.8rem' : '0.5rem 1rem',
+          backgroundColor: '#f7fafc',
+          color: '#718096',
+          border: '1px solid #e2e8f0',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          fontSize: isMobile ? '0.75rem' : '0.8rem',
+          fontWeight: '500'
+        }}
+      >
+        ✕ Hapus Semua Filter
+      </button>
+    )}
+  </div>
+
+  {/* SIMPLE 3-COLUMN GRID */}
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
+    gap: isMobile ? '1.25rem' : '1.5rem',
+    alignItems: 'start'
+  }}>
+    
+    {/* Text Search */}
+    <div>
+      <label style={{
+        display: 'block',
+        fontSize: '0.8rem',
+        fontWeight: '600',
+        color: '#4a5568',
+        marginBottom: '0.5rem'
       }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.25rem',
-          flexWrap: 'wrap',
-          gap: '1rem'
-        }}>
-          <h3 style={{ 
-            fontSize: isMobile ? '1.1rem' : '1.25rem', 
-            fontWeight: '700',
-            color: '#2d3748',
-            margin: 0
-          }}>
-            🔎 Filter Hasil Pencarian
-          </h3>
-          
-          {isWithinSearchActive && (
-            <button
-              onClick={clearWithinSearch}
-              style={{
-                padding: isMobile ? '0.5rem 0.8rem' : '0.5rem 1rem',
-                backgroundColor: '#f7fafc',
-                color: '#718096',
-                border: '1px solid #e2e8f0',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: isMobile ? '0.75rem' : '0.8rem',
-                fontWeight: '500',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#edf2f7';
-                e.target.style.color = '#4a5568';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#f7fafc';
-                e.target.style.color = '#718096';
-              }}
-            >
-              ✕ Hapus Semua Filter
-            </button>
-          )}
-        </div>
-      
-        {/* ENHANCED FILTER LAYOUT - 3 COLUMN GRID */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-          gap: isMobile ? '1.25rem' : '1.5rem',
-          alignItems: 'flex-start'
-        }}>
+        🔤 Cari dalam hasil:
+      </label>
+      <input
+        type="text"
+        value={withinSearchTerm}
+        onChange={(e) => setWithinSearchTerm(e.target.value)}
+        placeholder="Filter judul, pengarang..."
+        style={{
+          width: '100%',
+          padding: '0.75rem',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          fontSize: '0.85rem',
+          outline: 'none'
+        }}
+      />
+    </div>
+
+    {/* Period Select */}
+    <div>
+      <label style={{
+        display: 'block',
+        fontSize: '0.8rem',
+        fontWeight: '600',
+        color: '#4a5568',
+        marginBottom: '0.5rem'
+      }}>
+        🕰️ Periode Historis:
+      </label>
+      <select
+        value={activePeriod || ''}
+        onChange={(e) => {
+          const selectedPeriod = historicalPeriods.find(p => p.label === e.target.value);
+          if (selectedPeriod) {
+            handlePeriodSelect(selectedPeriod.range, selectedPeriod.label);
+          } else {
+            clearActivePeriod();
+          }
+        }}
+        style={{
+          width: '100%',
+          padding: '0.75rem',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          fontSize: '0.85rem',
+          outline: 'none',
+          backgroundColor: 'white'
+        }}
+      >
+        <option value="">Pilih periode...</option>
+        {historicalPeriods.map(period => (
+          <option key={period.label} value={period.label}>
+            {period.label} ({getPeriodBookCount(period.range)})
+          </option>
+        ))}
+      </select>
+    </div>
+
           
         {/* COLUMN 1: Text Search - FIXED WIDTH */}
         <div style={{
