@@ -2069,7 +2069,7 @@ export default function Home() {
   )}
 </div>
 
-{/* Results Header */}
+{/* Results Header - Compact Version */}
 <div style={{
   display: 'flex',
   justifyContent: 'space-between',
@@ -2080,18 +2080,58 @@ export default function Home() {
   flexDirection: isMobile ? 'column' : 'row'
 }}>
   <div style={{ flex: 1 }}>
-    <h3 style={{ 
-      fontSize: isMobile ? '1.5rem' : '1.75rem', 
-      fontWeight: '700',
-      color: '#2d3748',
-      margin: 0
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '1rem',
+      marginBottom: '0.5rem',
+      flexWrap: 'wrap'
     }}>
-      Hasil Pencarian
-    </h3>
+      <h3 style={{ 
+        fontSize: isMobile ? '1.5rem' : '1.75rem', 
+        fontWeight: '700',
+        color: '#2d3748',
+        margin: 0
+      }}>
+        Hasil Pencarian
+      </h3>
+      
+      {/* NEW: Compact OPAC Button */}
+      <a 
+        href={`https://opac.perpusnas.go.id/Home/Result?keyword=${encodeURIComponent(searchTerm)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.3rem',
+          backgroundColor: '#ebf8ff',
+          color: '#2b6cb0',
+          padding: '0.3rem 0.7rem',
+          borderRadius: '6px',
+          textDecoration: 'none',
+          fontWeight: '500',
+          fontSize: '0.75rem',
+          border: '1px solid #bee3f8',
+          transition: 'all 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.target.style.backgroundColor = '#bee3f8';
+          e.target.style.transform = 'translateY(-1px)';
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.backgroundColor = '#ebf8ff';
+          e.target.style.transform = 'translateY(0)';
+        }}
+      >
+        <span style={{ fontSize: '0.8rem' }}>🌐</span>
+        Cari di OPAC
+      </a>
+    </div>
     
     <p style={{ 
       color: '#718096',
-      margin: '0.5rem 0 0 0',
+      margin: '0',
       fontSize: isMobile ? '0.9rem' : '1rem'
     }}>
       {isWithinSearchActive ? (
@@ -2116,59 +2156,6 @@ export default function Home() {
         </>
       )}
     </p>
-
-    {/* NEW: Tombol Cari di OPAC Perpusnas */}
-    <div style={{
-      marginTop: '0.75rem',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.5rem',
-      flexWrap: 'wrap'
-    }}>
-      <a 
-        href={`https://opac.perpusnas.go.id/Home/Result?keyword=${encodeURIComponent(searchTerm)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.4rem',
-          backgroundColor: '#f7fafc',
-          color: '#2d3748',
-          padding: '0.4rem 0.8rem',
-          borderRadius: '6px',
-          textDecoration: 'none',
-          fontWeight: '500',
-          fontSize: '0.8rem',
-          border: '1px solid #e2e8f0',
-          transition: 'all 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.backgroundColor = '#edf2f7';
-          e.target.style.borderColor = '#cbd5e0';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.backgroundColor = '#f7fafc';
-          e.target.style.borderColor = '#e2e8f0';
-        }}
-      >
-        <span style={{ fontSize: '0.9rem' }}>🌐</span>
-        Cari di OPAC Perpusnas untuk "{searchTerm}"
-        <span style={{ fontSize: '0.7rem', opacity: 0.7, marginLeft: '0.2rem' }}>→</span>
-      </a>
-      
-      {/* Info tambahan */}
-      <span style={{
-        fontSize: '0.75rem',
-        color: '#718096',
-        backgroundColor: '#f7fafc',
-        padding: '0.2rem 0.5rem',
-        borderRadius: '4px',
-        border: '1px solid #e2e8f0'
-      }}>
-        📚 4Jt+ koleksi lengkap
-      </span>
-    </div>
   </div>
   
   <div style={{ 
