@@ -1,4 +1,4 @@
-// pages/index.js - ENHANCED WITH PERIOD FEATURES
+// pages/index.js - ENHANCED WITH PERIOD FEATURES & NO RESULTS HANDLING
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
@@ -431,6 +431,10 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false)
   const [detectedLanguage, setDetectedLanguage] = useState('')
 
+  // NEW: State untuk tracking hasil pencarian
+  const [hasSearched, setHasSearched] = useState(false)
+  const [lastSearchTerm, setLastSearchTerm] = useState('')
+
   // Synonyms Filter States
   const [synonymsEnabled, setSynonymsEnabled] = useState(true)
   const [activeSynonyms, setActiveSynonyms] = useState([])
@@ -562,6 +566,7 @@ export default function Home() {
         setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
         setActiveSynonyms([])
         setActivePeriod(null)
+        setHasSearched(false)
       }
       return
     }
@@ -599,8 +604,8 @@ export default function Home() {
   }, [currentPage, searchResults.length])
 
   useEffect(() => {
-    setShowStats(searchResults.length === 0)
-  }, [searchResults])
+    setShowStats(searchResults.length === 0 && !hasSearched)
+  }, [searchResults, hasSearched])
 
   // Suggestions effect
   useEffect(() => {
@@ -693,11 +698,16 @@ export default function Home() {
 
   // EXACT MATCH SEARCH EXECUTION
   const executeSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      setHasSearched(false)
+      return;
+    }
     
     setActiveSynonyms([]);
     setOriginalSearchResults([]);
     setActivePeriod(null);
+    setLastSearchTerm(searchQuery); // Simpan term pencarian terakhir
+    setHasSearched(true); // Tandai bahwa pencarian telah dilakukan
     
     const lang = detectLanguage(searchQuery);
     setDetectedLanguage(lang);
@@ -728,8 +738,8 @@ export default function Home() {
       
       setOriginalSearchResults(searchWithoutSynonyms.results);
       
-      if (searchResults.length > 0) {
-        saveToSearchHistory(searchQuery, searchResults.length);
+      if (searchWithSynonyms.results.length > 0 || searchWithoutSynonyms.results.length > 0) {
+        saveToSearchHistory(searchQuery, searchWithSynonyms.results.length || searchWithoutSynonyms.results.length);
       }
       
     } catch (err) {
@@ -824,6 +834,8 @@ export default function Home() {
     setActiveSynonyms([])
     setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
     setActivePeriod(null)
+    setHasSearched(false) // Reset status pencarian
+    setLastSearchTerm('') // Reset term terakhir
     
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
@@ -1358,6 +1370,203 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* No Results Section - Tampilkan ketika tidak ada hasil setelah pencarian */}
+      {hasSearched && searchResults.length === 0 && !loading && (
+        <section style={{ 
+          maxWidth: '800px', 
+          margin: '4rem auto',
+          padding: isMobile ? '0 1rem' : '0 2rem',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '3rem 2rem',
+            borderRadius: '16px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{
+              fontSize: '4rem',
+              marginBottom: '1.5rem'
+            }}>
+              📚
+            </div>
+            
+            <h3 style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#2d3748',
+              marginBottom: '1rem'
+            }}>
+              Buku Tidak Ditemukan
+            </h3>
+            
+            <p style={{
+              color: '#718096',
+              fontSize: '1rem',
+              lineHeight: '1.6',
+              marginBottom: '2rem',
+              maxWidth: '500px',
+              marginLeft: 'auto',
+              marginRight: 'auto'
+            }}>
+              Maaf, kami tidak menemukan buku dengan kata kunci <strong>"{lastSearchTerm}"</strong> 
+              dalam koleksi digital kami. Coba gunakan kata kunci yang lebih umum atau 
+              jelajahi koleksi yang lebih luas di OPAC Perpustakaan Nasional.
+            </p>
+
+            {/* Saran Pencarian */}
+            <div style={{
+              backgroundColor: '#f7fafc',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              marginBottom: '2rem',
+              textAlign: 'left'
+            }}>
+              <h4 style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: '#2d3748',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                💡 Tips Pencarian
+              </h4>
+              <ul style={{
+                color: '#4a5568',
+                fontSize: '0.9rem',
+                lineHeight: '1.6',
+                paddingLeft: '1.5rem',
+                margin: 0
+              }}>
+                <li>Gunakan kata kunci yang lebih umum</li>
+                <li>Coba sinonim atau ejaan alternatif</li>
+                <li>Hilangkan kata sambung (dan, di, ke, dll)</li>
+                <li>Fokus pada judul atau pengarang utama</li>
+              </ul>
+            </div>
+
+            {/* Rujukan ke OPAC Perpustakaan Nasional */}
+            <div style={{
+              backgroundColor: '#ebf8ff',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              border: '1px solid #bee3f8',
+              marginBottom: '2rem'
+            }}>
+              <h4 style={{
+                fontSize: '1rem',
+                fontWeight: '600',
+                color: '#2b6cb0',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                🌐 Jelajahi Koleksi Lebih Luas
+              </h4>
+              <p style={{
+                color: '#4a5568',
+                fontSize: '0.9rem',
+                lineHeight: '1.6',
+                marginBottom: '1.5rem'
+              }}>
+                Koleksi Perpustakaan Nasional RI memiliki lebih dari 4 juta judul buku. 
+                Cari di katalog lengkap mereka untuk menemukan lebih banyak referensi.
+              </p>
+              <a 
+                href={`https://opac.perpusnas.go.id/Home/Result?keyword=${encodeURIComponent(lastSearchTerm)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  backgroundColor: '#2b6cb0',
+                  color: 'white',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#2c5aa0';
+                  e.target.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#2b6cb0';
+                  e.target.style.transform = 'translateY(0)';
+                }}
+              >
+                🔍 Cari di OPAC Perpustakaan Nasional
+                <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>→</span>
+              </a>
+            </div>
+
+            {/* Quick Actions */}
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={clearSearch}
+                style={{
+                  backgroundColor: '#f7fafc',
+                  color: '#4a5568',
+                  padding: '0.75rem 1.5rem',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#edf2f7';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#f7fafc';
+                }}
+              >
+                ✕ Hapus Pencarian
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSearchTerm('sejarah indonesia');
+                  executeSearch('sejarah indonesia');
+                }}
+                style={{
+                  backgroundColor: '#4299e1',
+                  color: 'white',
+                  padding: '0.75rem 1.5rem',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#3182ce';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#4299e1';
+                }}
+              >
+                🔥 Coba "Sejarah Indonesia"
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Search Results Section */}
       {searchResults.length > 0 && (
