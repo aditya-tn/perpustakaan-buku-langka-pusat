@@ -449,16 +449,16 @@ export default function Home() {
   const abortControllerRef = useRef(null)
 
   // Constants
-  const MIN_YEAR = 1500
-  const MAX_YEAR = 2024
+  const MIN_YEAR = 1547
+  const MAX_YEAR = 1990
 
   // Historical Periods Data
   const historicalPeriods = [
-    { label: "🕌 Pra-1800", range: [1500, 1799], description: "Naskah kuno & manuskrip" },
+    { label: "🕌 Pra-1800", range: [1547, 1799], description: "Naskah kuno & manuskrip" },
     { label: "🏛️ 1800-1899", range: [1800, 1899], description: "Era kolonial awal" },
     { label: "📜 1900-1945", range: [1900, 1945], description: "Pergerakan nasional" },
     { label: "🇮🇩 1945-1965", range: [1945, 1965], description: "Era kemerdekaan" },
-    { label: "📚 1965-2000", range: [1965, 2000], description: "Modern awal" }
+    { label: "📚 1965-2000", range: [1965, 1990], description: "Modern awal" }
   ];
 
   // Helper untuk count buku dengan tahun valid
