@@ -1770,26 +1770,6 @@ export default function Home() {
     )}
   </div>
 </div>
-
-      {/* Compact Stats */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        fontSize: '0.7rem',
-        color: '#718096',
-        flexWrap: 'wrap',
-        gap: '0.5rem'
-      }}>
-        <span style={{ whiteSpace: 'nowrap' }}>
-          📅 {countValidYears(filteredResults)}/{filteredResults.length} valid
-        </span>
-        {calculateAverageYear(filteredResults) !== '-' && (
-          <span style={{ whiteSpace: 'nowrap' }}>
-            📊 Avg: {calculateAverageYear(filteredResults)}
-          </span>
-        )}
-      </div>
-    </div>
   </div>
 
   {/* Synonyms Filter Status */}
