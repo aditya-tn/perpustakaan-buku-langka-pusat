@@ -1,9 +1,10 @@
-// pages/index.js - ENHANCED WITH PERIOD FEATURES & NO RESULTS HANDLING
+// pages/index.js - UPDATED WITH CLICKABLE CARDS
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import BookDescription from '../components/BookDescription'
+import BookCard from '../components/BookCard'
 
 // Helper function untuk extract tahun dari berbagai format
 const extractYearFromString = (yearStr) => {
@@ -119,7 +120,7 @@ const expandSearchWithSynonyms = async (searchQuery) => {
   return { terms: expandedTerms, synonyms: finalSynonyms };
 };
 
-// ENHANCED symbol-aware search terms generator untuk SEMUA jenis simbol
+// ENHANCED symbol-aware search terms generator dengan improved symbol handling
 const createSymbolAwareSearchTerms = (searchQuery) => {
   const terms = [searchQuery]; // Term asli selalu prioritas pertama
   
@@ -129,7 +130,7 @@ const createSymbolAwareSearchTerms = (searchQuery) => {
   // Daftar simbol yang perlu ditangani
   const symbolsToHandle = ['.', ':', ';', ',', '-', '/', '\\', '!', '?', '&', "'", '"', '(', ')', '[', ']'];
   
-  // Handle semua simbol
+  // Handle semua simbol - PRIORITAS: judul dengan simbol lengkap
   symbolsToHandle.forEach(symbol => {
     if (searchQuery.includes(symbol)) {
       // Jika query mengandung simbol, buat versi tanpa simbol
@@ -144,35 +145,29 @@ const createSymbolAwareSearchTerms = (searchQuery) => {
       if (withSpacedSymbol && withSpacedSymbol !== searchQuery && !withSymbolVariations.includes(withSpacedSymbol)) {
         withSymbolVariations.push(withSpacedSymbol);
       }
-    } else {
-      // Jika query tanpa simbol, coba tambahkan simbol setelah kata kunci
-      const words = searchQuery.split(' ');
-      if (words.length > 1) {
-        // Untuk colon/titik dua, tambahkan setelah kata pertama atau kedua
-        if (symbol === ':') {
-          const withColonAfterFirst = words[0] + ': ' + words.slice(1).join(' ');
-          if (!withSymbolVariations.includes(withColonAfterFirst)) {
-            withSymbolVariations.push(withColonAfterFirst);
-          }
-          
-          // Juga coba setelah kata kedua jika ada cukup kata
-          if (words.length > 2) {
-            const withColonAfterSecond = words[0] + ' ' + words[1] + ': ' + words.slice(2).join(' ');
-            if (!withSymbolVariations.includes(withColonAfterSecond)) {
-              withSymbolVariations.push(withColonAfterSecond);
-            }
-          }
-        }
-        
-        // Untuk simbol lainnya, tambahkan setelah kata pertama
-        const withSymbol = words[0] + symbol + ' ' + words.slice(1).join(' ');
-        if (!withSymbolVariations.includes(withSymbol)) {
-          withSymbolVariations.push(withSymbol);
-        }
-      }
     }
   });
-  
+
+  // NEW: Prioritaskan judul lengkap dengan struktur pengarang
+  if (searchQuery.includes('/')) {
+    const parts = searchQuery.split('/').map(part => part.trim());
+    
+    // Prioritaskan judul utama saja (tanpa pengarang)
+    if (parts[0] && !withSymbolVariations.includes(parts[0])) {
+      withSymbolVariations.unshift(parts[0]); // Tambahkan di awal untuk prioritas tinggi
+    }
+    
+    // Handle kasus khusus dengan titik koma dalam bagian pengarang
+    if (parts.length > 1 && parts[1].includes(';')) {
+      const authorParts = parts[1].split(';').map(author => author.trim());
+      // Buat variasi dengan pengarang pertama saja
+      const firstAuthorOnly = `${parts[0]} / ${authorParts[0]}`;
+      if (!withSymbolVariations.includes(firstAuthorOnly)) {
+        withSymbolVariations.unshift(firstAuthorOnly);
+      }
+    }
+  }
+
   // Handle kasus khusus untuk judul dengan struktur "Kultuur Djawa : cultuurgeschiedenis"
   const words = searchQuery.split(' ');
   if (words.length >= 3) {
@@ -180,24 +175,6 @@ const createSymbolAwareSearchTerms = (searchQuery) => {
     const withColonAfterSecond = `${words[0]} ${words[1]}: ${words.slice(2).join(' ')}`;
     if (!withSymbolVariations.includes(withColonAfterSecond) && !searchQuery.includes(':')) {
       withSymbolVariations.push(withColonAfterSecond);
-    }
-    
-    // Juga coba dengan semicolon untuk pemisah pengarang
-    if (searchQuery.includes('/') && searchQuery.includes(';')) {
-      // Jika sudah ada struktur pengarang, buat variasi tanpa semicolon
-      const withoutSemicolon = searchQuery.replace(/;/g, '').replace(/\s+/g, ' ').trim();
-      if (!withSymbolVariations.includes(withoutSemicolon)) {
-        withSymbolVariations.push(withoutSemicolon);
-      }
-    } else if (searchQuery.includes('/') && !searchQuery.includes(';')) {
-      // Jika ada slash tapi tidak ada semicolon, coba tambahkan semicolon
-      const parts = searchQuery.split('/');
-      if (parts.length > 1) {
-        const withSemicolon = parts[0] + '; ' + parts.slice(1).join('/');
-        if (!withSymbolVariations.includes(withSemicolon)) {
-          withSymbolVariations.push(withSemicolon);
-        }
-      }
     }
   }
   
@@ -219,11 +196,14 @@ const createSymbolAwareSearchTerms = (searchQuery) => {
       }
     }
   }
+
+  // NEW: Prioritaskan exact match dengan simbol lengkap
+  const finalTerms = [searchQuery, ...withSymbolVariations];
   
-  return [...new Set([...terms, ...withSymbolVariations])]; // Hapus duplikat
+  return [...new Set(finalTerms)]; // Hapus duplikat
 };
 
-// ENHANCED ranking dengan improved symbol handling
+// ENHANCED ranking dengan improved priority untuk exact matches
 const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery, expandedTerms = []) => {
   const lowerQuery = originalQuery.toLowerCase();
   
@@ -233,11 +213,11 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
     const lowerPengarang = book.pengarang?.toLowerCase() || '';
     const lowerPenerbit = book.penerbit?.toLowerCase() || '';
     
+    // NEW: BOOST TERBESAR UNTUK EXACT TITLE MATCH
+    if (book._matchType === 'exact-title') score += 1500;
+    
     // BOOST BESAR UNTUK EXACT MATCH
     if (lowerJudul === lowerQuery) score += 1000;
-    
-    // Boost untuk symbol variations
-    if (book._matchType === 'symbol-variation') score += 800;
     
     // Boost untuk judul yang mengandung query persis
     if (lowerJudul.includes(lowerQuery)) score += 500;
@@ -245,15 +225,21 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
     // Boost untuk match type
     if (book._matchType === 'exact') score += 400;
     
+    // Boost untuk symbol variations
+    if (book._matchType === 'symbol-variation') score += 300;
+    
     // ENHANCED: Character-by-character matching tanpa SEMUA simbol
     const judulChars = lowerJudul.replace(/[^\w\s]/g, ''); // Hapus semua simbol, pertahankan huruf+angka+spasi
     const queryChars = lowerQuery.replace(/[^\w\s]/g, '');
-    if (judulChars.includes(queryChars)) score += 300;
+    if (judulChars.includes(queryChars)) score += 200;
     
     // ENHANCED: Exact word matching tanpa simbol spesifik (colon, semicolon, dll)
     const judulWords = lowerJudul.replace(/[:;,!?]/g, ''); // Hanya hapus simbol tertentu
     const queryWords = lowerQuery.replace(/[:;,!?]/g, '');
-    if (judulWords.includes(queryWords)) score += 250;
+    if (judulWords.includes(queryWords)) score += 150;
+    
+    // NEW: Boost untuk judul yang dimulai dengan query
+    if (lowerJudul.startsWith(lowerQuery)) score += 200;
     
     // Traditional word matching
     searchWords.forEach(word => {
@@ -295,7 +281,7 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
   });
 };
 
-// Enhanced exact match search dengan symbol handling
+// Enhanced exact match search dengan improved priority handling
 const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
   const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
   
@@ -315,11 +301,17 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
 
     console.log('🔍 Enhanced symbol-aware search terms:', searchTerms);
 
-    // BUAT MULTI-LEVEL QUERY: Exact Match -> Symbol Variations -> Fuzzy Match
+    // NEW: BUAT QUERY DENGAN PRIORITAS LEBIH TINGGI UNTUK EXACT MATCH
     const exactMatchPromise = supabase
       .from('books')
       .select('*')
       .or(`judul.ilike.%${searchQuery}%,pengarang.ilike.%${searchQuery}%`);
+
+    // NEW: Exact match dengan judul lengkap (highest priority)
+    const exactTitleMatchPromise = supabase
+      .from('books')
+      .select('*')
+      .ilike('judul', `%${searchQuery}%`);
 
     // Symbol variations search
     const symbolVariationsPromises = symbolAwareTerms
@@ -341,7 +333,13 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
           .or(`judul.ilike.%${term}%,pengarang.ilike.%${term}%,penerbit.ilike.%${term}%`)
       );
 
-    const allPromises = [exactMatchPromise, ...symbolVariationsPromises, ...fuzzyMatchPromises];
+    const allPromises = [
+      exactTitleMatchPromise, // NEW: Highest priority - exact title match
+      exactMatchPromise,      // High priority - exact match in title or author
+      ...symbolVariationsPromises, 
+      ...fuzzyMatchPromises
+    ];
+    
     const allResults = await Promise.all(allPromises);
     
     const combinedResults = [];
@@ -356,8 +354,9 @@ const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
             
             // Tentukan match type berdasarkan priority level
             let matchType = 'fuzzy';
-            if (index === 0) matchType = 'exact'; // Exact match query
-            else if (index <= symbolVariationsPromises.length) matchType = 'symbol-variation';
+            if (index === 0) matchType = 'exact-title'; // NEW: Highest priority - exact title match
+            else if (index === 1) matchType = 'exact'; // Exact match query
+            else if (index <= symbolVariationsPromises.length + 1) matchType = 'symbol-variation';
             
             combinedResults.push({ 
               ...item, 
@@ -451,6 +450,8 @@ export default function Home() {
   // Refs
   const searchTimeoutRef = useRef(null)
   const abortControllerRef = useRef(null)
+
+  const [selectedBook, setSelectedBook] = useState(null)
 
   // Constants
   const MIN_YEAR = 1547
@@ -751,6 +752,16 @@ export default function Home() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handler untuk klik kartu
+  const handleCardClick = (book) => {
+    // Jika book adalah null (dari tombol close), atau klik buku yang sama
+    if (!book || (selectedBook && selectedBook.id === book.id)) {
+      setSelectedBook(null);
+    } else {
+      setSelectedBook(book);
     }
   };
 
@@ -2194,190 +2205,52 @@ export default function Home() {
   </div>
 </div>
 
+          {/* Book Grid - FIXED VERSION */}
+          <style>
+          {`
+            @keyframes fadeIn {
+              from { 
+                opacity: 0; 
+                transform: translateY(10px); 
+              }
+              to { 
+                opacity: 1; 
+                transform: translateY(0); 
+              }
+            }
+            
+            .book-card-hover {
+              transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            
+            .book-card-hover:hover {
+              transform: translateY(-4px);
+              box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15) !important;
+            }
+          `}
+          </style>
+
           {/* Book Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: isMobile ? '1rem' : '1.5rem',
-            marginBottom: '3rem'
-          }}>
-            {currentItems.map((book) => (
-              <div key={book.id} style={{
-                backgroundColor: 'white',
-                padding: isMobile ? '1.25rem' : '1.5rem',
-                borderRadius: '12px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                border: '1px solid #f0f0f0',
-                transition: 'all 0.2s ease',
-                position: 'relative'
-              }}>
-                {/* Exact Match Indicator */}
-                {book._matchType === 'exact' && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '-8px',
-                    left: '-8px',
-                    backgroundColor: '#e53e3e',
-                    color: 'white',
-                    fontSize: '0.6rem',
-                    padding: '0.2rem 0.4rem',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    zIndex: 2
-                  }}>
-                    EXACT MATCH
-                  </div>
-                )}
-                
-                {/* Symbol Variation Match Indicator */}
-                {book._matchType === 'symbol-variation' && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '-8px',
-                    left: '-8px',
-                    backgroundColor: '#d69e2e',
-                    color: 'white',
-                    fontSize: '0.6rem',
-                    padding: '0.2rem 0.4rem',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    zIndex: 2
-                  }}>
-                    SYMBOL MATCH
-                  </div>
-                )}
-                
-                {/* Relevance Indicator */}
-                {book._relevanceScore > 100 && book._matchType === 'fuzzy' && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '-8px',
-                    right: '-8px',
-                    backgroundColor: '#48bb78',
-                    color: 'white',
-                    fontSize: '0.7rem',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: '12px',
-                    fontWeight: '600'
-                  }}>
-                    🔥 Relevan
-                  </div>
-                )}
-                
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'flex-start', 
-                  marginBottom: '0.75rem'
-                }}>
-                  <h4 style={{ 
-                    fontWeight: '600',
-                    color: '#2d3748',
-                    fontSize: isMobile ? '1rem' : '1.1rem',
-                    lineHeight: '1.4',
-                    margin: '0',
-                    flex: 1
-                  }}>
-                    {book.judul}
-                  </h4>
-                  
-                  {/* Clean Info Button */}
-                  <BookDescription book={book} />
-                </div>
-                
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568', 
-                    marginBottom: '0.25rem' 
-                  }}>
-                    <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
-                  </div>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568', 
-                    marginBottom: '0.25rem' 
-                  }}>
-                    <strong>Tahun:</strong> 
-                    <span style={{
-                      backgroundColor: extractYearFromString(book.tahun_terbit) ? '#f0fff4' : '#fffaf0',
-                      padding: '0.1rem 0.3rem',
-                      borderRadius: '4px',
-                      marginLeft: '0.3rem',
-                      fontFamily: 'monospace'
-                    }}>
-                      {book.tahun_terbit || 'Tidak diketahui'}
-                      {!extractYearFromString(book.tahun_terbit) && book.tahun_terbit && ' ⚠️'}
-                    </span>
-                  </div>
-                  <div style={{ 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                    color: '#4a5568' 
-                  }}>
-                    <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
-                  </div>
-                </div>
+<div style={{
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
+  gap: isMobile ? '1rem' : '1.5rem',
+  marginBottom: '3rem',
+  alignItems: 'stretch'
+}}>
+  {currentItems.map((book) => (
+    <div key={book.id} style={{ marginBottom: isMobile ? '1.5rem' : '3rem' }}>
+      <BookCard 
+        book={book}
+        isMobile={isMobile}
+        isSelected={selectedBook?.id === book.id}
+        showDescription={selectedBook?.id === book.id}
+        onCardClick={handleCardClick}
+      />
+    </div>
+  ))}
+</div>
 
-                {book.deskripsi_fisik && (
-                  <p style={{ 
-                    fontSize: isMobile ? '0.75rem' : '0.85rem', 
-                    color: '#718096', 
-                    marginTop: '0.75rem',
-                    lineHeight: '1.5',
-                    fontStyle: 'italic'
-                  }}>
-                    {book.deskripsi_fisik}
-                  </p>
-                )}
-
-                {/* Action Buttons */}
-                <div style={{ 
-                  marginTop: '1.25rem', 
-                  display: 'flex', 
-                  gap: '0.75rem',
-                  flexWrap: 'wrap'
-                }}>
-                  {book.lihat_opac && book.lihat_opac !== 'null' && (
-                    <a 
-                      href={book.lihat_opac}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        backgroundColor: '#4299e1',
-                        color: 'white',
-                        padding: '0.4rem 0.8rem',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        fontSize: '0.75rem',
-                        fontWeight: '500'
-                      }}
-                    >
-                      📖 Lihat OPAC
-                    </a>
-                  )}
-                
-                  {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
-                    <a 
-                      href={book.link_pesan_koleksi}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        backgroundColor: '#48bb78',
-                        color: 'white',
-                        padding: '0.4rem 0.8rem',
-                        borderRadius: '6px',
-                        textDecoration: 'none',
-                        fontSize: '0.75rem',
-                        fontWeight: '500'
-                      }}
-                    >
-                      📥 Pesan Koleksi
-                    </a>
-                  )}
-                
-                </div>
-              </div>
-            ))}
-          </div>
 
           {/* No Filtered Results Message */}
           {filteredResults.length === 0 && isWithinSearchActive && (

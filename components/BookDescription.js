@@ -1,21 +1,22 @@
-// components/BookDescription.js - FINAL INTEGRATED VERSION
-import { useState } from 'react';
+// components/BookDescription.js - UPDATED FOR IN-PLACE ANIMATION
+import { useState, useEffect } from 'react';
 import { generateRuleBasedDescription } from '../utils/ruleBasedDescriptions';
 
-const BookDescription = ({ book }) => {
+const BookDescription = ({ book, onClose, autoOpen = false }) => {
   const [description, setDescription] = useState(null);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showTooltip, setShowTooltip] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(0);
 
-  const generateDescription = async (templateIndex = 0) => {
-    if (description && templateIndex === currentTemplate) {
-      setDescription(null);
-      return;
+  // Auto-generate description ketika component mount
+  useEffect(() => {
+    if (autoOpen && !description) {
+      generateDescription(0);
     }
+  }, [autoOpen]);
 
+  const generateDescription = async (templateIndex = 0) => {
     setLoading(true);
     setError(null);
     
@@ -47,7 +48,6 @@ const BookDescription = ({ book }) => {
     setError(null);
 
     try {
-      // Gunakan API route baru yang terintegrasi dengan system Gemini Anda
       const response = await fetch('/api/generate-ai-description', {
         method: 'POST',
         headers: {
@@ -69,7 +69,6 @@ const BookDescription = ({ book }) => {
       }
 
       if (result.success && result.data) {
-        // Update state dengan hasil AI yang sudah disimpan ke database
         setDescription({
           description: result.data.deskripsi_buku,
           confidence: result.data.deskripsi_confidence || 0.95,
@@ -79,11 +78,9 @@ const BookDescription = ({ book }) => {
             ...description?.metadata,
             aiGenerated: true,
             savedToDb: true,
-            source: result.source // 'database-cache' atau 'ai-generated'
+            source: result.source
           }
         });
-
-        console.log('✅ AI description:', result.source);
       }
     } catch (err) {
       console.error('❌ Error asking AI:', err);
@@ -98,148 +95,186 @@ const BookDescription = ({ book }) => {
     generateDescription(nextTemplate);
   };
 
-  return (
-    <div style={{ display: 'inline-block', position: 'relative' }}>
-      {/* Clean Info Button */}
-      <button
-        onClick={() => generateDescription(0)}
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        disabled={loading}
-        style={{
-          width: '28px',
-          height: '28px',
-          borderRadius: '50%',
-          backgroundColor: description ? '#4299e1' : '#e2e8f0',
-          color: description ? 'white' : '#4a5568',
-          border: 'none',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.2s ease',
-          opacity: loading ? 0.6 : 1,
-          marginLeft: '0.5rem'
-        }}
-        title="Deskripsi Kontekstual"
-      >
-        {loading ? '⋯' : 'i'}
-      </button>
-      
-      {/* Simple Tooltip */}
-      {showTooltip && !description && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: '#2d3748',
-          color: 'white',
-          padding: '0.5rem 0.75rem',
-          borderRadius: '6px',
-          fontSize: '0.75rem',
-          whiteSpace: 'nowrap',
-          zIndex: 1000,
-          marginTop: '0.5rem'
-        }}>
-          Deskripsi kontekstual
+  // Styles untuk in-place description (bukan modal)
+  const styles = {
+    container: {
+      width: '100%',
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      animation: 'fadeIn 0.3s ease-in-out'
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: '1rem',
+      borderBottom: '1px solid #e2e8f0',
+      paddingBottom: '0.75rem'
+    },
+    closeButton: {
+      background: 'none',
+      border: 'none',
+      fontSize: '1.5rem',
+      cursor: 'pointer',
+      color: '#718096',
+      padding: '0',
+      width: '32px',
+      height: '32px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '50%',
+      backgroundColor: '#f7fafc',
+      transition: 'all 0.2s ease'
+    },
+    content: {
+      lineHeight: '1.6',
+      color: '#4a5568',
+      fontSize: '0.9rem',
+      marginBottom: '1rem'
+    },
+    metadataBox: {
+      padding: '0.875rem',
+      backgroundColor: '#f7fafc',
+      borderRadius: '6px',
+      fontSize: '0.8rem',
+      color: '#4a5568',
+      marginBottom: '0.75rem'
+    },
+    actionBox: {
+      padding: '0.75rem',
+      backgroundColor: '#f7fafc',
+      border: '1px solid #e2e8f0',
+      borderRadius: '6px',
+      fontSize: '0.75rem',
+      color: '#718096',
+      textAlign: 'center'
+    },
+    aiButton: {
+      width: '100%',
+      padding: '0.5rem',
+      backgroundColor: '#48bb78',
+      color: 'white',
+      border: 'none',
+      borderRadius: '4px',
+      fontSize: '0.75rem',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '0.5rem',
+      transition: 'all 0.2s ease',
+      marginTop: '0.5rem'
+    },
+    errorBox: {
+      backgroundColor: '#fed7d7',
+      border: '1px solid #feb2b2',
+      borderRadius: '6px',
+      padding: '0.875rem',
+      color: '#c53030',
+      fontSize: '0.8rem',
+      marginTop: '0.75rem'
+    },
+    sourceBadge: {
+      display: 'inline-block',
+      backgroundColor: '#edf2f7',
+      color: '#4a5568',
+      fontSize: '0.7rem',
+      padding: '0.2rem 0.5rem',
+      borderRadius: '4px',
+      marginLeft: '0.5rem',
+      fontWeight: '500'
+    }
+  };
+
+  // Loading state
+  if (loading && !description) {
+    return (
+      <div style={styles.container}>
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>⏳</div>
+          <p>Membuat deskripsi kontekstual...</p>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.container}>
+      {/* Header - SELALU tampilkan judul buku */}
+      <div style={styles.header}>
+        <div>
+          <h4 style={{ 
+            margin: '0 0 0.25rem 0',
+            color: '#2d3748',
+            fontSize: '1.1rem',
+            fontWeight: '600',
+            lineHeight: '1.3'
+          }}>
+            {book?.judul || 'Deskripsi Buku'}
+          </h4>
+          <div style={{ fontSize: '0.8rem', color: '#718096' }}>
+            {description?.source === 'ai-enhanced' ? (
+              <span>
+                🤖 Deskripsi AI
+                <span style={styles.sourceBadge}>Enhanced</span>
+              </span>
+            ) : (
+              <span>
+                📚 Deskripsi Kontekstual
+                <span style={styles.sourceBadge}>Sistem</span>
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Template Cycle Button - hanya untuk rule-based */}
+          {description?.source !== 'ai-enhanced' && (
+            <button
+              onClick={cycleTemplate}
+              data-no-close="true"
+              style={{
+                background: 'none',
+                border: '1px solid #e2e8f0',
+                borderRadius: '4px',
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.7rem',
+                cursor: 'pointer',
+                color: '#4a5568',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#f7fafc'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+              title="Ganti template deskripsi"
+            >
+              🔄
+            </button>
+          )}
+          
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            data-no-close="true"
+            style={styles.closeButton}
+            onMouseOver={(e) => e.target.style.backgroundColor = '#e2e8f0'}
+            onMouseOut={(e) => e.target.style.backgroundColor = '#f7fafc'}
+            title="Tutup deskripsi dan kembali ke katalog"
+          >
+            ×
+          </button>
+        </div>
+      </div>
       
-      {/* Floating Description Box */}
+      {/* Description Content */}
+      <div style={styles.content}>
+        {description?.description || 'Deskripsi tidak tersedia'}
+      </div>
+      
+      {/* Metadata */}
       {description && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          right: '0',
-          width: '420px',
-          backgroundColor: 'white',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '1.25rem',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-          zIndex: 1001,
-          marginTop: '0.75rem'
-        }}>
-          {/* Header */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: '1rem'
-          }}>
-            <h4 style={{ 
-              margin: '0',
-              color: '#2d3748',
-              fontSize: '1rem',
-              fontWeight: '600'
-            }}>
-              {description.source === 'ai-enhanced' ? '🤖 Deskripsi AI' : '📚 Deskripsi Kontekstual'}
-            </h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {/* Template Cycle Button - hanya untuk rule-based */}
-              {description.source !== 'ai-enhanced' && (
-                <button
-                  onClick={cycleTemplate}
-                  style={{
-                    background: 'none',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '4px',
-                    padding: '0.25rem 0.5rem',
-                    fontSize: '0.7rem',
-                    cursor: 'pointer',
-                    color: '#4a5568',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseOver={(e) => e.target.style.backgroundColor = '#f7fafc'}
-                  onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
-                  title="Ganti template deskripsi"
-                >
-                  🔄
-                </button>
-              )}
-              <button
-                onClick={() => setDescription(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.25rem',
-                  cursor: 'pointer',
-                  color: '#718096',
-                  padding: '0',
-                  width: '24px',
-                  height: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                ×
-              </button>
-            </div>
-          </div>
-          
-          {/* Description Content */}
-          <div style={{ 
-            marginBottom: '1rem',
-            lineHeight: '1.5',
-            color: '#4a5568',
-            fontSize: '0.9rem'
-          }}>
-            {description.description}
-          </div>
-          
-          {/* Metadata */}
-          <div style={{
-            padding: '0.875rem',
-            backgroundColor: '#f7fafc',
-            borderRadius: '6px',
-            fontSize: '0.8rem',
-            color: '#4a5568',
-            marginBottom: '0.75rem'
-          }}>
+        <>
+          <div style={styles.metadataBox}>
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(2, 1fr)',
@@ -263,20 +298,21 @@ const BookDescription = ({ book }) => {
             }}>
               {description.metadata?.source === 'database-cache' && '📀 Diambil dari cache database'}
               {description.metadata?.source === 'ai-generated' && '🔄 Baru digenerate oleh AI'}
+              {description.source === 'ai-enhanced' && '🤖 Enhanced by AI'}
             </div>
           </div>
 
           {/* Notification + AI Button */}
           <div style={{
-            padding: '0.75rem',
+            ...styles.actionBox,
             backgroundColor: description.source === 'ai-enhanced' ? '#f0fff4' : '#f7fafc',
             border: description.source === 'ai-enhanced' ? '1px solid #9ae6b4' : '1px solid #e2e8f0',
-            borderRadius: '6px',
-            fontSize: '0.75rem',
-            color: description.source === 'ai-enhanced' ? '#2f855a' : '#718096',
-            textAlign: 'center'
+            color: description.source === 'ai-enhanced' ? '#2f855a' : '#718096'
           }}>
-            <div style={{ marginBottom: description.source === 'ai-enhanced' ? '0' : '0.5rem' }}>
+            <div style={{ 
+              marginBottom: description.source === 'ai-enhanced' ? '0' : '0.5rem',
+              lineHeight: '1.4'
+            }}>
               {description.source === 'ai-enhanced' ? (
                 '✅ Deskripsi AI tersimpan di database'
               ) : (
@@ -288,28 +324,14 @@ const BookDescription = ({ book }) => {
               <button
                 onClick={askAIForBetterDescription}
                 disabled={aiLoading}
+                data-no-close="true"
                 style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  backgroundColor: '#48bb78',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '0.75rem',
-                  cursor: aiLoading ? 'not-allowed' : 'pointer',
+                  ...styles.aiButton,
                   opacity: aiLoading ? 0.6 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.2s ease'
+                  cursor: aiLoading ? 'not-allowed' : 'pointer'
                 }}
-                onMouseOver={(e) => {
-                  if (!aiLoading) e.target.style.backgroundColor = '#38a169';
-                }}
-                onMouseOut={(e) => {
-                  if (!aiLoading) e.target.style.backgroundColor = '#48bb78';
-                }}
+                onMouseOver={(e) => !aiLoading && (e.target.style.backgroundColor = '#38a169')}
+                onMouseOut={(e) => !aiLoading && (e.target.style.backgroundColor = '#48bb78')}
               >
                 {aiLoading ? (
                   <>
@@ -325,29 +347,48 @@ const BookDescription = ({ book }) => {
               </button>
             )}
           </div>
-        </div>
+        </>
       )}
       
       {/* Error Message */}
       {error && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          right: '0',
-          width: '300px',
-          backgroundColor: '#fed7d7',
-          border: '1px solid #feb2b2',
-          borderRadius: '6px',
-          padding: '0.875rem',
-          color: '#c53030',
-          fontSize: '0.8rem',
-          marginTop: '0.75rem',
-          zIndex: 1001
-        }}>
+        <div style={styles.errorBox}>
           <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Error</div>
           {error}
+          <button
+            onClick={() => setError(null)}
+            data-no-close="true"
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.25rem 0.75rem',
+              backgroundColor: '#e53e3e',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '0.7rem',
+              cursor: 'pointer'
+            }}
+          >
+            Tutup
+          </button>
         </div>
       )}
+
+      {/* CSS Animation */}
+      <style>
+        {`
+          @keyframes fadeIn {
+            from { 
+              opacity: 0; 
+              transform: translateY(10px); 
+            }
+            to { 
+              opacity: 1; 
+              transform: translateY(0); 
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };

@@ -193,7 +193,7 @@ export default function Layanan() {
   )
 }
 
-// Komponen Pemesanan Koleksi - TETAP SAMA
+// Komponen Pemesanan Koleksi - SCROLL INTERNAL DIAKTIFKAN UNTUK MOBILE
 function PemesananKoleksi({ isMobile }) {
   return (
     <div style={{
@@ -220,10 +220,10 @@ function PemesananKoleksi({ isMobile }) {
         Tim kami akan memanggil Anda untuk menyerahkan koleksi.
       </p>
       
-      {/* Google Form Embed - HEIGHT ADJUSTED +60px for mobile */}
+      {/* Google Form Embed - SCROLL INTERNAL DIAKTIFKAN UNTUK MOBILE */}
       <div style={{
         width: '100%',
-        height: isMobile ? '1960px' : '1900px',
+        height: isMobile ? '1200px' : '1900px', // Height lebih reasonable untuk mobile
         borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -240,13 +240,13 @@ function PemesananKoleksi({ isMobile }) {
             border: 'none',
             display: 'block'
           }}
-          scrolling="no"
+          scrolling={isMobile ? "yes" : "no"} // Scroll internal aktif hanya di mobile
         >
           Loading…
         </iframe>
       </div>
 
-      {/* Informasi Penting - BORDER ADJUSTED for mobile */}
+      {/* Informasi Penting */}
       <div style={{
         padding: isMobile ? '1.25rem' : '1.5rem',
         backgroundColor: '#f0fff4',
@@ -325,7 +325,7 @@ function PemesananKoleksi({ isMobile }) {
   )
 }
 
-// Komponen Pemesanan Ruang Baca - TETAP SAMA
+// Komponen Pemesanan Ruang Baca - SCROLL INTERNAL DIAKTIFKAN UNTUK MOBILE
 function PemesananRuangBaca({ isMobile }) {
   return (
     <div style={{
@@ -353,10 +353,10 @@ function PemesananRuangBaca({ isMobile }) {
         Pemesanan harus dilakukan pada saat <strong>jam kerja layanan</strong>.
       </p>
       
-      {/* Google Form Embed - HEIGHT ADJUSTED +60px for mobile */}
+      {/* Google Form Embed - SCROLL INTERNAL DIAKTIFKAN UNTUK MOBILE */}
       <div style={{
         width: '100%',
-        height: isMobile ? '1800px' : '1740px',
+        height: isMobile ? '1000px' : '1740px', // Height lebih reasonable untuk mobile
         borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -373,13 +373,13 @@ function PemesananRuangBaca({ isMobile }) {
             border: 'none',
             display: 'block'
           }}
-          scrolling="no"
+          scrolling={isMobile ? "yes" : "no"} // Scroll internal aktif hanya di mobile
         >
           Loading…
         </iframe>
       </div>
 
-      {/* Fasilitas - BORDER ADJUSTED for mobile */}
+      {/* Fasilitas */}
       <div style={{
         marginTop: '2rem'
       }}>

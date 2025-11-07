@@ -105,9 +105,8 @@ INSTRUKSI:
 1. Buat deskripsi yang LEBIH AKURAT dan DETAIL
 2. Fokus pada konteks historis dan nilai akademis
 3. Gunakan bahasa Indonesia yang formal tapi mudah dipahami
-4. Sertakan signifikansi buku dalam konteks koleksi Perpustakaan Nasional
-5. Maksimal 120 kata
-6. Jangan tambahkan informasi fiktif
+4. Maksimal 120 kata
+5. Jangan tambahkan informasi fiktif
 
 FORMAT OUTPUT:
 Deskripsi buku yang informatif dan profesional.
