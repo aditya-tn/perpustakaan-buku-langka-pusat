@@ -374,46 +374,77 @@ const addToPlaylist = async (playlistId, book) => {
   /**
    * Like a playlist
    */
-  const likePlaylist = async (playlistId) => {
-    try {
-      if (playlistId.length === 36) {
-        await playlistService.likePlaylist(playlistId);
-      }
-
-      // Optimistic update
-      setPlaylists(prev => prev.map(p => 
-        p.id === playlistId 
-          ? { ...p, like_count: (p.like_count || 0) + 1 }
-          : p
-      ));
-
-    } catch (error) {
-      console.error('❌ Error liking playlist:', error);
-    }
-  };
-
-  /**
-   * Track playlist view
-   */
-    const trackView = async (playlistId) => {
+    const likePlaylist = async (playlistId) => {
       try {
-        // Update local state optimistically
+        const playlist = playlists.find(p => p.id === playlistId);
+        if (!playlist) return;
+    
+        // Optimistic update immediate
+        const updatedPlaylist = {
+          ...playlist,
+          like_count: (playlist.like_count || 0) + 1
+        };
+    
+        setPlaylists(prev => {
+          const updated = prev.map(p => p.id === playlistId ? updatedPlaylist : p);
+          saveToLocalStorage(updated); // Save immediately to localStorage
+          return updated;
+        });
+    
+        // Try to update Supabase
+        if (playlistId.length === 36) {
+          try {
+            await playlistService.likePlaylist(playlistId);
+            console.log('✅ Like saved to Supabase:', playlistId);
+          } catch (supabaseError) {
+            console.error('❌ Supabase like failed:', supabaseError);
+            // Revert jika Supabase gagal? Atau biarkan di localStorage saja
+          }
+        }
+    
+      } catch (error) {
+        console.error('❌ Error liking playlist:', error);
+        // Revert optimistic update jika perlu
         setPlaylists(prev => prev.map(p => 
           p.id === playlistId 
-            ? { ...p, view_count: (p.view_count || 0) + 1 }
+            ? { ...p, like_count: Math.max(0, (p.like_count || 0) - 1) }
             : p
         ));
+      }
+    };
     
-        // Update Supabase jika playlist ada di database
-        if (playlistId.length === 36) { // UUID format
-          await playlistService.trackView(playlistId);
-          console.log('✅ View tracked in Supabase:', playlistId);
+    // Perbaiki fungsi trackView dengan sync yang better
+    const trackView = async (playlistId) => {
+      try {
+        const playlist = playlists.find(p => p.id === playlistId);
+        if (!playlist) return false;
+    
+        // Update local state immediately
+        const updatedPlaylist = {
+          ...playlist,
+          view_count: (playlist.view_count || 0) + 1
+        };
+    
+        setPlaylists(prev => {
+          const updated = prev.map(p => p.id === playlistId ? updatedPlaylist : p);
+          saveToLocalStorage(updated);
+          return updated;
+        });
+    
+        // Update Supabase jika online
+        if (playlistId.length === 36) {
+          try {
+            await playlistService.trackView(playlistId);
+            console.log('✅ View tracked in Supabase:', playlistId);
+          } catch (supabaseError) {
+            console.error('❌ Supabase view tracking failed:', supabaseError);
+            // Continue dengan localStorage saja
+          }
         }
-        
+    
         return true;
       } catch (error) {
         console.error('❌ Error tracking view:', error);
-        // Don't throw error for analytics
         return false;
       }
     };
@@ -471,4 +502,5 @@ export const usePlaylist = () => {
   }
   return context;
 };
+
 
