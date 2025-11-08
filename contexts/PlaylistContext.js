@@ -246,147 +246,99 @@ export const PlaylistProvider = ({ children }) => {
   /**
    * Add book to playlist dengan hybrid approach - FIXED
    */
-  const addToPlaylist = async (playlistId, book) => {
-    setLoading(true);
+const addToPlaylist = async (playlistId, book) => {
+  setLoading(true);
+  try {
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (!playlist) {
+      throw new Error('Playlist tidak ditemukan');
+    }
+
+    // Validate and standardize book structure
+    const bookToAdd = validateBookStructure(book);
+    console.log('📦 Adding book to playlist:', { playlistId, book: bookToAdd });
+
+    // Check if book already exists
+    const bookExists = playlist.books?.some(b => b.id === bookToAdd.id);
+    if (bookExists) {
+      throw new Error('Buku sudah ada dalam playlist ini');
+    }
+
+    // Add book to playlist
+    const updatedBooks = [...(playlist.books || []), bookToAdd];
+
+    let updatedPlaylist;
+    let supabaseSuccess = false;
+
     try {
-      const playlist = playlists.find(p => p.id === playlistId);
-      if (!playlist) {
-        throw new Error('Playlist tidak ditemukan');
-      }
-
-      // Validate and standardize book structure
-      const bookToAdd = validateBookStructure(book);
-      console.log('📦 Adding book to playlist:', { playlistId, book: bookToAdd });
-
-      // Check if book already exists
-      const bookExists = playlist.books?.some(b => b.id === bookToAdd.id);
-      if (bookExists) {
-        throw new Error('Buku sudah ada dalam playlist ini');
-      }
-
-      // Add book to playlist
-      const updatedBooks = [...(playlist.books || []), bookToAdd];
-
-      let updatedPlaylist;
-      try {
-        // Try Supabase first only if it's a Supabase playlist (UUID)
-        if (playlistId.length === 36 && playlistId.startsWith('local_') === false) {
-          updatedPlaylist = await playlistService.updatePlaylist(playlistId, {
-            books: updatedBooks
-          });
-          console.log('✅ Book added in Supabase:', { playlistId, bookId: bookToAdd.id });
-        } else {
-          // Local playlist - update locally
-          updatedPlaylist = {
-            ...playlist,
+      // Try Supabase first only if it's a Supabase playlist (UUID)
+      if (playlistId.length === 36 && !playlistId.startsWith('local_')) {
+        console.log('🔄 Attempting to update Supabase...');
+        
+        // METHOD 1: Try direct update first
+        const { data, error } = await supabase
+          .from('community_playlists')
+          .update({
             books: updatedBooks,
             updated_at: new Date().toISOString()
-          };
-          console.log('✅ Book added to local playlist:', { playlistId, bookId: bookToAdd.id });
+          })
+          .eq('id', playlistId)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('❌ Supabase direct update failed:', error);
+          throw error;
         }
-      } catch (supabaseError) {
-        console.error('❌ Supabase update failed, using localStorage:', supabaseError);
-        // Fallback: update locally
-        updatedPlaylist = {
-          ...playlist,
-          books: updatedBooks,
-          updated_at: new Date().toISOString()
-        };
+
+        updatedPlaylist = data;
+        supabaseSuccess = true;
+        console.log('✅ Book added in Supabase:', { playlistId, bookId: bookToAdd.id });
+      } else {
+        console.log('📱 Local playlist, skipping Supabase');
+        throw new Error('Local playlist');
       }
-
-      // Update local state
-      setPlaylists(prev => {
-        const updated = prev.map(p =>
-          p.id === playlistId ? updatedPlaylist : p
-        );
-        saveToLocalStorage(updated);
-        return updated;
-      });
-
-      return true;
-    } catch (error) {
-      console.error('❌ Error adding to playlist:', error);
-      throw error;
-    } finally {
-      setLoading(false);
+    } catch (supabaseError) {
+      console.error('❌ Supabase update failed, using localStorage:', supabaseError);
+      
+      // Fallback: update locally
+      updatedPlaylist = {
+        ...playlist,
+        books: updatedBooks,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Show user warning that data is stored locally only
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          alert('⚠️ Data disimpan secara lokal saja. Buku tidak akan muncul di perangkat lain.');
+        }, 100);
+      }
     }
-  };
 
-  /**
-   * Remove book from playlist
-   */
-  const removeFromPlaylist = async (playlistId, bookId) => {
-    setLoading(true);
-    try {
-      const playlist = playlists.find(p => p.id === playlistId);
-      if (!playlist) {
-        throw new Error('Playlist tidak ditemukan');
-      }
+    // Update local state
+    setPlaylists(prev => {
+      const updated = prev.map(p =>
+        p.id === playlistId ? updatedPlaylist : p
+      );
+      saveToLocalStorage(updated);
+      return updated;
+    });
 
-      const updatedBooks = (playlist.books || []).filter(book => book.id !== bookId);
-
-      try {
-        // Try Supabase first only for Supabase playlists
-        if (playlistId.length === 36 && !playlistId.startsWith('local_')) {
-          await playlistService.updatePlaylist(playlistId, {
-            books: updatedBooks
-          });
-        }
-      } catch (supabaseError) {
-        console.error('❌ Supabase update failed, using localStorage:', supabaseError);
-      }
-
-      // Update local state
-      setPlaylists(prev => {
-        const updated = prev.map(p =>
-          p.id === playlistId
-            ? { ...p, books: updatedBooks, updated_at: new Date().toISOString() }
-            : p
-        );
-        saveToLocalStorage(updated);
-        return updated;
-      });
-
-      return true;
-    } catch (error) {
-      console.error('❌ Error removing from playlist:', error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Delete playlist
-   */
-  const deletePlaylist = async (playlistId) => {
-    setLoading(true);
-    try {
-      // Try Supabase first only for Supabase playlists
-      if (playlistId.length === 36 && !playlistId.startsWith('local_')) {
-        try {
-          await playlistService.deletePlaylist(playlistId);
-          console.log('✅ Playlist deleted from Supabase:', playlistId);
-        } catch (supabaseError) {
-          console.error('❌ Supabase delete failed:', supabaseError);
-        }
-      }
-
-      // Update local state
-      setPlaylists(prev => {
-        const updated = prev.filter(p => p.id !== playlistId);
-        saveToLocalStorage(updated);
-        return updated;
-      });
-
-      return true;
-    } catch (error) {
-      console.error('❌ Error deleting playlist:', error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
+    return { 
+      success: true, 
+      storedInSupabase: supabaseSuccess,
+      message: supabaseSuccess 
+        ? 'Buku berhasil ditambahkan ke playlist' 
+        : 'Buku ditambahkan secara lokal (hanya di perangkat ini)'
+    };
+  } catch (error) {
+    console.error('❌ Error adding to playlist:', error);
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ========================
   // ENHANCED FEATURES - FIXED
@@ -556,3 +508,4 @@ export const usePlaylist = () => {
   }
   return context;
 };
+
