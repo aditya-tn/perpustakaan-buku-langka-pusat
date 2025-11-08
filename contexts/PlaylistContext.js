@@ -1,4 +1,4 @@
-// contexts/PlaylistContext.js - UPDATE IMPORTS
+// contexts/PlaylistContext.js - UPDATED WITH HYBRID APPROACH
 import { createContext, useContext, useState, useEffect } from 'react';
 import { 
   playlistService, 
@@ -393,15 +393,28 @@ export const PlaylistProvider = ({ children }) => {
   /**
    * Track playlist view
    */
-  const trackView = async (playlistId) => {
-    try {
-      if (playlistId.length === 36) {
-        await playlistService.trackView(playlistId);
+    const trackView = async (playlistId) => {
+      try {
+        // Update local state optimistically
+        setPlaylists(prev => prev.map(p => 
+          p.id === playlistId 
+            ? { ...p, view_count: (p.view_count || 0) + 1 }
+            : p
+        ));
+    
+        // Update Supabase jika playlist ada di database
+        if (playlistId.length === 36) { // UUID format
+          await playlistService.trackView(playlistId);
+          console.log('✅ View tracked in Supabase:', playlistId);
+        }
+        
+        return true;
+      } catch (error) {
+        console.error('❌ Error tracking view:', error);
+        // Don't throw error for analytics
+        return false;
       }
-    } catch (error) {
-      console.error('❌ Error tracking view:', error);
-    }
-  };
+    };
 
   // ========================
   // INITIALIZATION
@@ -456,4 +469,3 @@ export const usePlaylist = () => {
   }
   return context;
 };
-
