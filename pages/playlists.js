@@ -1,11 +1,13 @@
 // pages/playlists.js - HALAMAN PLAYLISTS COMMUNITY
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router'; // ⚡ TAMBAHKAN INI
 import Head from 'next/head';
 import Layout from '../components/Layout';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import { searchService, analyticsService } from '../services/indexService';
 
 const PlaylistsPage = () => {
+  const router = useRouter(); // ⚡ TAMBAHKAN INI
   const { playlists, loading, userId, refreshPlaylists } = usePlaylist();
   const [view, setView] = useState('all'); // 'all', 'my', 'popular', 'trending'
   const [searchQuery, setSearchQuery] = useState('');
@@ -152,9 +154,8 @@ const PlaylistsPage = () => {
       e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
     }}
     onClick={() => {
-      // Akan kita buat halaman detail nanti
-      console.log('Open playlist:', playlist.id);
-      alert(`Buka playlist: ${playlist.name}\n\nFitur halaman detail playlist akan segera hadir!`);
+      // ⚡ UPDATE INI: Navigate ke halaman detail
+      router.push(`/playlists/${playlist.id}`);
     }}
     >
       {/* Header */}
@@ -256,6 +257,7 @@ const PlaylistsPage = () => {
       </div>
     </div>
   );
+
 
   return (
     <Layout>
