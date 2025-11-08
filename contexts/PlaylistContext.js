@@ -222,68 +222,70 @@ export const PlaylistProvider = ({ children }) => {
   /**
    * Add book to playlist dengan hybrid approach
    */
-  const addToPlaylist = async (playlistId, book) => {
-    setLoading(true);
-
-    try {
-      const playlist = playlists.find(p => p.id === playlistId);
-      if (!playlist) {
-        throw new Error('Playlist tidak ditemukan');
-      }
-
-      // Check if book already exists
-      const bookExists = playlist.books.some(b => b.id === book.id);
-      if (bookExists) {
-        throw new Error('Buku sudah ada dalam playlist ini');
-      }
-
-      const updatedBooks = [...playlist.books, {
-        ...book,
-        added_at: new Date().toISOString(),
-        _denormalized: true // Mark as denormalized data
-      }];
-
-      let updatedPlaylist;
-
-      try {
-        // Try Supabase first
-        if (playlistId.length === 36) { // UUID format = Supabase playlist
-          updatedPlaylist = await playlistService.updatePlaylist(playlistId, { 
-            books: updatedBooks 
-          });
-          console.log('✅ Book added in Supabase:', { playlistId, bookId: book.id });
-        } else {
-          throw new Error('Local playlist, skip Supabase');
-        }
-      } catch (supabaseError) {
-        console.error('❌ Supabase update failed, using localStorage:', supabaseError);
-        
-        // Fallback: update locally
-        updatedPlaylist = {
-          ...playlist,
-          books: updatedBooks,
-          updated_at: new Date().toISOString()
-        };
-      }
-
-      // Update local state
-      setPlaylists(prev => {
-        const updated = prev.map(p => 
-          p.id === playlistId ? updatedPlaylist : p
-        );
-        saveToLocalStorage(updated);
-        return updated;
-      });
-
-      return true;
-
-    } catch (error) {
-      console.error('❌ Error adding to playlist:', error);
-      throw error;
-    } finally {
-      setLoading(false);
+const addToPlaylist = async (playlistId, book) => {
+  setLoading(true);
+  try {
+    const playlist = playlists.find(p => p.id === playlistId);
+    if (!playlist) {
+      throw new Error('Playlist tidak ditemukan');
     }
-  };
+
+    // Check if book already exists - FIXED
+    const bookExists = playlist.books?.some(b => b.id === book.id);
+    if (bookExists) {
+      throw new Error('Buku sudah ada dalam playlist ini');
+    }
+
+    // FIXED: Create proper book structure for playlist
+    const bookToAdd = {
+      id: book.id, // Pastikan ini ada
+      judul: book.judul || book.title || 'Judul tidak tersedia',
+      pengarang: book.pengarang || book.author || '',
+      tahun_terbit: book.tahun_terbit || book.year || '',
+      penerbit: book.penerbit || book.publisher || '',
+      deskripsi_fisik: book.deskripsi_fisik || book.description || '',
+      added_at: new Date().toISOString(),
+      _denormalized: true
+    };
+
+    const updatedBooks = [...(playlist.books || []), bookToAdd];
+
+    let updatedPlaylist;
+    try {
+      if (playlistId.length === 36) { // UUID format = Supabase playlist
+        updatedPlaylist = await playlistService.updatePlaylist(playlistId, {
+          books: updatedBooks
+        });
+        console.log('✅ Book added in Supabase:', { playlistId, bookId: book.id });
+      } else {
+        throw new Error('Local playlist, skip Supabase');
+      }
+    } catch (supabaseError) {
+      console.error('❌ Supabase update failed, using localStorage:', supabaseError);
+      updatedPlaylist = {
+        ...playlist,
+        books: updatedBooks,
+        updated_at: new Date().toISOString()
+      };
+    }
+
+    // Update local state
+    setPlaylists(prev => {
+      const updated = prev.map(p => 
+        p.id === playlistId ? updatedPlaylist : p
+      );
+      saveToLocalStorage(updated);
+      return updated;
+    });
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error adding to playlist:', error);
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+};
 
   /**
    * Remove book from playlist
@@ -469,3 +471,4 @@ export const usePlaylist = () => {
   }
   return context;
 };
+
