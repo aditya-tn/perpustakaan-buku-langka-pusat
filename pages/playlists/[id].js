@@ -10,7 +10,7 @@ const PlaylistDetail = () => {
   const router = useRouter();
   const { id } = router.query;
   const { playlists, userId, likePlaylist, trackView } = usePlaylist();
-  
+  const [initialLoad, setInitialLoad] = useState(true);
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,37 +26,40 @@ const PlaylistDetail = () => {
   useEffect(() => {
     const loadPlaylistData = async () => {
       if (!id) return;
-
+      
       setLoading(true);
       setError(null);
-
+  
       try {
-        // Try to get from context first (cached)
+        // OPTIMIZATION: Load from cache first for immediate display
         const cachedPlaylist = playlists.find(p => p.id === id);
-        
         if (cachedPlaylist) {
           setPlaylist(cachedPlaylist);
-        } else {
-          // Fetch from service
-          const playlistData = await playlistService.getPlaylistById(id);
-          setPlaylist(playlistData);
+          setInitialLoad(false);
         }
-
-        // ⚡ FIX: Track view hanya sekali per session
-        if (!viewCountedRef.current) {
-          await trackView(id);
-          viewCountedRef.current = true;
-          console.log('✅ View tracked for playlist:', id);
-        }
-
-        // Load analytics
-        const playlistStats = await analyticsService.getPlaylistStats(id);
+  
+        // Parallel loading untuk performance
+        const [playlistData, playlistStats, similar] = await Promise.all([
+          cachedPlaylist ? Promise.resolve(cachedPlaylist) : playlistService.getPlaylistById(id),
+          analyticsService.getPlaylistStats(id),
+          searchService.getSimilarPlaylists(id, 4)
+        ]);
+  
+        setPlaylist(playlistData);
         setStats(playlistStats);
-
-        // Load similar playlists
-        const similar = await searchService.getSimilarPlaylists(id, 4);
         setSimilarPlaylists(similar);
-
+  
+        // FIXED: Track view dengan better logic
+        if (!viewCountedRef.current) {
+          try {
+            await trackView(id);
+            viewCountedRef.current = true;
+            console.log('✅ View tracked for playlist:', id);
+          } catch (trackError) {
+            console.error('❌ Error tracking view:', trackError);
+          }
+        }
+  
       } catch (err) {
         console.error('Error loading playlist:', err);
         setError('Playlist tidak ditemukan atau terjadi error');
@@ -64,9 +67,10 @@ const PlaylistDetail = () => {
         setLoading(false);
       }
     };
-
+  
     loadPlaylistData();
   }, [id, playlists, trackView]);
+  
 
   // ⚡ FIX: Handle like dengan better feedback
   const handleLike = async () => {
@@ -110,20 +114,35 @@ const PlaylistDetail = () => {
     return match ? parseInt(match[0]) : null;
   };
 
-  if (loading) {
-    return (
-      <Layout>
+if (loading && initialLoad) {
+  return (
+    <Layout>
+      <div style={{
+        textAlign: 'center',
+        padding: '3rem',
+        color: '#718096'
+      }}>
         <div style={{ 
-          textAlign: 'center', 
-          padding: '3rem',
-          color: '#718096'
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
-          Memuat playlist...
+          fontSize: '2rem', 
+          marginBottom: '1rem',
+          animation: 'pulse 1.5s infinite'
+        }}>📚</div>
+        <div>Memuat playlist...</div>
+        <div style={{ fontSize: '0.8rem', marginTop: '1rem', color: '#a0aec0' }}>
+          Mengambil data dari server
         </div>
-      </Layout>
-    );
-  }
+      </div>
+      <style jsx>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+      `}</style>
+    </Layout>
+  );
+}
+
 
   if (error || !playlist) {
     return (
