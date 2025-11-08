@@ -1,6 +1,8 @@
-// components/BookCard.js
+// components/BookCard.js - COMPLETE FIXED VERSION
 import { useState } from 'react';
 import BookDescription from './BookDescription';
+import PlaylistButton from './PlaylistButton/PlaylistButton';
+import CreatePlaylistForm from './PlaylistModal/CreatePlaylistForm';
 
 // Helper function untuk extract tahun
 const extractYearFromString = (yearStr) => {
@@ -29,6 +31,7 @@ const extractYearFromString = (yearStr) => {
 
 const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescription = false }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [showPlaylistForm, setShowPlaylistForm] = useState(false);
 
   const handleCardClick = () => {
     console.log('🟢 BookCard clicked:', book.judul);
@@ -41,25 +44,27 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
     if (onCardClick) {
       onCardClick(null);
     }
+    setShowPlaylistForm(false);
   };
 
-  // Handler untuk klik di container deskripsi (hanya close jika klik area kosong)
-  const handleDescriptionContainerClick = (e) => {
-    // Cek jika klik bukan pada tombol, link, atau elemen interaktif
-    const isInteractiveElement = 
-      e.target.tagName === 'BUTTON' || 
-      e.target.tagName === 'A' ||
-      e.target.closest('button') || 
-      e.target.closest('a') ||
-      e.target.closest('[data-no-close]');
-    
-    if (!isInteractiveElement) {
-      handleCardClick();
+  // Handle playlist form close - SELALU close card
+  const handlePlaylistFormClose = () => {
+    setShowPlaylistForm(false);
+    if (onCardClick) {
+      onCardClick(null);
     }
   };
 
-  // Jika kartu dipilih, tampilkan BookDescription, jika tidak tampilkan kartu biasa
-  if (isSelected && showDescription) {
+  const handlePlaylistCreated = (newPlaylist) => {
+    setShowPlaylistForm(false);
+    if (onCardClick) {
+      onCardClick(null);
+    }
+    console.log('Playlist created:', newPlaylist);
+  };
+
+  // Jika kartu dipilih, tampilkan BookDescription ATAU CreatePlaylistForm
+  if (isSelected && (showDescription || showPlaylistForm)) {
     return (
       <div 
         className="book-card-hover"
@@ -74,13 +79,33 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           minHeight: '200px',
           cursor: 'pointer'
         }}
-        onClick={handleDescriptionContainerClick}
+        onClick={(e) => {
+          const isInteractiveElement = 
+            e.target.tagName === 'BUTTON' || 
+            e.target.tagName === 'INPUT' ||
+            e.target.tagName === 'TEXTAREA' ||
+            e.target.closest('button') || 
+            e.target.closest('input') ||
+            e.target.closest('textarea');
+          
+          if (!isInteractiveElement) {
+            handleCloseDescription();
+          }
+        }}
       >
-        <BookDescription 
-          book={book} 
-          onClose={handleCloseDescription}
-          autoOpen={true}
-        />
+        {showPlaylistForm ? (
+          <CreatePlaylistForm 
+            book={book}
+            onClose={handlePlaylistFormClose}
+            onCreated={handlePlaylistCreated}
+          />
+        ) : (
+          <BookDescription 
+            book={book} 
+            onClose={handleCloseDescription}
+            autoOpen={true}
+          />
+        )}
       </div>
     );
   }
@@ -164,7 +189,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
         </div>
       )}
       
-      {/* Book Content - FLEX: 1 untuk memenuhi space */}
+      {/* Book Content */}
       <div style={{ flex: 1 }}>
         <div style={{ 
           display: 'flex', 
@@ -178,7 +203,8 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             lineHeight: '1.4',
             margin: '0',
             flex: 1,
-            transition: 'color 0.3s ease'
+            transition: 'color 0.3s ease',
+            paddingRight: '0.5rem'
           }}>
             {book.judul}
           </h4>
@@ -223,20 +249,34 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             color: '#718096', 
             marginTop: '0.75rem',
             lineHeight: '1.5',
-            fontStyle: 'italic'
+            fontStyle: 'italic',
+            paddingRight: '0.5rem'
           }}>
             {book.deskripsi_fisik}
           </p>
         )}
       </div>
 
-      {/* Action Buttons - TANPA margin bottom, jadi melekat ke bawah */}
+      {/* Action Buttons */}
       <div style={{ 
         marginTop: '0.75rem',
         display: 'flex', 
         gap: '0.75rem',
         flexWrap: 'wrap'
       }}>
+        {/* Playlist Button */}
+        <PlaylistButton 
+          book={book} 
+          onShowPlaylistForm={() => {
+            if (!isSelected) {
+              onCardClick(book);
+            }
+            setShowPlaylistForm(true);
+          }}
+          onCloseBookDescription={() => onCardClick(null)}
+        />
+
+        {/* Tombol OPAC */}
         {book.lihat_opac && book.lihat_opac !== 'null' && (
           <a 
             href={book.lihat_opac}
@@ -258,6 +298,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           </a>
         )}
       
+        {/* Tombol Pesan Koleksi */}
         {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
           <a 
             href={book.link_pesan_koleksi}

@@ -2234,7 +2234,7 @@ export default function Home() {
 <div style={{
   display: 'grid',
   gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
-  gap: isMobile ? '1rem' : '1.5rem',
+  gap: isMobile ? '2rem 1rem' : '2rem 1.5rem',
   marginBottom: '3rem',
   alignItems: 'stretch'
 }}>

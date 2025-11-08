@@ -443,7 +443,7 @@ Koleksi Buku Langka adalah buku yang mengandung kekayaan informasi, bernilai his
 
 1. **Keanggotaan**: Pastikan sudah menjadi anggota Perpustakaan Nasional
 2. **Pencarian**: Cari judul buku di katalog online koleksi buku langka
-3. **Formulir**: Isi formulir pemesanan buku di meja sirkulasi Lantai 14
+3. **Formulir**: Isi formulir pemesanan buku di melalui website ini pada menu *Layanan*
 4. **Jaminan**: Serahkan kartu anggota sebagai jaminan
 5. **Penyerahan**: Pustakawan akan mengambilkan buku dari rak tertutup
 6. **Pembacaan**: Baca buku di area yang telah ditentukan (tidak boleh dibawa keluar)
