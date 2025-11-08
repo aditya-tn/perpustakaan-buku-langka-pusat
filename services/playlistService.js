@@ -244,71 +244,72 @@ export const playlistService = {
   /**
    * Like a playlist
    */
-  likePlaylist: async (playlistId) => {
-    try {
-      const { data, error } = await supabase.rpc('increment_like_count', { 
-        playlist_id: playlistId 
-      });
-      
-      if (error) {
-        console.error('❌ Supabase RPC error:', error);
-        // Fallback: manual update
-        return await playlistService._manualIncrement(playlistId, 'like_count');
-      }
+likePlaylist: async (playlistId) => {
+  try {
+    const { data, error } = await supabase.rpc('increment_like_count', {
+      playlist_id: playlistId
+    });
 
-      console.log('✅ Playlist liked:', playlistId);
-      return data;
-    } catch (error) {
-      console.error('❌ Error in likePlaylist:', error);
-      throw error;
+    if (error) {
+      console.error('❌ Supabase RPC error:', error);
+      // Fallback: manual update
+      return await playlistService._manualIncrement(playlistId, 'like_count');
     }
-  },
 
-  /**
-   * Track playlist view
-   */
-  trackView: async (playlistId) => {
-    try {
-      const { data, error } = await supabase.rpc('increment_view_count', { 
-        playlist_id: playlistId 
-      });
-      
-      if (error) {
-        console.error('❌ Supabase RPC error:', error);
-        // Fallback: manual update
-        return await playlistService._manualIncrement(playlistId, 'view_count');
-      }
+    console.log('✅ Playlist liked:', playlistId, 'New count:', data?.like_count);
+    return data;
+  } catch (error) {
+    console.error('❌ Error in likePlaylist:', error);
+    throw error;
+  }
+},
 
-      return data;
-    } catch (error) {
-      console.error('❌ Error in trackView:', error);
-      // Don't throw error for analytics tracking
-      return null;
+/**
+ * Track playlist view - UPDATED FOR NEW RPC
+ */
+trackView: async (playlistId) => {
+  try {
+    const { data, error } = await supabase.rpc('increment_view_count', {
+      playlist_id: playlistId
+    });
+
+    if (error) {
+      console.error('❌ Supabase RPC error:', error);
+      // Fallback: manual update
+      return await playlistService._manualIncrement(playlistId, 'view_count');
     }
-  },
 
-  /**
-   * Report playlist
-   */
-  reportPlaylist: async (playlistId) => {
-    try {
-      const { data, error } = await supabase.rpc('increment_report_count', { 
-        playlist_id: playlistId 
-      });
-      
-      if (error) {
-        console.error('❌ Supabase RPC error:', error);
-        // Fallback: manual update
-        return await playlistService._manualIncrement(playlistId, 'report_count');
-      }
+    console.log('✅ Playlist view tracked:', playlistId, 'New count:', data?.view_count);
+    return data;
+  } catch (error) {
+    console.error('❌ Error in trackView:', error);
+    // Don't throw error for analytics tracking
+    return null;
+  }
+},
 
-      console.log('✅ Playlist reported:', playlistId);
-      return data;
-    } catch (error) {
-      console.error('❌ Error in reportPlaylist:', error);
-      throw error;
+/**
+ * Report playlist - UPDATED FOR NEW RPC
+ */
+reportPlaylist: async (playlistId) => {
+  try {
+    const { data, error } = await supabase.rpc('increment_report_count', {
+      playlist_id: playlistId
+    });
+
+    if (error) {
+      console.error('❌ Supabase RPC error:', error);
+      // Fallback: manual update
+      return await playlistService._manualIncrement(playlistId, 'report_count');
     }
-  },
+
+    console.log('✅ Playlist reported:', playlistId, 'New count:', data?.report_count);
+    return data;
+  } catch (error) {
+    console.error('❌ Error in reportPlaylist:', error);
+    throw error;
+  }
+},
 
   // ========================
   // SEARCH & DISCOVERY
