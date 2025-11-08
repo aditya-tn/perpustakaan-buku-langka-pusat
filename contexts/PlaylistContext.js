@@ -1,6 +1,10 @@
-// contexts/PlaylistContext.js - UPDATED WITH HYBRID APPROACH
+// contexts/PlaylistContext.js - UPDATE IMPORTS
 import { createContext, useContext, useState, useEffect } from 'react';
-import { playlistService } from '../services/playlistService';
+import { 
+  playlistService, 
+  analyticsService,
+  serviceManager 
+} from '../services/indexService'; // ⚡ UPDATED IMPORT
 
 const PlaylistContext = createContext();
 
@@ -452,3 +456,4 @@ export const usePlaylist = () => {
   }
   return context;
 };
+
