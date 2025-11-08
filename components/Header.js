@@ -1,4 +1,4 @@
-// components/Header.js
+// components/Header.js - UPDATED WITH PLAYLISTS MENU
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -130,6 +130,18 @@ export default function Header({ isMobile }) {
             }}>
               Koleksi
             </Link>
+            <Link href="/playlists" style={{ 
+              color: isActive('/playlists') ? '#4299e1' : '#4a5568', 
+              textDecoration: 'none',
+              fontWeight: isActive('/playlists') ? '600' : '400',
+              fontSize: '0.95rem',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              backgroundColor: isActive('/playlists') ? '#ebf8ff' : 'transparent',
+              transition: 'all 0.2s'
+            }}>
+              Playlists
+            </Link>
             <Link href="/layanan" style={{ 
               color: isActive('/layanan') ? '#4299e1' : '#4a5568', 
               textDecoration: 'none',
@@ -226,6 +238,23 @@ export default function Header({ isMobile }) {
                 Koleksi
               </Link>
               <Link 
+                href="/playlists" 
+                onClick={() => setIsMenuOpen(false)}
+                style={{ 
+                  color: isActive('/playlists') ? '#4299e1' : '#4a5568', 
+                  textDecoration: 'none',
+                  fontWeight: isActive('/playlists') ? '600' : '400',
+                  fontSize: '1rem',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  backgroundColor: isActive('/playlists') ? '#ebf8ff' : 'transparent',
+                  display: 'block',
+                  textAlign: 'center'
+                }}
+              >
+                Playlists
+              </Link>
+              <Link 
                 href="/layanan" 
                 onClick={() => setIsMenuOpen(false)}
                 style={{ 
@@ -276,7 +305,6 @@ export default function Header({ isMobile }) {
               >
                 Kritik & Saran
               </Link>
-
             </nav>
           </div>
         )}
