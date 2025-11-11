@@ -355,157 +355,228 @@ if (loading && initialLoad) {
         margin: '0 auto 3rem auto',
         padding: '0 2rem'
       }}>
-        {view === 'books' && (
-          <div>
-            {/* Search Box */}
-            <div style={{
-              marginBottom: '2rem',
-              position: 'relative',
-              maxWidth: '400px'
-            }}>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Cari buku dalam playlist..."
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem 0.75rem 2.5rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  outline: 'none'
-                }}
-              />
-              <span style={{
-                position: 'absolute',
-                left: '0.75rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#718096'
+          {view === 'books' && (
+            <div>
+              {/* Search Box - tetap sama */}
+              <div style={{
+                marginBottom: '2rem',
+                position: 'relative',
+                maxWidth: '400px'
               }}>
-                🔍
-              </span>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Cari buku dalam playlist..."
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem 0.75rem 2.5rem',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+                <span style={{
+                  position: 'absolute',
+                  left: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#718096'
+                }}>
+                  🔍
+                </span>
+              </div>
+
+     {/* Books Grid - UPDATE INI */}
+    {filteredBooks.length === 0 ? (
+      <div style={{
+        textAlign: 'center',
+        padding: '3rem',
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
+        <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
+          {searchTerm ? 'Buku tidak ditemukan' : 'Belum ada buku dalam playlist'}
+        </h3>
+        <p style={{ color: '#718096' }}>
+          {searchTerm
+            ? 'Coba kata kunci pencarian lain'
+            : 'Tambahkan buku pertama ke playlist ini'
+          }
+        </p>
+      </div>
+    ) : (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+        gap: '1.5rem'
+      }}>
+        {filteredBooks.map((book, index) => (
+          <div
+            key={book.id || index}
+            style={{
+              backgroundColor: 'white',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              border: '1px solid #e2e8f0',
+              transition: 'all 0.3s ease',
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+            }}
+            onClick={() => {
+              window.open(`/?highlight=${book.id}`, '_blank');
+            }}
+          >
+            {/* Judul Buku */}
+            <h3 style={{
+              margin: '0 0 0.75rem 0',
+              fontSize: '1.1rem',
+              fontWeight: '600',
+              color: '#2d3748',
+              lineHeight: '1.4',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}>
+              {book.judul}
+            </h3>
+
+            {/* Informasi Buku */}
+            <div style={{ marginBottom: '1rem' }}>
+              {book.pengarang && (
+                <div style={{ 
+                  fontSize: '0.9rem', 
+                  color: '#4a5568', 
+                  marginBottom: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.5rem'
+                }}>
+                  <span style={{ 
+                    fontWeight: '600', 
+                    minWidth: '80px' 
+                  }}>Pengarang:</span>
+                  <span>{book.pengarang}</span>
+                </div>
+              )}
+              
+              {book.tahun_terbit && (
+                <div style={{ 
+                  fontSize: '0.9rem', 
+                  color: '#4a5568', 
+                  marginBottom: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.5rem'
+                }}>
+                  <span style={{ 
+                    fontWeight: '600', 
+                    minWidth: '80px' 
+                  }}>Tahun:</span>
+                  <span style={{
+                    backgroundColor: extractYear(book.tahun_terbit) ? '#f0fff4' : '#fffaf0',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '4px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem'
+                  }}>
+                    {book.tahun_terbit}
+                  </span>
+                </div>
+              )}
+              
+              {book.penerbit && (
+                <div style={{ 
+                  fontSize: '0.9rem', 
+                  color: '#4a5568',
+                  marginBottom: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.5rem'
+                }}>
+                  <span style={{ 
+                    fontWeight: '600', 
+                    minWidth: '80px' 
+                  }}>Penerbit:</span>
+                  <span>{book.penerbit}</span>
+                </div>
+              )}
             </div>
 
-            {/* Books Grid */}
-            {filteredBooks.length === 0 ? (
+            {/* Deskripsi Fisik - SAMA DENGAN BOOKCARD */}
+            {book.deskripsi_fisik && (
               <div style={{
-                textAlign: 'center',
-                padding: '3rem',
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                padding: '0.75rem',
+                backgroundColor: '#f7fafc',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0',
+                marginBottom: '1rem'
               }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
-                <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
-                  {searchTerm ? 'Buku tidak ditemukan' : 'Belum ada buku dalam playlist'}
-                </h3>
-                <p style={{ color: '#718096' }}>
-                  {searchTerm 
-                    ? 'Coba kata kunci pencarian lain'
-                    : 'Tambahkan buku pertama ke playlist ini'
-                  }
+                <div style={{
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  color: '#4a5568',
+                  marginBottom: '0.25rem'
+                }}>
+                  Deskripsi Fisik:
+                </div>
+                <p style={{
+                  fontSize: '0.8rem',
+                  color: '#718096',
+                  fontStyle: 'italic',
+                  lineHeight: '1.4',
+                  margin: 0,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}>
+                  {book.deskripsi_fisik}
                 </p>
               </div>
-            ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-                gap: '1.5rem'
-              }}>
-                {filteredBooks.map((book, index) => (
-                  <div
-                    key={book.id || index}
-                    style={{
-                      backgroundColor: 'white',
-                      padding: '1.5rem',
-                      borderRadius: '12px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      border: '1px solid #e2e8f0',
-                      transition: 'all 0.3s ease',
-                      cursor: 'pointer'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.transform = 'translateY(-2px)';
-                      e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.transform = 'translateY(0)';
-                      e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                    }}
-                    onClick={() => {
-                      // Buka detail buku atau scroll ke buku di halaman utama
-                      window.open(`/?highlight=${book.id}`, '_blank');
-                    }}
-                  >
-                    <h3 style={{
-                      margin: '0 0 0.5rem 0',
-                      fontSize: '1.1rem',
-                      fontWeight: '600',
-                      color: '#2d3748',
-                      lineHeight: '1.4'
-                    }}>
-                      {book.judul}
-                    </h3>
-                    
-                    <div style={{ marginBottom: '1rem' }}>
-                      {book.pengarang && (
-                        <div style={{ fontSize: '0.9rem', color: '#4a5568', marginBottom: '0.25rem' }}>
-                          <strong>Pengarang:</strong> {book.pengarang}
-                        </div>
-                      )}
-                      {book.tahun_terbit && (
-                        <div style={{ fontSize: '0.9rem', color: '#4a5568', marginBottom: '0.25rem' }}>
-                          <strong>Tahun:</strong> 
-                          <span style={{
-                            backgroundColor: extractYear(book.tahun_terbit) ? '#f0fff4' : '#fffaf0',
-                            padding: '0.1rem 0.3rem',
-                            borderRadius: '4px',
-                            marginLeft: '0.3rem',
-                            fontFamily: 'monospace'
-                          }}>
-                            {book.tahun_terbit}
-                          </span>
-                        </div>
-                      )}
-                      {book.penerbit && (
-                        <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>
-                          <strong>Penerbit:</strong> {book.penerbit}
-                        </div>
-                      )}
-                    </div>
-
-                    {book.deskripsi_fisik && (
-                      <p style={{
-                        fontSize: '0.8rem',
-                        color: '#718096',
-                        fontStyle: 'italic',
-                        lineHeight: '1.4',
-                        margin: 0
-                      }}>
-                        {book.deskripsi_fisik}
-                      </p>
-                    )}
-
-                    <div style={{
-                      marginTop: '1rem',
-                      paddingTop: '1rem',
-                      borderTop: '1px solid #e2e8f0',
-                      fontSize: '0.7rem',
-                      color: '#718096',
-                      display: 'flex',
-                      justifyContent: 'space-between'
-                    }}>
-                      <span>Ditambahkan: {new Date(book.added_at || playlist.created_at).toLocaleDateString('id-ID')}</span>
-                      <span>📖 Lihat Buku</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
+
+            {/* Footer dengan info tanggal */}
+            <div style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid #e2e8f0',
+              fontSize: '0.7rem',
+              color: '#718096',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span>Ditambahkan: {new Date(book.added_at || playlist.created_at).toLocaleDateString('id-ID')}</span>
+              <span style={{
+                backgroundColor: '#4299e1',
+                color: 'white',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '4px',
+                fontSize: '0.65rem',
+                fontWeight: '500'
+              }}>📖 Lihat Buku</span>
+            </div>
           </div>
-        )}
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
 
         {view === 'stats' && stats && (
           <div style={{
