@@ -1,5 +1,6 @@
-// components/BookCard.js - COMPLETE FIXED VERSION
+// components/BookCard.js - COMPLETE FIXED VERSION WITH PLAYLIST INDICATORS
 import { useState } from 'react';
+import { usePlaylist } from '../contexts/PlaylistContext';
 import BookDescription from './BookDescription';
 import PlaylistButton from './PlaylistButton/PlaylistButton';
 import CreatePlaylistForm from './PlaylistModal/CreatePlaylistForm';
@@ -32,6 +33,12 @@ const extractYearFromString = (yearStr) => {
 const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescription = false }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPlaylistForm, setShowPlaylistForm] = useState(false);
+  const { playlists } = usePlaylist();
+
+  // Cari playlist yang berisi buku ini
+  const playlistsContainingBook = playlists.filter(playlist => 
+    playlist.books?.some(b => b.id === book.id)
+  );
 
   const handleCardClick = () => {
     console.log('🟢 BookCard clicked:', book.judul);
@@ -243,6 +250,78 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           </div>
         </div>
 
+        {/* PLAYLIST INDICATORS - FITUR BARU */}
+        {playlistsContainingBook.length > 0 && (
+          <div style={{
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            backgroundColor: '#f0fff4',
+            border: '1px solid #9ae6b4',
+            borderRadius: '8px',
+            fontSize: '0.8rem'
+          }}>
+            <div style={{
+              fontWeight: '600',
+              color: '#22543d',
+              marginBottom: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              📚 Sudah di {playlistsContainingBook.length} playlist
+            </div>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.4rem'
+            }}>
+              {playlistsContainingBook.slice(0, 3).map(playlist => (
+                <span 
+                  key={playlist.id}
+                  style={{
+                    backgroundColor: '#c6f6d5',
+                    color: '#22543d',
+                    padding: '0.3rem 0.6rem',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    border: '1px solid #9ae6b4',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(`/playlists/${playlist.id}`, '_blank');
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#9ae6b4';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#c6f6d5';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  {playlist.name}
+                </span>
+              ))}
+              {playlistsContainingBook.length > 3 && (
+                <span style={{
+                  color: '#38a169',
+                  fontSize: '0.75rem',
+                  fontStyle: 'italic',
+                  padding: '0.3rem 0.6rem',
+                  backgroundColor: '#f0fff4',
+                  borderRadius: '6px',
+                  border: '1px dashed #9ae6b4'
+                }}>
+                  +{playlistsContainingBook.length - 3} lainnya
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {book.deskripsi_fisik && (
           <p style={{ 
             fontSize: isMobile ? '0.75rem' : '0.85rem', 
@@ -250,7 +329,11 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             marginTop: '0.75rem',
             lineHeight: '1.5',
             fontStyle: 'italic',
-            paddingRight: '0.5rem'
+            paddingRight: '0.5rem',
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
           }}>
             {book.deskripsi_fisik}
           </p>
@@ -291,10 +374,13 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
               textDecoration: 'none',
               fontSize: '0.75rem',
               fontWeight: '500',
-              transition: 'all 0.3s ease'
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
             }}
           >
-            📖 Lihat OPAC
+            📖 OPAC
           </a>
         )}
       
@@ -313,10 +399,13 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
               textDecoration: 'none',
               fontSize: '0.75rem',
               fontWeight: '500',
-              transition: 'all 0.3s ease'
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
             }}
           >
-            📥 Pesan Koleksi
+            📥 Pesan
           </a>
         )}
       </div>
