@@ -885,87 +885,95 @@ if (loading && initialLoad) {
           </div>
         )}
 
-        {view === 'similar' && (
-          <div>
-            <h2 style={{ color: '#2d3748', marginBottom: '1.5rem' }}>🔍 Playlist Serupa</h2>
-            
-            {similarPlaylists.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '2rem',
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+{view === 'similar' && (
+  <div>
+    <h2 style={{ color: '#2d3748', marginBottom: '1.5rem' }}>🔍 Playlist Serupa</h2>
+    {similarPlaylists.length === 0 ? (
+      <div style={{
+        textAlign: 'center',
+        padding: '2rem',
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤔</div>
+        <p style={{ color: '#718096' }}>
+          Belum ada playlist yang serupa ditemukan
+        </p>
+      </div>
+    ) : (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+        gap: '1.5rem'
+      }}>
+        {similarPlaylists.map(similar => (
+          <div
+            key={similar.id}
+            style={{
+              backgroundColor: 'white',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              border: '1px solid #e2e8f0',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              overflow: 'hidden',
+              outline: 'none'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+            }}
+            onClick={() => router.push(`/playlists/${similar.id}`)}
+          >
+            <h3 style={{
+              margin: '0 0 0.5rem 0',
+              fontSize: '1.1rem',
+              fontWeight: '600',
+              color: '#2d3748',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}>
+              {similar.name}
+            </h3>
+            {similar.description && (
+              <p style={{
+                fontSize: '0.85rem',
+                color: '#718096',
+                marginBottom: '1rem',
+                lineHeight: '1.4',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
               }}>
-                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤔</div>
-                <p style={{ color: '#718096' }}>
-                  Belum ada playlist yang serupa ditemukan
-                </p>
-              </div>
-            ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: '1.5rem'
-              }}>
-                {similarPlaylists.map(similar => (
-                  <div
-                    key={similar.id}
-                    style={{
-                      backgroundColor: 'white',
-                      padding: '1.5rem',
-                      borderRadius: '12px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      border: '1px solid #e2e8f0',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.transform = 'translateY(-2px)';
-                      e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.transform = 'translateY(0)';
-                      e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                    }}
-                    onClick={() => router.push(`/playlists/${similar.id}`)}
-                  >
-                    <h3 style={{
-                      margin: '0 0 0.5rem 0',
-                      fontSize: '1.1rem',
-                      fontWeight: '600',
-                      color: '#2d3748'
-                    }}>
-                      {similar.name}
-                    </h3>
-                    
-                    {similar.description && (
-                      <p style={{
-                        fontSize: '0.85rem',
-                        color: '#718096',
-                        marginBottom: '1rem',
-                        lineHeight: '1.4'
-                      }}>
-                        {similar.description}
-                      </p>
-                    )}
-
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '0.8rem',
-                      color: '#718096'
-                    }}>
-                      <span>📚 {similar.books?.length || 0} buku</span>
-                      <span>❤️ {similar.like_count || 0}</span>
-                      <span>{similar._commonBooks} buku sama</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                {similar.description}
+              </p>
             )}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '0.8rem',
+              color: '#718096'
+            }}>
+              <span>📚 {similar.books?.length || 0} buku</span>
+              <span>❤️ {similar.like_count || 0}</span>
+              <span>{similar._commonBooks} buku sama</span>
+            </div>
           </div>
-        )}
+        ))}
+      </div>
+    )}
+  </div>
+)}
       </section>
     </Layout>
   );
