@@ -218,13 +218,3 @@ export const serviceExamples = {
     }
   }
 };
-
-// Default export for easy importing
-export default {
-  playlistService,
-  analyticsService,
-  searchService,
-  serviceManager,
-  serviceExamples,
-  supabase
-};

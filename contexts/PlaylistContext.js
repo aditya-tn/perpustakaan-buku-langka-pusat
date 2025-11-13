@@ -1,4 +1,4 @@
-// contexts/PlaylistContext.js - COMPLETE FIXED VERSION
+// contexts/PlaylistContext.js - COMPLETE FIXED VERSION WITH NOTIFICATIONS
 import { createContext, useContext, useState, useEffect } from 'react';
 import {
   playlistService,
@@ -6,13 +6,39 @@ import {
   serviceManager
 } from '../services/indexService';
 
+// Buat context terpisah untuk notification untuk avoid circular dependencies
 const PlaylistContext = createContext();
+
+// Custom hook untuk notification yang aman
+const useNotificationSafe = () => {
+  try {
+    const { useNotification } = require('./NotificationContext');
+    return useNotification();
+  } catch (error) {
+    // Fallback jika NotificationContext belum ada
+    return {
+      addNotification: (notification) => {
+        console.log('📢 Notification:', notification);
+        // Fallback ke console log atau browser notification
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification(notification.title, { 
+            body: notification.message,
+            icon: '/icon.png'
+          });
+        }
+      }
+    };
+  }
+};
 
 export const PlaylistProvider = ({ children }) => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lastSync, setLastSync] = useState(null);
   const [supabaseStatus, setSupabaseStatus] = useState('checking');
+  
+  // Gunakan notification safe hook
+  const { addNotification } = useNotificationSafe();
 
   // ========================
   // USER MANAGEMENT
@@ -109,7 +135,7 @@ export const PlaylistProvider = ({ children }) => {
     for (const playlist of localPlaylists) {
       try {
         // Skip if playlist already has proper ID (already in Supabase)
-        if (playlist.id && playlist.id.length === 36 && !playlist.id.startsWith('local_')) continue;
+        if (playlist.id && playlist.id.length === 36) continue;
 
         // Validate books structure before migration
         const validatedBooks = (playlist.books || []).map(book => validateBookStructure(book));
@@ -213,6 +239,14 @@ export const PlaylistProvider = ({ children }) => {
         // Try Supabase first
         createdPlaylist = await playlistService.createPlaylist(newPlaylist);
         console.log('✅ Playlist created in Supabase:', createdPlaylist.id);
+        
+        // NOTIFICATION SUCCESS
+        addNotification({
+          type: 'success',
+          title: 'Playlist Dibuat! 🎉',
+          message: `"${newPlaylist.name}" berhasil dibuat`,
+          icon: '📚'
+        });
       } catch (supabaseError) {
         console.error('❌ Supabase create failed, using localStorage:', supabaseError);
         // Fallback to localStorage
@@ -225,6 +259,14 @@ export const PlaylistProvider = ({ children }) => {
           like_count: 0,
           report_count: 0
         };
+        
+        // NOTIFICATION WARNING
+        addNotification({
+          type: 'warning',
+          title: 'Playlist Dibuat (Lokal)',
+          message: `"${newPlaylist.name}" disimpan secara lokal`,
+          icon: '💾'
+        });
       }
 
       // Update local state
@@ -237,6 +279,15 @@ export const PlaylistProvider = ({ children }) => {
       return createdPlaylist;
     } catch (error) {
       console.error('❌ Error creating playlist:', error);
+      
+      // NOTIFICATION ERROR
+      addNotification({
+        type: 'error',
+        title: 'Gagal Membuat Playlist',
+        message: error.message,
+        icon: '❌'
+      });
+      
       throw error;
     } finally {
       setLoading(false);
@@ -244,7 +295,7 @@ export const PlaylistProvider = ({ children }) => {
   };
 
   /**
-   * Add book to playlist - FIXED VERSION
+   * Add book to playlist dengan hybrid approach - DENGAN NOTIFICATION
    */
   const addToPlaylist = async (playlistId, book) => {
     setLoading(true);
@@ -272,15 +323,13 @@ export const PlaylistProvider = ({ children }) => {
 
       try {
         // Try Supabase first only if it's a Supabase playlist (UUID)
-        if (playlistId.length === 36 && !playlistId.startsWith('local_')) {
+        if (playlistId.length === 36 && playlistId.startsWith('local_') === false) {
           console.log('🔄 Attempting to update Supabase...');
           
-          // Use the service to update books
           updatedPlaylist = await playlistService.updatePlaylist(playlistId, {
-            books: updatedBooks,
-            updated_at: new Date().toISOString()
+            books: updatedBooks
           });
-
+          
           supabaseSuccess = true;
           console.log('✅ Book added in Supabase:', { playlistId, bookId: bookToAdd.id });
         } else {
@@ -289,20 +338,12 @@ export const PlaylistProvider = ({ children }) => {
         }
       } catch (supabaseError) {
         console.error('❌ Supabase update failed, using localStorage:', supabaseError);
-        
         // Fallback: update locally
         updatedPlaylist = {
           ...playlist,
           books: updatedBooks,
           updated_at: new Date().toISOString()
         };
-        
-        // Show user warning that data is stored locally only
-        if (typeof window !== 'undefined') {
-          setTimeout(() => {
-            alert('⚠️ Data disimpan secara lokal saja. Buku tidak akan muncul di perangkat lain.');
-          }, 100);
-        }
       }
 
       // Update local state
@@ -314,15 +355,37 @@ export const PlaylistProvider = ({ children }) => {
         return updated;
       });
 
+      // NOTIFICATION SUCCESS - DENGAN ANIMASI
+      addNotification({
+        type: 'success',
+        title: 'Buku Ditambahkan! 🎉',
+        message: `"${bookToAdd.judul}" berhasil ditambahkan ke "${playlist.name}"`,
+        icon: '📚',
+        action: supabaseSuccess ? {
+          label: 'Lihat Playlist',
+          onClick: () => window.open(`/playlists/${playlistId}`, '_blank')
+        } : {
+          label: 'Hanya Lokal',
+          onClick: () => console.log('Data tersimpan lokal')
+        }
+      });
+
       return { 
         success: true, 
         storedInSupabase: supabaseSuccess,
-        message: supabaseSuccess 
-          ? 'Buku berhasil ditambahkan ke playlist' 
-          : 'Buku ditambahkan secara lokal (hanya di perangkat ini)'
+        message: 'Buku berhasil ditambahkan' 
       };
     } catch (error) {
       console.error('❌ Error adding to playlist:', error);
+      
+      // NOTIFICATION ERROR
+      addNotification({
+        type: 'error',
+        title: 'Gagal Menambahkan Buku',
+        message: error.message,
+        icon: '❌'
+      });
+      
       throw error;
     } finally {
       setLoading(false);
@@ -340,6 +403,7 @@ export const PlaylistProvider = ({ children }) => {
         throw new Error('Playlist tidak ditemukan');
       }
 
+      const bookToRemove = playlist.books?.find(b => b.id === bookId);
       const updatedBooks = (playlist.books || []).filter(book => book.id !== bookId);
 
       try {
@@ -364,6 +428,16 @@ export const PlaylistProvider = ({ children }) => {
         return updated;
       });
 
+      // NOTIFICATION SUCCESS
+      if (bookToRemove) {
+        addNotification({
+          type: 'info',
+          title: 'Buku Dihapus',
+          message: `"${bookToRemove.judul}" dihapus dari playlist`,
+          icon: '🗑️'
+        });
+      }
+
       return true;
     } catch (error) {
       console.error('❌ Error removing from playlist:', error);
@@ -379,6 +453,8 @@ export const PlaylistProvider = ({ children }) => {
   const deletePlaylist = async (playlistId) => {
     setLoading(true);
     try {
+      const playlistToDelete = playlists.find(p => p.id === playlistId);
+      
       // Try Supabase first only for Supabase playlists
       if (playlistId.length === 36 && !playlistId.startsWith('local_')) {
         try {
@@ -396,6 +472,16 @@ export const PlaylistProvider = ({ children }) => {
         return updated;
       });
 
+      // NOTIFICATION SUCCESS
+      if (playlistToDelete) {
+        addNotification({
+          type: 'info',
+          title: 'Playlist Dihapus',
+          message: `"${playlistToDelete.name}" berhasil dihapus`,
+          icon: '🗑️'
+        });
+      }
+
       return true;
     } catch (error) {
       console.error('❌ Error deleting playlist:', error);
@@ -406,11 +492,11 @@ export const PlaylistProvider = ({ children }) => {
   };
 
   // ========================
-  // ENHANCED FEATURES - FIXED
+  // ENHANCED FEATURES - DENGAN NOTIFICATION
   // ========================
 
   /**
-   * Like a playlist - FIXED PERSISTENCE
+   * Like a playlist - DENGAN ANIMASI & NOTIFICATION
    */
   const likePlaylist = async (playlistId) => {
     try {
@@ -430,6 +516,18 @@ export const PlaylistProvider = ({ children }) => {
         const updated = prev.map(p => p.id === playlistId ? updatedPlaylist : p);
         saveToLocalStorage(updated);
         return updated;
+      });
+
+      // NOTIFICATION LIKE - DENGAN ANIMASI SPECIAL
+      addNotification({
+        type: 'like',
+        title: 'Liked! ❤️',
+        message: `Kamu menyukai "${playlist.name}"`,
+        icon: '❤️',
+        action: {
+          label: 'Lihat Playlist', 
+          onClick: () => window.open(`/playlists/${playlistId}`, '_blank')
+        }
       });
 
       // Try to update Supabase for persistent storage
@@ -455,7 +553,7 @@ export const PlaylistProvider = ({ children }) => {
   };
 
   /**
-   * Track playlist view - FIXED PERSISTENCE
+   * Track playlist view
    */
   const trackView = async (playlistId) => {
     try {
@@ -499,12 +597,24 @@ export const PlaylistProvider = ({ children }) => {
    */
   const reportPlaylist = async (playlistId) => {
     try {
+      const playlist = playlists.find(p => p.id === playlistId);
+      
       // Update local state
       setPlaylists(prev => prev.map(p =>
         p.id === playlistId
           ? { ...p, report_count: (p.report_count || 0) + 1 }
           : p
       ));
+
+      // NOTIFICATION REPORT
+      if (playlist) {
+        addNotification({
+          type: 'warning',
+          title: 'Playlist Dilaporkan',
+          message: `Laporan untuk "${playlist.name}" telah dikirim`,
+          icon: '🚨'
+        });
+      }
 
       // Update Supabase jika online
       if (playlistId.length === 36 && !playlistId.startsWith('local_')) {

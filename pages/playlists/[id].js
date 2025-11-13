@@ -1,15 +1,17 @@
-// pages/playlists/[id].js - FIX VIEW TRACKING
-import { useState, useEffect, useRef } from 'react'; // ⚡ TAMBAH useRef
+// pages/playlists/[id].js - COMPLETE FIXED VERSION
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '../../components/Layout';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 import { playlistService, analyticsService, searchService } from '../../services/indexService';
+import BookCard from '../../components/BookCard';
 
 const PlaylistDetail = () => {
   const router = useRouter();
   const { id } = router.query;
   const { playlists, userId, likePlaylist, trackView } = usePlaylist();
+  
   const [initialLoad, setInitialLoad] = useState(true);
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,47 +21,52 @@ const PlaylistDetail = () => {
   const [view, setView] = useState('books');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // ⚡ TAMBAH: Track jika view sudah di-count
+  // STATE UNTUK EXPANDABLE CARDS - SEDERHANA SEPERTI BERANDA
+  const [selectedBook, setSelectedBook] = useState(null);
+
   const viewCountedRef = useRef(false);
 
-  // Load playlist data - FIX VIEW TRACKING
+  // Helper function untuk extract tahun
+  const extractYear = (yearStr) => {
+    if (!yearStr) return null;
+    const yearMatch = yearStr?.match(/\d{4}/);
+    return yearMatch ? parseInt(yearMatch[0]) : null;
+  };
+
+  // Load playlist data
   useEffect(() => {
     const loadPlaylistData = async () => {
       if (!id) return;
       
       setLoading(true);
       setError(null);
-  
+
       try {
-        // OPTIMIZATION: Load from cache first for immediate display
         const cachedPlaylist = playlists.find(p => p.id === id);
         if (cachedPlaylist) {
           setPlaylist(cachedPlaylist);
           setInitialLoad(false);
         }
-  
-        // Parallel loading untuk performance
+
         const [playlistData, playlistStats, similar] = await Promise.all([
           cachedPlaylist ? Promise.resolve(cachedPlaylist) : playlistService.getPlaylistById(id),
           analyticsService.getPlaylistStats(id),
           searchService.getSimilarPlaylists(id, 4)
         ]);
-  
+
         setPlaylist(playlistData);
         setStats(playlistStats);
         setSimilarPlaylists(similar);
-  
-        // FIXED: Track view dengan better logic
+
         if (!viewCountedRef.current) {
           try {
             await trackView(id);
             viewCountedRef.current = true;
-            console.log('✅ View tracked for playlist:', id);
           } catch (trackError) {
             console.error('❌ Error tracking view:', trackError);
           }
         }
-  
+
       } catch (err) {
         console.error('Error loading playlist:', err);
         setError('Playlist tidak ditemukan atau terjadi error');
@@ -67,39 +74,40 @@ const PlaylistDetail = () => {
         setLoading(false);
       }
     };
-  
+
     loadPlaylistData();
   }, [id, playlists, trackView]);
-  
 
-  // ⚡ FIX: Handle like dengan better feedback
-  const handleLike = async () => {
-    if (!playlist) return;
-    
-    try {
-      await likePlaylist(playlist.id);
-      // Optimistic update
-      setPlaylist(prev => ({
-        ...prev,
-        like_count: (prev.like_count || 0) + 1
-      }));
-      
-      // Update stats juga
-      if (stats) {
-        setStats(prev => ({
-          ...prev,
-          engagement: {
-            ...prev.engagement,
-            likes: prev.engagement.likes + 1
-          }
-        }));
-      }
-      
-      console.log('✅ Liked playlist:', playlist.id);
-    } catch (error) {
-      console.error('Error liking playlist:', error);
-    }
+  // HANDLE CARD CLICK - SANGAT SEDERHANA
+  const handleCardClick = (book) => {
+    console.log('🎯 Card clicked:', book?.judul || 'null (closing)');
+    setSelectedBook(book); // book = null ketika close
   };
+
+  // Handle like playlist
+const [isLiking, setIsLiking] = useState(false);
+
+const handleLike = async () => {
+  if (!playlist || isLiking) return;
+  
+  setIsLiking(true);
+  try {
+    await likePlaylist(playlist.id);
+    
+    // Animasi local state
+    setPlaylist(prev => ({
+      ...prev,
+      like_count: (prev.like_count || 0) + 1
+    }));
+
+    // Notification akan muncul otomatis dari context
+    
+  } catch (error) {
+    console.error('Error liking playlist:', error);
+  } finally {
+    setIsLiking(false);
+  }
+};
 
   // Filter books based on search
   const filteredBooks = playlist?.books?.filter(book => 
@@ -108,41 +116,34 @@ const PlaylistDetail = () => {
     book.penerbit?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  // Extract year from tahun_terbit
-  const extractYear = (tahunStr) => {
-    const match = tahunStr?.match(/\d{4}/);
-    return match ? parseInt(match[0]) : null;
-  };
-
-if (loading && initialLoad) {
-  return (
-    <Layout>
-      <div style={{
-        textAlign: 'center',
-        padding: '3rem',
-        color: '#718096'
-      }}>
-        <div style={{ 
-          fontSize: '2rem', 
-          marginBottom: '1rem',
-          animation: 'pulse 1.5s infinite'
-        }}>📚</div>
-        <div>Memuat playlist...</div>
-        <div style={{ fontSize: '0.8rem', marginTop: '1rem', color: '#a0aec0' }}>
-          Mengambil data dari server
+  if (loading && initialLoad) {
+    return (
+      <Layout>
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem',
+          color: '#718096'
+        }}>
+          <div style={{ 
+            fontSize: '2rem', 
+            marginBottom: '1rem',
+            animation: 'pulse 1.5s infinite'
+          }}>📚</div>
+          <div>Memuat playlist...</div>
+          <div style={{ fontSize: '0.8rem', marginTop: '1rem', color: '#a0aec0' }}>
+            Mengambil data dari server
+          </div>
         </div>
-      </div>
-      <style jsx>{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
-        }
-      `}</style>
-    </Layout>
-  );
-}
-
+        <style jsx>{`
+          @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+          }
+        `}</style>
+      </Layout>
+    );
+  }
 
   if (error || !playlist) {
     return (
@@ -263,26 +264,29 @@ if (loading && initialLoad) {
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
-              <button
-                onClick={handleLike}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  color: 'white',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.3)'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.2)'}
-              >
-                ❤️ Like Playlist
-              </button>
+<button
+  onClick={handleLike}
+  disabled={isLiking}
+  style={{
+    padding: '0.75rem 1.5rem',
+    backgroundColor: isLiking ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)',
+    color: 'white',
+    border: '1px solid rgba(255,255,255,0.3)',
+    borderRadius: '8px',
+    cursor: isLiking ? 'not-allowed' : 'pointer',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    transition: 'all 0.3s ease',
+    transform: isLiking ? 'scale(0.95)' : 'scale(1)',
+    animation: isLiking ? 'pulse 0.6s ease-in-out' : 'none'
+  }}
+  onMouseEnter={(e) => !isLiking && (e.target.style.backgroundColor = 'rgba(255,255,255,0.3)')}
+  onMouseLeave={(e) => !isLiking && (e.target.style.backgroundColor = 'rgba(255,255,255,0.2)')}
+>
+  {isLiking ? '❤️' : '❤️'} Like Playlist
+</button>
               
               {playlist.created_by === userId && (
                 <button
@@ -355,228 +359,79 @@ if (loading && initialLoad) {
         margin: '0 auto 3rem auto',
         padding: '0 2rem'
       }}>
-          {view === 'books' && (
-            <div>
-              {/* Search Box - tetap sama */}
-              <div style={{
-                marginBottom: '2rem',
-                position: 'relative',
-                maxWidth: '400px'
-              }}>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Cari buku dalam playlist..."
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 1rem 0.75rem 2.5rem',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-                <span style={{
-                  position: 'absolute',
-                  left: '0.75rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#718096'
-                }}>
-                  🔍
-                </span>
-              </div>
-
-     {/* Books Grid - UPDATE INI */}
-    {filteredBooks.length === 0 ? (
-      <div style={{
-        textAlign: 'center',
-        padding: '3rem',
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
-        <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
-          {searchTerm ? 'Buku tidak ditemukan' : 'Belum ada buku dalam playlist'}
-        </h3>
-        <p style={{ color: '#718096' }}>
-          {searchTerm
-            ? 'Coba kata kunci pencarian lain'
-            : 'Tambahkan buku pertama ke playlist ini'
-          }
-        </p>
-      </div>
-    ) : (
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-        gap: '1.5rem'
-      }}>
-        {filteredBooks.map((book, index) => (
-          <div
-            key={book.id || index}
-            style={{
-              backgroundColor: 'white',
-              padding: '1.5rem',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              border: '1px solid #e2e8f0',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
+        {view === 'books' && (
+          <div>
+            {/* Search Box */}
+            <div style={{
+              marginBottom: '2rem',
               position: 'relative',
-              overflow: 'hidden'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-            }}
-            onClick={() => {
-              window.open(`/?highlight=${book.id}`, '_blank');
-            }}
-          >
-            {/* Judul Buku */}
-            <h3 style={{
-              margin: '0 0 0.75rem 0',
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              color: '#2d3748',
-              lineHeight: '1.4',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
+              maxWidth: '400px'
             }}>
-              {book.judul}
-            </h3>
-
-            {/* Informasi Buku */}
-            <div style={{ marginBottom: '1rem' }}>
-              {book.pengarang && (
-                <div style={{ 
-                  fontSize: '0.9rem', 
-                  color: '#4a5568', 
-                  marginBottom: '0.5rem',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.5rem'
-                }}>
-                  <span style={{ 
-                    fontWeight: '600', 
-                    minWidth: '80px' 
-                  }}>Pengarang:</span>
-                  <span>{book.pengarang}</span>
-                </div>
-              )}
-              
-              {book.tahun_terbit && (
-                <div style={{ 
-                  fontSize: '0.9rem', 
-                  color: '#4a5568', 
-                  marginBottom: '0.5rem',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.5rem'
-                }}>
-                  <span style={{ 
-                    fontWeight: '600', 
-                    minWidth: '80px' 
-                  }}>Tahun:</span>
-                  <span style={{
-                    backgroundColor: extractYear(book.tahun_terbit) ? '#f0fff4' : '#fffaf0',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: '4px',
-                    fontFamily: 'monospace',
-                    fontSize: '0.8rem'
-                  }}>
-                    {book.tahun_terbit}
-                  </span>
-                </div>
-              )}
-              
-              {book.penerbit && (
-                <div style={{ 
-                  fontSize: '0.9rem', 
-                  color: '#4a5568',
-                  marginBottom: '0.5rem',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.5rem'
-                }}>
-                  <span style={{ 
-                    fontWeight: '600', 
-                    minWidth: '80px' 
-                  }}>Penerbit:</span>
-                  <span>{book.penerbit}</span>
-                </div>
-              )}
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari buku dalam playlist..."
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem 0.75rem 2.5rem',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  outline: 'none'
+                }}
+              />
+              <span style={{
+                position: 'absolute',
+                left: '0.75rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#718096'
+              }}>
+                🔍
+              </span>
             </div>
 
-            {/* Deskripsi Fisik - SAMA DENGAN BOOKCARD */}
-            {book.deskripsi_fisik && (
+            {/* Books Grid - MENGGUNAKAN BOOKCARD COMPONENT ASLI */}
+            {filteredBooks.length === 0 ? (
               <div style={{
-                padding: '0.75rem',
-                backgroundColor: '#f7fafc',
-                borderRadius: '6px',
-                border: '1px solid #e2e8f0',
-                marginBottom: '1rem'
+                textAlign: 'center',
+                padding: '3rem',
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
               }}>
-                <div style={{
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  color: '#4a5568',
-                  marginBottom: '0.25rem'
-                }}>
-                  Deskripsi Fisik:
-                </div>
-                <p style={{
-                  fontSize: '0.8rem',
-                  color: '#718096',
-                  fontStyle: 'italic',
-                  lineHeight: '1.4',
-                  margin: 0,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
-                }}>
-                  {book.deskripsi_fisik}
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
+                <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
+                  {searchTerm ? 'Buku tidak ditemukan' : 'Belum ada buku dalam playlist'}
+                </h3>
+                <p style={{ color: '#718096' }}>
+                  {searchTerm
+                    ? 'Coba kata kunci pencarian lain'
+                    : 'Tambahkan buku pertama ke playlist ini'
+                  }
                 </p>
               </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+                gap: '1.5rem',
+                alignItems: 'stretch'
+              }}>
+                {filteredBooks.map((book, index) => (
+                  <BookCard 
+                    key={book.id || index}
+                    book={book}
+                    isSelected={selectedBook?.id === book.id}
+                    showDescription={selectedBook?.id === book.id}
+                    onCardClick={handleCardClick}
+                  />
+                ))}
+              </div>
             )}
-
-            {/* Footer dengan info tanggal */}
-            <div style={{
-              paddingTop: '1rem',
-              borderTop: '1px solid #e2e8f0',
-              fontSize: '0.7rem',
-              color: '#718096',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <span>Ditambahkan: {new Date(book.added_at || playlist.created_at).toLocaleDateString('id-ID')}</span>
-              <span style={{
-                backgroundColor: '#4299e1',
-                color: 'white',
-                padding: '0.2rem 0.5rem',
-                borderRadius: '4px',
-                fontSize: '0.65rem',
-                fontWeight: '500'
-              }}>📖 Lihat Buku</span>
-            </div>
           </div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
-
+        )}
 
         {view === 'stats' && stats && (
           <div style={{
@@ -885,96 +740,125 @@ if (loading && initialLoad) {
           </div>
         )}
 
-{view === 'similar' && (
-  <div>
-    <h2 style={{ color: '#2d3748', marginBottom: '1.5rem' }}>🔍 Playlist Serupa</h2>
-    {similarPlaylists.length === 0 ? (
-      <div style={{
-        textAlign: 'center',
-        padding: '2rem',
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤔</div>
-        <p style={{ color: '#718096' }}>
-          Belum ada playlist yang serupa ditemukan
-        </p>
-      </div>
-    ) : (
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-        gap: '1.5rem'
-      }}>
-        {similarPlaylists.map(similar => (
-          <div
-            key={similar.id}
-            style={{
-              backgroundColor: 'white',
-              padding: '1.5rem',
-              borderRadius: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              border: '1px solid #e2e8f0',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              position: 'relative',
-              overflow: 'hidden',
-              outline: 'none'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-            }}
-            onClick={() => router.push(`/playlists/${similar.id}`)}
-          >
-            <h3 style={{
-              margin: '0 0 0.5rem 0',
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              color: '#2d3748',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
-            }}>
-              {similar.name}
-            </h3>
-            {similar.description && (
-              <p style={{
-                fontSize: '0.85rem',
-                color: '#718096',
-                marginBottom: '1rem',
-                lineHeight: '1.4',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
+        {view === 'similar' && (
+          <div>
+            <h2 style={{ color: '#2d3748', marginBottom: '1.5rem' }}>🔍 Playlist Serupa</h2>
+            {similarPlaylists.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '2rem',
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
               }}>
-                {similar.description}
-              </p>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤔</div>
+                <p style={{ color: '#718096' }}>
+                  Belum ada playlist yang serupa ditemukan
+                </p>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '1.5rem'
+              }}>
+                {similarPlaylists.map(similar => (
+                  <div
+                    key={similar.id}
+                    style={{
+                      backgroundColor: 'white',
+                      padding: '1.5rem',
+                      borderRadius: '12px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      border: '1px solid #e2e8f0',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                    }}
+                    onClick={() => router.push(`/playlists/${similar.id}`)}
+                  >
+                    <h3 style={{
+                      margin: '0 0 0.5rem 0',
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                      color: '#2d3748'
+                    }}>
+                      {similar.name}
+                    </h3>
+                    {similar.description && (
+                      <p style={{
+                        fontSize: '0.85rem',
+                        color: '#718096',
+                        marginBottom: '1rem',
+                        lineHeight: '1.4'
+                      }}>
+                        {similar.description}
+                      </p>
+                    )}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '0.8rem',
+                      color: '#718096'
+                    }}>
+                      <span>📚 {similar.books?.length || 0} buku</span>
+                      <span>❤️ {similar.like_count || 0}</span>
+                      <span>{similar._commonBooks} buku sama</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: '0.8rem',
-              color: '#718096'
-            }}>
-              <span>📚 {similar.books?.length || 0} buku</span>
-              <span>❤️ {similar.like_count || 0}</span>
-              <span>{similar._commonBooks} buku sama</span>
-            </div>
           </div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
+        )}
       </section>
+
+      {/* CSS Animation */}
+      <style>
+      {`
+        @keyframes fadeIn {
+          from { 
+            opacity: 0; 
+            transform: translateY(10px); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translateY(0); 
+          }
+        }
+        
+        .book-card-hover {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .book-card-hover:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15) !important;
+        }
+      `}
+      </style>
+      <style jsx>{`
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); }
+        }
+        
+        @keyframes heartBeat {
+          0% { transform: scale(1); }
+          25% { transform: scale(1.3); }
+          50% { transform: scale(1); }
+          75% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
+      `}</style>
     </Layout>
   );
 };

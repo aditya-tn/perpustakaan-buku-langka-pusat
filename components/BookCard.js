@@ -1,4 +1,4 @@
-// components/BookCard.js - COMPLETE FIXED VERSION WITH PLAYLIST INDICATORS
+// components/BookCard.js - UPDATED VERSION WITH BETTER PLAYLIST INDICATORS
 import { useState } from 'react';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import BookDescription from './BookDescription';
@@ -33,7 +33,7 @@ const extractYearFromString = (yearStr) => {
 const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescription = false }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPlaylistForm, setShowPlaylistForm] = useState(false);
-  const { playlists } = usePlaylist();
+  const { playlists, trackView } = usePlaylist();
 
   // Cari playlist yang berisi buku ini
   const playlistsContainingBook = playlists.filter(playlist => 
@@ -68,6 +68,27 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
       onCardClick(null);
     }
     console.log('Playlist created:', newPlaylist);
+  };
+
+  // Handle klik playlist indicator - TAMBAHKAN TRACK VIEW
+  const handlePlaylistClick = async (playlistId, playlistName, e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    console.log('🎯 Opening playlist:', playlistName, playlistId);
+    
+    try {
+      // Track view sebelum membuka playlist
+      await trackView(playlistId);
+      console.log('✅ View tracked for playlist:', playlistId);
+      
+      // Buka playlist di tab baru
+      window.open(`/playlists/${playlistId}`, '_blank');
+    } catch (error) {
+      console.error('❌ Error tracking view:', error);
+      // Tetap buka playlist meski tracking gagal
+      window.open(`/playlists/${playlistId}`, '_blank');
+    }
   };
 
   // Jika kartu dipilih, tampilkan BookDescription ATAU CreatePlaylistForm
@@ -250,78 +271,6 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           </div>
         </div>
 
-        {/* PLAYLIST INDICATORS - FITUR BARU */}
-        {playlistsContainingBook.length > 0 && (
-          <div style={{
-            marginBottom: '1rem',
-            padding: '0.75rem',
-            backgroundColor: '#f0fff4',
-            border: '1px solid #9ae6b4',
-            borderRadius: '8px',
-            fontSize: '0.8rem'
-          }}>
-            <div style={{
-              fontWeight: '600',
-              color: '#22543d',
-              marginBottom: '0.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              📚 Sudah di {playlistsContainingBook.length} playlist
-            </div>
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '0.4rem'
-            }}>
-              {playlistsContainingBook.slice(0, 3).map(playlist => (
-                <span 
-                  key={playlist.id}
-                  style={{
-                    backgroundColor: '#c6f6d5',
-                    color: '#22543d',
-                    padding: '0.3rem 0.6rem',
-                    borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    border: '1px solid #9ae6b4',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(`/playlists/${playlist.id}`, '_blank');
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#9ae6b4';
-                    e.target.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#c6f6d5';
-                    e.target.style.transform = 'translateY(0)';
-                  }}
-                >
-                  {playlist.name}
-                </span>
-              ))}
-              {playlistsContainingBook.length > 3 && (
-                <span style={{
-                  color: '#38a169',
-                  fontSize: '0.75rem',
-                  fontStyle: 'italic',
-                  padding: '0.3rem 0.6rem',
-                  backgroundColor: '#f0fff4',
-                  borderRadius: '6px',
-                  border: '1px dashed #9ae6b4'
-                }}>
-                  +{playlistsContainingBook.length - 3} lainnya
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
         {book.deskripsi_fisik && (
           <p style={{ 
             fontSize: isMobile ? '0.75rem' : '0.85rem', 
@@ -339,6 +288,86 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           </p>
         )}
       </div>
+
+      {/* PLAYLIST INDICATORS - POSISI BARU: DI ATAS TOMBOL PLAYLIST */}
+      {playlistsContainingBook.length > 0 && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '0.75rem',
+          backgroundColor: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          fontSize: '0.8rem'
+        }}>
+          <div style={{
+            fontWeight: '600',
+            color: '#4a5568',
+            marginBottom: '0.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '0.75rem'
+          }}>
+            📚 Buku ini masuk dalam playlist:
+          </div>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.4rem'
+          }}>
+            {playlistsContainingBook.slice(0, 3).map(playlist => (
+              <span 
+                key={playlist.id}
+                style={{
+                  backgroundColor: '#edf2f7',
+                  color: '#4a5568',
+                  padding: '0.3rem 0.6rem',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  border: '1px solid #cbd5e0',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={(e) => handlePlaylistClick(playlist.id, playlist.name, e)}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#e2e8f0';
+                  e.target.style.transform = 'translateY(-1px)';
+                  e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#edf2f7';
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                {playlist.name}
+              </span>
+            ))}
+            {playlistsContainingBook.length > 3 && (
+              <span 
+                style={{
+                  color: '#718096',
+                  fontSize: '0.75rem',
+                  fontStyle: 'italic',
+                  padding: '0.3rem 0.6rem',
+                  backgroundColor: '#f7fafc',
+                  borderRadius: '6px',
+                  border: '1px dashed #cbd5e0',
+                  cursor: 'pointer'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Buka halaman playlists dengan filter
+                  window.open('/playlists', '_blank');
+                }}
+              >
+                +{playlistsContainingBook.length - 3} lainnya
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div style={{ 
