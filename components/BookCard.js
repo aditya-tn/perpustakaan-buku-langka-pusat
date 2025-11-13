@@ -1,4 +1,4 @@
-// components/BookCard.js - COMPLETE FIXED VERSION WITH UPDATED PLAYLIST INDICATORS
+// components/BookCard.js - COMPLETE FIXED VERSION WITH PLAYLIST INDICATORS
 import { useState } from 'react';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import BookDescription from './BookDescription';
@@ -140,9 +140,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
-        overflow: 'hidden',
-        outline: 'none'
+        transform: isHovered ? 'translateY(-2px)' : 'translateY(0)'
       }}
     >
       {/* Exact Title Match Indicator */}
@@ -213,11 +211,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             margin: '0',
             flex: 1,
             transition: 'color 0.3s ease',
-            paddingRight: '0.5rem',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
+            paddingRight: '0.5rem'
           }}>
             {book.judul}
           </h4>
@@ -255,6 +249,78 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
           </div>
         </div>
+
+        {/* PLAYLIST INDICATORS - FITUR BARU */}
+        {playlistsContainingBook.length > 0 && (
+          <div style={{
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            backgroundColor: '#f0fff4',
+            border: '1px solid #9ae6b4',
+            borderRadius: '8px',
+            fontSize: '0.8rem'
+          }}>
+            <div style={{
+              fontWeight: '600',
+              color: '#22543d',
+              marginBottom: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              📚 Sudah di {playlistsContainingBook.length} playlist
+            </div>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.4rem'
+            }}>
+              {playlistsContainingBook.slice(0, 3).map(playlist => (
+                <span 
+                  key={playlist.id}
+                  style={{
+                    backgroundColor: '#c6f6d5',
+                    color: '#22543d',
+                    padding: '0.3rem 0.6rem',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    border: '1px solid #9ae6b4',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(`/playlists/${playlist.id}`, '_blank');
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#9ae6b4';
+                    e.target.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#c6f6d5';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  {playlist.name}
+                </span>
+              ))}
+              {playlistsContainingBook.length > 3 && (
+                <span style={{
+                  color: '#38a169',
+                  fontSize: '0.75rem',
+                  fontStyle: 'italic',
+                  padding: '0.3rem 0.6rem',
+                  backgroundColor: '#f0fff4',
+                  borderRadius: '6px',
+                  border: '1px dashed #9ae6b4'
+                }}>
+                  +{playlistsContainingBook.length - 3} lainnya
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {book.deskripsi_fisik && (
           <p style={{ 
@@ -343,78 +409,6 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           </a>
         )}
       </div>
-
-      {/* PLAYLIST INDICATORS - DIPINDAH KE BAWAH SETELAH ACTION BUTTONS */}
-      {playlistsContainingBook.length > 0 && (
-        <div style={{
-          marginTop: '0.75rem',
-          padding: '0.75rem',
-          backgroundColor: '#f0fff4',
-          border: '1px solid #9ae6b4',
-          borderRadius: '8px',
-          fontSize: '0.8rem'
-        }}>
-          <div style={{
-            fontWeight: '600',
-            color: '#22543d',
-            marginBottom: '0.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}>
-            📚 Buku termasuk dalam playlist:
-          </div>
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.4rem'
-          }}>
-            {playlistsContainingBook.slice(0, 3).map(playlist => (
-              <span 
-                key={playlist.id}
-                style={{
-                  backgroundColor: '#c6f6d5',
-                  color: '#22543d',
-                  padding: '0.3rem 0.6rem',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  border: '1px solid #9ae6b4',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.open(`/playlists/${playlist.id}`, '_blank');
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#9ae6b4';
-                  e.target.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#c6f6d5';
-                  e.target.style.transform = 'translateY(0)';
-                }}
-              >
-                {playlist.name}
-              </span>
-            ))}
-            {playlistsContainingBook.length > 3 && (
-              <span style={{
-                color: '#38a169',
-                fontSize: '0.75rem',
-                fontStyle: 'italic',
-                padding: '0.3rem 0.6rem',
-                backgroundColor: '#f0fff4',
-                borderRadius: '6px',
-                border: '1px dashed #9ae6b4'
-              }}>
-                +{playlistsContainingBook.length - 3} lainnya
-              </span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
