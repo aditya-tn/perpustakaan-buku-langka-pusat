@@ -132,156 +132,150 @@ const PlaylistsPage = () => {
   );
 
   // Playlist card component
-// Di pages/playlists.js - UPDATE PLAYLIST CARD COMPONENT
-const PlaylistCard = ({ playlist }) => {
-  const { trackView } = usePlaylist(); // TAMBAHKAN INI
-  const router = useRouter();
-
-  const handleCardClick = async () => {
-    // Track view sebelum redirect
-    await trackView(playlist.id);
-    // Redirect ke detail playlist
+const PlaylistCard = ({ playlist }) => (
+  <div style={{
+    backgroundColor: 'white',
+    padding: '1.5rem',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0',
+    transition: 'all 0.3s ease',
+    cursor: 'pointer',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    position: 'relative', // Tambahkan ini
+    overflow: 'hidden', // Tambahkan untuk prevent content overflow
+    outline: 'none' // Hilangkan default outline
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = 'translateY(-4px)';
+    e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+  }}
+  onClick={() => {
     router.push(`/playlists/${playlist.id}`);
-  };
-
-  return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: '1.5rem',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      border: '1px solid #e2e8f0',
-      transition: 'all 0.3s ease',
-      cursor: 'pointer',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
+  }}
+  >
+    {/* Header */}
+    <div style={{ 
+      marginBottom: '1rem',
       position: 'relative',
-      overflow: 'hidden',
-      outline: 'none'
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-4px)';
-      e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-    }}
-    onClick={handleCardClick} // GUNAKAN FUNGSI BARU
-    >
-      {/* Konten card yang sama seperti sebelumnya */}
-      <div style={{ marginBottom: '1rem' }}>
-        <h3 style={{
-          margin: '0 0 0.5rem 0',
-          fontSize: '1.1rem',
-          fontWeight: '600',
-          color: '#2d3748',
-          lineHeight: '1.4',
+      zIndex: 1 
+    }}>
+      <h3 style={{
+        margin: '0 0 0.5rem 0',
+        fontSize: '1.1rem',
+        fontWeight: '600',
+        color: '#2d3748',
+        lineHeight: '1.4',
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden'
+      }}>
+        {playlist.name}
+      </h3>
+      {playlist.description && (
+        <p style={{
+          margin: 0,
+          fontSize: '0.85rem',
+          color: '#718096',
+          lineHeight: '1.5',
           display: '-webkit-box',
           WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden'
         }}>
-          {playlist.name}
-        </h3>
-        {playlist.description && (
-          <p style={{
-            margin: 0,
-            fontSize: '0.85rem',
-            color: '#718096',
-            lineHeight: '1.5',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
-          }}>
-            {playlist.description}
-          </p>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div style={{
-        display: 'flex',
-        gap: '1rem',
-        marginBottom: '1rem',
-        fontSize: '0.75rem',
-        color: '#718096'
-      }}>
-        <span>📚 {playlist.books?.length || 0} buku</span>
-        <span>❤️ {playlist.like_count || 0}</span>
-        <span>👁️ {playlist.view_count || 0}</span>
-      </div>
-
-      {/* Book preview */}
-      {playlist.books && playlist.books.length > 0 && (
-        <div style={{ marginTop: 'auto' }}>
-          <div style={{
-            fontSize: '0.8rem',
-            fontWeight: '600',
-            color: '#4a5568',
-            marginBottom: '0.5rem'
-          }}>
-            Beberapa buku:
-          </div>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.25rem'
-          }}>
-            {playlist.books.slice(0, 3).map((book, index) => (
-              <div key={index} style={{
-                fontSize: '0.75rem',
-                color: '#718096',
-                padding: '0.25rem 0.5rem',
-                backgroundColor: '#f7fafc',
-                borderRadius: '4px',
-                border: '1px solid #e2e8f0',
-                display: '-webkit-box',
-                WebkitLineClamp: 1,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
-              }}>
-                {book.judul}
-                {book.pengarang && ` - ${book.pengarang}`}
-              </div>
-            ))}
-            {playlist.books.length > 3 && (
-              <div style={{
-                fontSize: '0.7rem',
-                color: '#4299e1',
-                textAlign: 'center',
-                fontStyle: 'italic'
-              }}>
-                +{playlist.books.length - 3} buku lainnya
-              </div>
-            )}
-          </div>
-        </div>
+          {playlist.description}
+        </p>
       )}
-
-      {/* Footer */}
-      <div style={{
-        marginTop: '1rem',
-        paddingTop: '1rem',
-        borderTop: '1px solid #e2e8f0',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        fontSize: '0.7rem',
-        color: '#718096'
-      }}>
-        <span>
-          Dibuat oleh {playlist.created_by === userId ? 'Anda' : 'Komunitas'}
-        </span>
-        <span>
-          {new Date(playlist.created_at).toLocaleDateString('id-ID')}
-        </span>
-      </div>
     </div>
-  );
-};
+
+    {/* Stats */}
+    <div style={{
+      display: 'flex',
+      gap: '1rem',
+      marginBottom: '1rem',
+      fontSize: '0.75rem',
+      color: '#718096'
+    }}>
+      <span>📚 {playlist.books?.length || 0} buku</span>
+      <span>❤️ {playlist.like_count || 0}</span>
+      <span>👁️ {playlist.view_count || 0}</span>
+    </div>
+
+    {/* Book preview - SAMA DENGAN YANG SEBELUMNYA */}
+    {playlist.books && playlist.books.length > 0 && (
+      <div style={{ marginTop: 'auto' }}>
+        <div style={{
+          fontSize: '0.8rem',
+          fontWeight: '600',
+          color: '#4a5568',
+          marginBottom: '0.5rem'
+        }}>
+          Beberapa buku:
+        </div>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.25rem'
+        }}>
+          {playlist.books.slice(0, 3).map((book, index) => (
+            <div key={index} style={{
+              fontSize: '0.75rem',
+              color: '#718096',
+              padding: '0.25rem 0.5rem',
+              backgroundColor: '#f7fafc',
+              borderRadius: '4px',
+              border: '1px solid #e2e8f0',
+              display: '-webkit-box',
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}>
+              {book.judul}
+              {book.pengarang && ` - ${book.pengarang}`}
+            </div>
+          ))}
+          {playlist.books.length > 3 && (
+            <div style={{
+              fontSize: '0.7rem',
+              color: '#4299e1',
+              textAlign: 'center',
+              fontStyle: 'italic'
+            }}>
+              +{playlist.books.length - 3} buku lainnya
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* Footer */}
+    <div style={{
+      marginTop: '1rem',
+      paddingTop: '1rem',
+      borderTop: '1px solid #e2e8f0',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      fontSize: '0.7rem',
+      color: '#718096'
+    }}>
+      <span>
+        Dibuat oleh {playlist.created_by === userId ? 'Anda' : 'Komunitas'}
+      </span>
+      <span>
+        {new Date(playlist.created_at).toLocaleDateString('id-ID')}
+      </span>
+    </div>
+  </div>
+);
+
   return (
     <Layout>
       <Head>
