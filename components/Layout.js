@@ -5,8 +5,9 @@ import Header from './Header'
 import Footer from './Footer'
 import Chatbot from './Chatbot'
 
-export default function Layout({ children, isMobile }) {
+export default function Layout({ children, isMobile: propIsMobile }) {
   const [currentPath, setCurrentPath] = useState('')
+  const [isMobile, setIsMobile] = useState(propIsMobile || false)
   const [chatbotConfig, setChatbotConfig] = useState({
     enabled: true,
     autoOpen: false,
@@ -14,6 +15,31 @@ export default function Layout({ children, isMobile }) {
     welcomeMessage: true
   })
   const router = useRouter()
+
+  // Mobile detection - FALLBACK jika prop tidak ada
+  useEffect(() => {
+    // Jika prop isMobile sudah ada, gunakan itu
+    if (propIsMobile !== undefined) {
+      setIsMobile(propIsMobile)
+      return
+    }
+
+    // Fallback: detect mobile sendiri
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+    }
+
+    // Check initial
+    checkMobile()
+
+    // Add event listener
+    window.addEventListener('resize', checkMobile)
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+    }
+  }, [propIsMobile])
 
   useEffect(() => {
     setCurrentPath(router.pathname)

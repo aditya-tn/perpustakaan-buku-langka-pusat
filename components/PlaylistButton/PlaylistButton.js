@@ -1,5 +1,5 @@
-// components/PlaylistButton/PlaylistButton.js - UPDATED WITH NOTIFICATIONS
-import { useState } from 'react';
+// components/PlaylistButton/PlaylistButton.js - UPDATED WITH MOBILE SUPPORT
+import { useState, useEffect } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 
 // Safe notification hook untuk avoid errors
@@ -27,19 +27,46 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
   const [showDropdown, setShowDropdown] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [addingToPlaylist, setAddingToPlaylist] = useState(null); // Track which playlist is being added to
-  
+  const [isMobile, setIsMobile] = useState(false);
+
   const { playlists, addToPlaylist } = usePlaylist();
   const { addNotification } = useNotificationSafe();
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close dropdown when clicking outside (especially for mobile)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showDropdown && !event.target.closest('.playlist-button-container')) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showDropdown]);
 
   const handleAddToPlaylist = async (playlistId) => {
     const playlist = playlists.find(p => p.id === playlistId);
     if (!playlist || !book) return;
 
     setAddingToPlaylist(playlistId);
-    
     try {
       const result = await addToPlaylist(playlistId, book);
-      
       // Notification tambahan untuk UI feedback yang lebih spesifik
       if (result.success) {
         addNotification({
@@ -53,7 +80,6 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
           }
         });
       }
-      
       setShowDropdown(false);
     } catch (error) {
       // Error notification sudah dihandle di context, tapi kita bisa kasih feedback tambahan
@@ -66,19 +92,15 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
   // ⚡ Handle create playlist click
   const handleCreateClick = (e) => {
     e.stopPropagation();
-    
     // Close book description if open
     if (onCloseBookDescription) {
       onCloseBookDescription();
     }
-    
     // Show playlist form
     if (onShowPlaylistForm) {
       onShowPlaylistForm();
     }
-    
     setShowDropdown(false);
-    
     // Notification untuk create playlist
     addNotification({
       type: 'info',
@@ -89,12 +111,17 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
   };
 
   // Filter playlists yang tidak mengandung buku ini (untuk avoid duplicate)
-  const availablePlaylists = playlists.filter(playlist => 
+  const availablePlaylists = playlists.filter(playlist =>
     !playlist.books?.some(b => b.id === book.id)
   );
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
+    <div className="playlist-button-container" style={{ 
+      position: 'relative', 
+      display: 'inline-block',
+      width: isMobile ? '100%' : 'auto'
+    }}>
+      
       {/* Tombol Utama */}
       <button
         onClick={(e) => {
@@ -107,18 +134,20 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
         style={{
           backgroundColor: isHovered ? '#2b6cb0' : '#4299e1',
           color: 'white',
-          padding: '0.4rem 0.8rem',
+          padding: isMobile ? '0.6rem 1rem' : '0.4rem 0.8rem',
           borderRadius: '6px',
           border: 'none',
-          fontSize: '0.75rem',
+          fontSize: isMobile ? '0.9rem' : '0.75rem',
           fontWeight: '500',
           cursor: addingToPlaylist ? 'not-allowed' : 'pointer',
           transition: 'all 0.3s ease',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'center',
           gap: '0.25rem',
           opacity: addingToPlaylist ? 0.7 : 1,
-          transform: addingToPlaylist ? 'scale(0.98)' : 'scale(1)'
+          transform: addingToPlaylist ? 'scale(0.98)' : 'scale(1)',
+          width: isMobile ? '100%' : 'auto'
         }}
       >
         {addingToPlaylist ? (
@@ -133,22 +162,27 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
         )}
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown Menu - POSITION FIX FOR MOBILE */}
       {showDropdown && (
         <div style={{
-          position: 'absolute',
-          bottom: '100%',
-          right: 0,
+          position: isMobile ? 'fixed' : 'absolute',
+          bottom: isMobile ? '0' : '100%',
+          left: isMobile ? '0' : 'auto',
+          right: isMobile ? '0' : '0',
+          top: isMobile ? 'auto' : 'auto',
           backgroundColor: 'white',
           border: '1px solid #e2e8f0',
-          borderRadius: '12px',
+          borderRadius: isMobile ? '12px 12px 0 0' : '12px',
           boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-          minWidth: '280px',
+          minWidth: isMobile ? '100%' : '280px',
+          maxWidth: isMobile ? '100%' : '400px',
           zIndex: 1000,
-          marginBottom: '8px',
-          animation: 'slideDown 0.2s ease-out',
-          backdropFilter: 'blur(10px)'
+          marginBottom: isMobile ? '0' : '8px',
+          animation: isMobile ? 'slideUp 0.3s ease-out' : 'slideDown 0.2s ease-out',
+          maxHeight: isMobile ? '70vh' : '400px',
+          overflowY: 'auto'
         }}>
+          
           {/* Header */}
           <div style={{
             padding: '1rem',
@@ -157,11 +191,14 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
             color: '#2d3748',
             borderBottom: '1px solid #f7fafc',
             backgroundColor: '#f8fafc',
-            borderTopLeftRadius: '12px',
-            borderTopRightRadius: '12px',
+            borderTopLeftRadius: isMobile ? '12px' : '12px',
+            borderTopRightRadius: isMobile ? '12px' : '12px',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            position: isMobile ? 'sticky' : 'static',
+            top: 0,
+            zIndex: 1
           }}>
             <span>📚</span>
             Pilih Playlist
@@ -174,6 +211,53 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
               {availablePlaylists.length} tersedia
             </span>
           </div>
+
+          {/* Close Button for Mobile */}
+          {isMobile && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // ⚡ PENTING: Stop event propagation
+                e.preventDefault(); // ⚡ PENTING: Prevent default behavior
+                setShowDropdown(false);
+              }}
+              style={{
+                position: 'absolute',
+                top: '0.75rem',
+                right: '0.75rem',
+                background: 'none',
+                border: 'none',
+                fontSize: '1.5rem',
+                color: '#718096',
+                cursor: 'pointer',
+                zIndex: 1002, // ⚡ PASTIKAN z-index tinggi
+                width: '40px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(0,0,0,0.05)';
+                e.target.style.color = '#4a5568';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'rgba(255,255,255,0.9)';
+                e.target.style.color = '#718096';
+              }}
+              onTouchStart={(e) => {
+                // Feedback visual untuk touch
+                e.target.style.backgroundColor = 'rgba(0,0,0,0.1)';
+              }}
+              onTouchEnd={(e) => {
+                e.target.style.backgroundColor = 'rgba(255,255,255,0.9)';
+              }}
+            >
+              ×
+            </button>
+          )}
 
           {/* List Playlists */}
           {availablePlaylists.length === 0 ? (
@@ -190,7 +274,7 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
               </div>
             </div>
           ) : (
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            <div style={{ maxHeight: isMobile ? '50vh' : '200px', overflowY: 'auto' }}>
               {availablePlaylists.map(playlist => (
                 <div
                   key={playlist.id}
@@ -224,7 +308,7 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     {addingToPlaylist === playlist.id ? (
-                      <span style={{ 
+                      <span style={{
                         animation: 'pulse 1s infinite',
                         color: '#48bb78'
                       }}>
@@ -233,14 +317,13 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
                     ) : (
                       <span>📁</span>
                     )}
-                    <span style={{ 
+                    <span style={{
                       fontWeight: '500',
                       color: addingToPlaylist === playlist.id ? '#48bb78' : '#2d3748'
                     }}>
                       {playlist.name}
                     </span>
                   </div>
-                  
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -256,7 +339,6 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
                     }}>
                       {playlist.books?.length || 0}
                     </span>
-                    
                     {addingToPlaylist === playlist.id && (
                       <div style={{
                         width: '16px',
@@ -268,7 +350,6 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
                       }} />
                     )}
                   </div>
-                  
                   {/* Loading bar effect */}
                   {addingToPlaylist === playlist.id && (
                     <div style={{
@@ -301,8 +382,10 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              borderBottomLeftRadius: '12px',
-              borderBottomRightRadius: '12px'
+              borderBottomLeftRadius: isMobile ? '0' : '12px',
+              borderBottomRightRadius: isMobile ? '0' : '12px',
+              position: isMobile ? 'sticky' : 'static',
+              bottom: 0
             }}
             onMouseEnter={(e) => {
               e.target.style.backgroundColor = '#c6f6d5';
@@ -329,6 +412,17 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
           to {
             opacity: 1;
             transform: translateY(0) scale(1);
+          }
+        }
+        
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(100%);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
         

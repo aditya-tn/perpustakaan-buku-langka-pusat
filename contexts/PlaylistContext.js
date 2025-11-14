@@ -81,6 +81,8 @@ export const PlaylistProvider = ({ children }) => {
       tahun_terbit: book.tahun_terbit || book.year || '',
       penerbit: book.penerbit || book.publisher || '',
       deskripsi_fisik: book.deskripsi_fisik || book.description || '',
+      lihat_opac: book.lihat_opac || '',
+      link_pesan_koleksi: book.link_pesan_koleksi || '',
       added_at: book.added_at || new Date().toISOString(),
       _denormalized: true,
       _validated: true
@@ -162,6 +164,7 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
+  
   // ========================
   // CORE OPERATIONS
   // ========================
@@ -393,7 +396,7 @@ export const PlaylistProvider = ({ children }) => {
   };
 
   /**
-   * Remove book from playlist
+   * Remove book from playlist dengan hybrid approach
    */
   const removeFromPlaylist = async (playlistId, bookId) => {
     setLoading(true);
@@ -406,23 +409,36 @@ export const PlaylistProvider = ({ children }) => {
       const bookToRemove = playlist.books?.find(b => b.id === bookId);
       const updatedBooks = (playlist.books || []).filter(book => book.id !== bookId);
 
+      let updatedPlaylist;
+      let supabaseSuccess = false;
+
       try {
         // Try Supabase first only for Supabase playlists
         if (playlistId.length === 36 && !playlistId.startsWith('local_')) {
-          await playlistService.updatePlaylist(playlistId, {
+          console.log('🔄 Attempting to remove book from Supabase...');
+          updatedPlaylist = await playlistService.updatePlaylist(playlistId, {
             books: updatedBooks
           });
+          supabaseSuccess = true;
+          console.log('✅ Book removed from Supabase:', { playlistId, bookId });
+        } else {
+          console.log('📱 Local playlist, skipping Supabase');
+          throw new Error('Local playlist');
         }
       } catch (supabaseError) {
         console.error('❌ Supabase update failed, using localStorage:', supabaseError);
+        // Fallback: update locally
+        updatedPlaylist = {
+          ...playlist,
+          books: updatedBooks,
+          updated_at: new Date().toISOString()
+        };
       }
 
       // Update local state
       setPlaylists(prev => {
         const updated = prev.map(p =>
-          p.id === playlistId
-            ? { ...p, books: updatedBooks, updated_at: new Date().toISOString() }
-            : p
+          p.id === playlistId ? updatedPlaylist : p
         );
         saveToLocalStorage(updated);
         return updated;
@@ -434,13 +450,34 @@ export const PlaylistProvider = ({ children }) => {
           type: 'info',
           title: 'Buku Dihapus',
           message: `"${bookToRemove.judul}" dihapus dari playlist`,
-          icon: '🗑️'
+          icon: '🗑️',
+          action: supabaseSuccess ? {
+            label: 'Lihat Perubahan',
+            onClick: () => window.location.reload()
+          } : {
+            label: 'Hanya Lokal',
+            onClick: () => console.log('Perubahan tersimpan lokal')
+          }
         });
       }
 
-      return true;
+      return {
+        success: true,
+        storedInSupabase: supabaseSuccess,
+        message: 'Buku berhasil dihapus dari playlist'
+      };
+
     } catch (error) {
       console.error('❌ Error removing from playlist:', error);
+      
+      // NOTIFICATION ERROR
+      addNotification({
+        type: 'error',
+        title: 'Gagal Menghapus Buku',
+        message: error.message,
+        icon: '❌'
+      });
+      
       throw error;
     } finally {
       setLoading(false);

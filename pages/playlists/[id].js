@@ -10,7 +10,7 @@ import BookCard from '../../components/BookCard';
 const PlaylistDetail = () => {
   const router = useRouter();
   const { id } = router.query;
-  const { playlists, userId, likePlaylist, trackView } = usePlaylist();
+  const { playlists, userId, likePlaylist, trackView, deletePlaylist, removeFromPlaylist } = usePlaylist();
   
   const [initialLoad, setInitialLoad] = useState(true);
   const [playlist, setPlaylist] = useState(null);
@@ -20,6 +20,18 @@ const PlaylistDetail = () => {
   const [similarPlaylists, setSimilarPlaylists] = useState([]);
   const [view, setView] = useState('books');
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleteBookConfirm, setDeleteBookConfirm] = useState(null);
+
+  // Function untuk handle remove book
+  const handleRemoveBook = async (bookId) => {
+    try {
+      await removeFromPlaylist(id, bookId);
+      setDeleteBookConfirm(null);
+    } catch (error) {
+      console.error('Failed to remove book:', error);
+    }
+  };
   
   // STATE UNTUK EXPANDABLE CARDS - SEDERHANA SEPERTI BERANDA
   const [selectedBook, setSelectedBook] = useState(null);
@@ -264,49 +276,67 @@ const handleLike = async () => {
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
-<button
-  onClick={handleLike}
-  disabled={isLiking}
-  style={{
-    padding: '0.75rem 1.5rem',
-    backgroundColor: isLiking ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)',
-    color: 'white',
-    border: '1px solid rgba(255,255,255,0.3)',
-    borderRadius: '8px',
-    cursor: isLiking ? 'not-allowed' : 'pointer',
-    fontWeight: '500',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    transition: 'all 0.3s ease',
-    transform: isLiking ? 'scale(0.95)' : 'scale(1)',
-    animation: isLiking ? 'pulse 0.6s ease-in-out' : 'none'
-  }}
-  onMouseEnter={(e) => !isLiking && (e.target.style.backgroundColor = 'rgba(255,255,255,0.3)')}
-  onMouseLeave={(e) => !isLiking && (e.target.style.backgroundColor = 'rgba(255,255,255,0.2)')}
->
-  {isLiking ? '❤️' : '❤️'} Like Playlist
-</button>
-              
-              {playlist.created_by === userId && (
-                <button
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    color: 'white',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  ✏️ Edit Playlist
-                </button>
-              )}
+              <button
+                onClick={handleLike}
+                disabled={isLiking}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: isLiking ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '8px',
+                  cursor: isLiking ? 'not-allowed' : 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.3s ease',
+                  transform: isLiking ? 'scale(0.95)' : 'scale(1)',
+                  animation: isLiking ? 'pulse 0.6s ease-in-out' : 'none'
+                }}
+                onMouseEnter={(e) => !isLiking && (e.target.style.backgroundColor = 'rgba(255,255,255,0.3)')}
+                onMouseLeave={(e) => !isLiking && (e.target.style.backgroundColor = 'rgba(255,255,255,0.2)')}
+              >
+                {isLiking ? '❤️' : '❤️'} Like Playlist
+              </button>
+
+              {/* TOMBOL DELETE - SIAPAPUN BISA HAPUS */}
+              <button
+                onClick={() => setDeleteConfirm({
+                  playlistId: playlist.id,
+                  playlistName: playlist.name,
+                  bookCount: playlist.books?.length || 0,
+                  step: 1,
+                  verificationText: '',
+                  pasteAttempted: false
+                })}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: 'rgba(245, 101, 101, 0.9)',
+                  color: 'white',
+                  border: '1px solid rgba(245, 101, 101, 0.5)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  justifyContent: 'center',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = 'rgba(229, 62, 62, 0.9)';
+                  e.target.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'rgba(245, 101, 101, 0.9)';
+                  e.target.style.transform = 'translateY(0)';
+                }}
+              >
+                🗑️ Hapus Playlist
+              </button>
             </div>
+
           </div>
         </div>
       </section>
@@ -416,16 +446,25 @@ const handleLike = async () => {
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-                gap: '1.5rem',
+                gap: '4rem',
                 alignItems: 'stretch'
               }}>
                 {filteredBooks.map((book, index) => (
-                  <BookCard 
+                  <BookCard
                     key={book.id || index}
                     book={book}
                     isSelected={selectedBook?.id === book.id}
                     showDescription={selectedBook?.id === book.id}
                     onCardClick={handleCardClick}
+                    onRemoveBook={(bookId) => {
+                      const bookToDelete = filteredBooks.find(b => b.id === bookId);
+                      setDeleteBookConfirm({
+                        bookId,
+                        bookTitle: bookToDelete?.judul || 'Buku ini',
+                        playlistName: playlist.name,
+                        step: 1  // ← TAMBAH INI untuk 2-step system
+                      });
+                    }}
                   />
                 ))}
               </div>
@@ -697,6 +736,7 @@ const handleLike = async () => {
               </div>
             )}
         
+            
             {/* Playlist Metadata */}
             <div style={{
               marginTop: '2rem',
@@ -818,6 +858,435 @@ const handleLike = async () => {
             )}
           </div>
         )}
+
+              {/* ⬇️⬇️⬇️ PASTE DELETE CONFIRMATION MODAL DI SINI ⬇️⬇️⬇️ */}
+      {deleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '1rem'
+        }}
+        onClick={() => setDeleteConfirm(null)}
+        >
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+            maxWidth: '450px',
+            width: '100%',
+            textAlign: 'center'
+          }}
+          onClick={(e) => e.stopPropagation()}
+          >
+            {/* STEP 1: Konfirmasi Basic */}
+            {deleteConfirm.step === 1 && (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                  Hapus Playlist?
+                </h3>
+                <p style={{ color: '#718096', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                  Anda akan menghapus playlist:<br />
+                  <strong>"{deleteConfirm.playlistName}"</strong>
+                </p>
+                
+                <div style={{ 
+                  backgroundColor: '#fffaf0', 
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  border: '1px solid #fed7d7',
+                  marginBottom: '1.5rem',
+                  textAlign: 'left'
+                }}>
+                  <div style={{ fontWeight: '600', color: '#c53030', marginBottom: '0.5rem' }}>
+                    ⚠️ Perhatian:
+                  </div>
+                  <ul style={{ color: '#744210', fontSize: '0.9rem', margin: 0, paddingLeft: '1.2rem', lineHeight: '1.4' }}>
+                    <li>Playlist akan dihapus permanen</li>
+                    <li>{deleteConfirm.bookCount} buku akan dihapus dari playlist</li>
+                    <li>Tindakan ini tidak dapat dibatalkan</li>
+                  </ul>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => setDeleteConfirm(null)}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#e2e8f0',
+                      color: '#4a5568',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      flex: 1
+                    }}
+                  >
+                    Batalkan
+                  </button>
+                  <button 
+                    onClick={() => setDeleteConfirm(prev => ({ ...prev, step: 2 }))}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#f56565',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      flex: 1
+                    }}
+                  >
+                    Lanjutkan
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* STEP 2: Verifikasi Nama Playlist - NO PASTE ALLOWED */}
+            {deleteConfirm.step === 2 && (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                  Verifikasi Penghapusan
+                </h3>
+                <p style={{ color: '#718096', marginBottom: '1rem', lineHeight: '1.5' }}>
+                  Ketik <strong>manual</strong> nama playlist berikut:<br />
+                  <strong style={{ color: '#e53e3e', fontSize: '1.1rem' }}>
+                    "{deleteConfirm.playlistName}"
+                  </strong>
+                </p>
+
+                {/* Warning Message */}
+                <div style={{
+                  backgroundColor: '#fffaf0',
+                  padding: '0.75rem',
+                  borderRadius: '6px',
+                  border: '1px solid #fed7d7',
+                  marginBottom: '1rem',
+                  fontSize: '0.8rem',
+                  color: '#744210'
+                }}>
+                  ⚠️ <strong>Copy-paste tidak diperbolehkan.</strong> Harap ketik manual.
+                </div>
+
+                <input
+                  type="text"
+                  value={deleteConfirm.verificationText || ''}
+                  onChange={(e) => setDeleteConfirm(prev => ({ 
+                    ...prev, 
+                    verificationText: e.target.value 
+                  }))}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    setDeleteConfirm(prev => ({ 
+                      ...prev, 
+                      pasteAttempted: true 
+                    }));
+                    
+                    e.target.style.borderColor = '#f56565';
+                    e.target.style.backgroundColor = '#fed7d7';
+                    setTimeout(() => {
+                      e.target.style.borderColor = '#e2e8f0';
+                      e.target.style.backgroundColor = 'white';
+                    }, 1000);
+                  }}
+                  onCopy={(e) => e.preventDefault()}
+                  onCut={(e) => e.preventDefault()}
+                  placeholder="Ketik manual nama playlist..."
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: deleteConfirm.pasteAttempted ? '2px solid #f56565' : '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '0.9rem',
+                    marginBottom: '0.5rem',
+                    outline: 'none',
+                    backgroundColor: deleteConfirm.pasteAttempted ? '#fed7d7' : 'white',
+                    transition: 'all 0.3s ease'
+                  }}
+                />
+
+                {deleteConfirm.pasteAttempted && (
+                  <div style={{
+                    color: '#e53e3e',
+                    fontSize: '0.8rem',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    ❌ Copy-paste tidak diperbolehkan. Harap ketik manual.
+                  </div>
+                )}
+
+                {/* Typing indicator */}
+                <div style={{
+                  fontSize: '0.7rem',
+                  color: '#718096',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  {deleteConfirm.verificationText && deleteConfirm.verificationText !== deleteConfirm.playlistName && (
+                    <>❌ Teks tidak sesuai</>
+                  )}
+                  {deleteConfirm.verificationText && deleteConfirm.verificationText === deleteConfirm.playlistName && (
+                    <>✅ Teks sesuai</>
+                  )}
+                  {!deleteConfirm.verificationText && (
+                    <>⌨️ Ketik nama playlist di atas</>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => setDeleteConfirm(prev => ({ ...prev, step: 1, verificationText: '', pasteAttempted: false }))}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#e2e8f0',
+                      color: '#4a5568',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      flex: 1
+                    }}
+                  >
+                    Kembali
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await deletePlaylist(deleteConfirm.playlistId);
+                        setDeleteConfirm(null);
+                        router.push('/playlists');
+                      } catch (error) {
+                        console.error('Delete failed:', error);
+                        setDeleteConfirm(null);
+                      }
+                    }}
+                    disabled={deleteConfirm.verificationText !== deleteConfirm.playlistName}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: deleteConfirm.verificationText === deleteConfirm.playlistName ? '#f56565' : '#cbd5e0',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: deleteConfirm.verificationText === deleteConfirm.playlistName ? 'pointer' : 'not-allowed',
+                      fontWeight: '500',
+                      flex: 1,
+                      opacity: deleteConfirm.verificationText === deleteConfirm.playlistName ? 1 : 0.6
+                    }}
+                  >
+                    Hapus Permanen
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ⬆️⬆️⬆️ HINGGA DI SINI ⬆️⬆️⬆️ */}
+      
+      {/* Delete Book Confirmation Modal dengan 2-Step Verification */}
+      {deleteBookConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '1rem'
+        }}
+        onClick={() => setDeleteBookConfirm(null)}
+        >
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+            maxWidth: '500px',
+            width: '100%',
+            textAlign: 'center'
+          }}
+          onClick={(e) => e.stopPropagation()}
+          >
+            {/* STEP 1: Konfirmasi Basic */}
+            {deleteBookConfirm.step === 1 && (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
+                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                  Hapus Buku dari Playlist?
+                </h3>
+                <p style={{ color: '#718096', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                  Anda akan menghapus buku:<br />
+                  <strong style={{ color: '#2d3748', fontSize: '1.1rem' }}>
+                    "{deleteBookConfirm.bookTitle}"
+                  </strong>
+                </p>
+                
+                <div style={{ 
+                  backgroundColor: '#fffaf0', 
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  border: '1px solid #fed7d7',
+                  marginBottom: '1.5rem',
+                  textAlign: 'left'
+                }}>
+                  <div style={{ fontWeight: '600', color: '#c53030', marginBottom: '0.5rem' }}>
+                    ⚠️ Perhatian:
+                  </div>
+                  <ul style={{ color: '#744210', fontSize: '0.9rem', margin: 0, paddingLeft: '1.2rem', lineHeight: '1.4' }}>
+                    <li>Buku akan dihapus dari playlist "{deleteBookConfirm.playlistName}"</li>
+                    <li>Buku tetap tersedia di koleksi utama</li>
+                    <li>Tindakan ini tidak dapat dibatalkan</li>
+                  </ul>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => setDeleteBookConfirm(null)}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#e2e8f0',
+                      color: '#4a5568',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      flex: 1
+                    }}
+                  >
+                    Batalkan
+                  </button>
+                  <button 
+                    onClick={() => setDeleteBookConfirm(prev => ({ ...prev, step: 2 }))}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#f56565',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      flex: 1
+                    }}
+                  >
+                    Lanjutkan
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* STEP 2: Pertanyaan Kontekstual */}
+            {deleteBookConfirm.step === 2 && (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤔</div>
+                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                  Konfirmasi Penghapusan
+                </h3>
+                
+                {/* PERTANYAAN KONTEKSTUAL */}
+                <div style={{
+                  backgroundColor: '#ebf8ff',
+                  padding: '1.5rem',
+                  borderRadius: '8px',
+                  border: '1px solid #bee3f8',
+                  marginBottom: '1.5rem',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ 
+                    color: '#2b6cb0', 
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 0.5rem 0',
+                    lineHeight: '1.4'
+                  }}>
+                    Apakah buku
+                  </p>
+                  <p style={{ 
+                    color: '#2d3748', 
+                    fontSize: '1.1rem',
+                    fontWeight: '700',
+                    margin: '0 0 0.5rem 0'
+                  }}>
+                    "{deleteBookConfirm.bookTitle}"
+                  </p>
+                  <p style={{ 
+                    color: '#2b6cb0', 
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: 0,
+                    lineHeight: '1.4'
+                  }}>
+                    tidak cocok untuk playlist<br />
+                    <span style={{ color: '#2d3748' }}>"{deleteBookConfirm.playlistName}"</span> ini?
+                  </p>
+                </div>
+
+                <p style={{ 
+                  color: '#718096', 
+                  fontSize: '0.9rem',
+                  marginBottom: '2rem',
+                  lineHeight: '1.5'
+                }}>
+                  Tindakan ini membantu kami memahami preferensi kurasi komunitas.
+                </p>
+
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => setDeleteBookConfirm(prev => ({ ...prev, step: 1 }))}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#e2e8f0',
+                      color: '#4a5568',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      flex: 1
+                    }}
+                  >
+                    Kembali
+                  </button>
+                  <button 
+                    onClick={() => handleRemoveBook(deleteBookConfirm.bookId)}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#f56565',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      flex: 1
+                    }}
+                  >
+                    Ya, Tidak Cocok
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      
       </section>
 
       {/* CSS Animation */}

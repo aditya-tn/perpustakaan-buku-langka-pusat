@@ -30,7 +30,7 @@ const extractYearFromString = (yearStr) => {
   return null;
 };
 
-const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescription = false }) => {
+const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescription = false, onRemoveBook = null }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPlaylistForm, setShowPlaylistForm] = useState(false);
   const { playlists, trackView } = usePlaylist();
@@ -370,74 +370,114 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
       )}
 
       {/* Action Buttons */}
-      <div style={{ 
-        marginTop: '0.75rem',
-        display: 'flex', 
-        gap: '0.75rem',
-        flexWrap: 'wrap'
-      }}>
-        {/* Playlist Button */}
-        <PlaylistButton 
-          book={book} 
-          onShowPlaylistForm={() => {
-            if (!isSelected) {
-              onCardClick(book);
-            }
-            setShowPlaylistForm(true);
-          }}
-          onCloseBookDescription={() => onCardClick(null)}
-        />
+<div style={{
+  marginTop: '0.75rem',
+  display: 'flex',
+  gap: '0.75rem',
+  flexWrap: 'wrap',
+  justifyContent: 'space-between', // ← Biar tombol rata kiri-kanan
+  alignItems: 'center'
+}}>
 
-        {/* Tombol OPAC */}
-        {book.lihat_opac && book.lihat_opac !== 'null' && (
-          <a 
-            href={book.lihat_opac}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: isHovered ? '#3182ce' : '#4299e1',
-              color: 'white',
-              padding: '0.4rem 0.8rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              transition: 'all 0.3s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem'
-            }}
-          >
-            📖 OPAC
-          </a>
-        )}
-      
-        {/* Tombol Pesan Koleksi */}
-        {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
-          <a 
-            href={book.link_pesan_koleksi}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: isHovered ? '#38a169' : '#48bb78',
-              color: 'white',
-              padding: '0.4rem 0.8rem',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              transition: 'all 0.3s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem'
-            }}
-          >
-            📥 Pesan
-          </a>
-        )}
-      </div>
+  {/* Left Side: Playlist Button + OPAC + Pesan */}
+  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+    <PlaylistButton
+      book={book}
+      onShowPlaylistForm={() => {
+        if (!isSelected) {
+          onCardClick(book);
+        }
+        setShowPlaylistForm(true);
+      }}
+      onCloseBookDescription={() => onCardClick(null)}
+    />
+
+    {/* Tombol OPAC */}
+    {book.lihat_opac && book.lihat_opac !== 'null' && (
+      <a
+        href={book.lihat_opac}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: isHovered ? '#3182ce' : '#4299e1',
+          color: 'white',
+          padding: '0.4rem 0.8rem',
+          borderRadius: '6px',
+          textDecoration: 'none',
+          fontSize: '0.75rem',
+          fontWeight: '500',
+          transition: 'all 0.3s ease',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.25rem'
+        }}
+      >
+        📖 OPAC
+      </a>
+    )}
+
+    {/* Tombol Pesan */}
+    {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
+      <a
+        href={book.link_pesan_koleksi}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: isHovered ? '#38a169' : '#48bb78',
+          color: 'white',
+          padding: '0.4rem 0.8rem',
+          borderRadius: '6px',
+          textDecoration: 'none',
+          fontSize: '0.75rem',
+          fontWeight: '500',
+          transition: 'all 0.3s ease',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.25rem'
+        }}
+      >
+        📥 Pesan
+      </a>
+    )}
+  </div>
+
+  {/* Right Side: Delete Button (Hanya di playlist detail) */}
+  {onRemoveBook && (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onRemoveBook(book.id);
+      }}
+      style={{
+        backgroundColor: '#f56565',
+        color: 'white',
+        padding: '0.4rem 0.8rem',
+        borderRadius: '6px',
+        border: 'none',
+        fontSize: '0.75rem',
+        fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.25rem'
+      }}
+      onMouseEnter={(e) => {
+        e.target.style.backgroundColor = '#e53e3e';
+        e.target.style.transform = 'scale(1.05)';
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.backgroundColor = '#f56565';
+        e.target.style.transform = 'scale(1)';
+      }}
+    >
+      🗑️ Hapus dari playlist
+    </button>
+  )}
+
+</div>
     </div>
   );
 };
