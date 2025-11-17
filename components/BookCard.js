@@ -1,42 +1,40 @@
-// components/BookCard.js - UPDATED VERSION WITH BETTER PLAYLIST INDICATORS
+// components/BookCard.js - FIXED VERSION
 import { useState } from 'react';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import BookDescription from './BookDescription';
-import PlaylistButton from './PlaylistButton/PlaylistButton';
 import CreatePlaylistForm from './PlaylistModal/CreatePlaylistForm';
+import IntegratedModeSelection from './PlaylistModal/IntegratedModeSelection';
 
 // Helper function untuk extract tahun
 const extractYearFromString = (yearStr) => {
   if (!yearStr) return null;
-  
   const exactYearMatch = yearStr.match(/^(\d{4})$/);
   if (exactYearMatch) {
     const year = parseInt(exactYearMatch[1]);
     return (year >= 1000 && year <= 2999) ? year : null;
   }
-  
   const bracketYearMatch = yearStr.match(/\[(\d{4})\]/);
   if (bracketYearMatch) {
     const year = parseInt(bracketYearMatch[1]);
     return (year >= 1000 && year <= 2999) ? year : null;
   }
-  
   const approxYearMatch = yearStr.match(/(\d{4})/);
   if (approxYearMatch) {
     const year = parseInt(approxYearMatch[1]);
     return (year >= 1000 && year <= 2999) ? year : null;
   }
-  
   return null;
 };
 
 const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescription = false, onRemoveBook = null }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPlaylistForm, setShowPlaylistForm] = useState(false);
+  const [showModeSelection, setShowModeSelection] = useState(false);
+  
   const { playlists, trackView } = usePlaylist();
 
   // Cari playlist yang berisi buku ini
-  const playlistsContainingBook = playlists.filter(playlist => 
+  const playlistsContainingBook = playlists.filter(playlist =>
     playlist.books?.some(b => b.id === book.id)
   );
 
@@ -52,11 +50,13 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
       onCardClick(null);
     }
     setShowPlaylistForm(false);
+    setShowModeSelection(false);
   };
 
-  // Handle playlist form close - SELALU close card
+  // Handle playlist form close
   const handlePlaylistFormClose = () => {
     setShowPlaylistForm(false);
+    setShowModeSelection(false);
     if (onCardClick) {
       onCardClick(null);
     }
@@ -64,37 +64,55 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
 
   const handlePlaylistCreated = (newPlaylist) => {
     setShowPlaylistForm(false);
+    setShowModeSelection(false);
     if (onCardClick) {
       onCardClick(null);
     }
     console.log('Playlist created:', newPlaylist);
   };
 
-  // Handle klik playlist indicator - TAMBAHKAN TRACK VIEW
+  // Handle klik playlist indicator - CARA YANG SUDAH BERHASIL
   const handlePlaylistClick = async (playlistId, playlistName, e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     console.log('🎯 Opening playlist:', playlistName, playlistId);
-    
     try {
-      // Track view sebelum membuka playlist
       await trackView(playlistId);
       console.log('✅ View tracked for playlist:', playlistId);
-      
-      // Buka playlist di tab baru
       window.open(`/playlists/${playlistId}`, '_blank');
     } catch (error) {
       console.error('❌ Error tracking view:', error);
-      // Tetap buka playlist meski tracking gagal
       window.open(`/playlists/${playlistId}`, '_blank');
     }
   };
 
-  // Jika kartu dipilih, tampilkan BookDescription ATAU CreatePlaylistForm
-  if (isSelected && (showDescription || showPlaylistForm)) {
+  // FIXED: Handle mode selection show - GUNAKAN CARA YANG SAMA DENGAN FITUR LAIN
+  const handleShowModeSelection = (e) => {
+    // Gunakan cara yang sama dengan handlePlaylistClick yang berhasil
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    
+    console.log('🎯 Opening mode selection for:', book.judul);
+    
+    // Jika card belum selected, select dulu
+    if (!isSelected && onCardClick) {
+      console.log('🔵 Selecting card first');
+      onCardClick(book);
+    }
+    
+    // Tampilkan mode selection
+    setShowModeSelection(true);
+    setShowPlaylistForm(false);
+  };
+
+  // Jika kartu dipilih, tampilkan konten yang sesuai
+  if (isSelected && (showDescription || showPlaylistForm || showModeSelection)) {
     return (
-      <div 
+      <div
         className="book-card-hover"
         style={{
           backgroundColor: 'white',
@@ -105,31 +123,28 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           transition: 'all 0.3s ease',
           position: 'relative',
           minHeight: '200px',
-          cursor: 'pointer'
+          cursor: 'default'
         }}
-        onClick={(e) => {
-          const isInteractiveElement = 
-            e.target.tagName === 'BUTTON' || 
-            e.target.tagName === 'INPUT' ||
-            e.target.tagName === 'TEXTAREA' ||
-            e.target.closest('button') || 
-            e.target.closest('input') ||
-            e.target.closest('textarea');
-          
-          if (!isInteractiveElement) {
-            handleCloseDescription();
-          }
-        }}
+        // ⚡ Tidak ada onClick handler untuk mencegah accidental closes
       >
         {showPlaylistForm ? (
-          <CreatePlaylistForm 
+          <CreatePlaylistForm
             book={book}
             onClose={handlePlaylistFormClose}
             onCreated={handlePlaylistCreated}
           />
+        ) : showModeSelection ? (
+          <IntegratedModeSelection
+            book={book}
+            onClose={handleCloseDescription}
+            onShowPlaylistForm={() => {
+              setShowModeSelection(false);
+              setShowPlaylistForm(true);
+            }}
+          />
         ) : (
-          <BookDescription 
-            book={book} 
+          <BookDescription
+            book={book}
             onClose={handleCloseDescription}
             autoOpen={true}
           />
@@ -139,7 +154,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
   }
 
   return (
-    <div 
+    <div
       className="book-card-hover"
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -148,11 +163,11 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
         backgroundColor: 'white',
         padding: isMobile ? '1.25rem' : '1.5rem',
         borderRadius: '12px',
-        boxShadow: isHovered ? 
-          '0 8px 25px rgba(0,0,0,0.15)' : 
+        boxShadow: isHovered ?
+          '0 8px 25px rgba(0,0,0,0.15)' :
           isSelected ? '0 4px 12px rgba(66, 153, 225, 0.15)' : '0 2px 8px rgba(0,0,0,0.08)',
-        border: isSelected ? 
-          '2px solid #4299e1' : 
+        border: isSelected ?
+          '2px solid #4299e1' :
           isHovered ? '2px solid #e2e8f0' : '1px solid #f0f0f0',
         transition: 'all 0.3s ease',
         cursor: 'pointer',
@@ -181,7 +196,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           EXACT TITLE
         </div>
       )}
-      
+
       {/* Symbol Variation Match Indicator */}
       {book._matchType === 'symbol-variation' && (
         <div style={{
@@ -199,7 +214,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           SYMBOL MATCH
         </div>
       )}
-      
+
       {/* Relevance Indicator */}
       {book._relevanceScore > 100 && book._matchType === 'fuzzy' && (
         <div style={{
@@ -216,15 +231,15 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           🔥 Relevan
         </div>
       )}
-      
+
       {/* Book Content */}
       <div style={{ flex: 1 }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'flex-start', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
           marginBottom: '0.75rem'
         }}>
-          <h4 style={{ 
+          <h4 style={{
             fontWeight: '600',
             color: isSelected ? '#4299e1' : '#2d3748',
             fontSize: isMobile ? '1rem' : '1.1rem',
@@ -237,21 +252,20 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             {book.judul}
           </h4>
         </div>
-        
         <div style={{ marginBottom: '1rem' }}>
-          <div style={{ 
-            fontSize: isMobile ? '0.8rem' : '0.9rem', 
-            color: '#4a5568', 
-            marginBottom: '0.25rem' 
+          <div style={{
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
+            color: '#4a5568',
+            marginBottom: '0.25rem'
           }}>
             <strong>Pengarang:</strong> {book.pengarang || 'Tidak diketahui'}
           </div>
-          <div style={{ 
-            fontSize: isMobile ? '0.8rem' : '0.9rem', 
-            color: '#4a5568', 
-            marginBottom: '0.25rem' 
+          <div style={{
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
+            color: '#4a5568',
+            marginBottom: '0.25rem'
           }}>
-            <strong>Tahun:</strong> 
+            <strong>Tahun:</strong>
             <span style={{
               backgroundColor: extractYearFromString(book.tahun_terbit) ? '#f0fff4' : '#fffaf0',
               padding: '0.1rem 0.3rem',
@@ -263,18 +277,17 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
               {!extractYearFromString(book.tahun_terbit) && book.tahun_terbit && ' ⚠️'}
             </span>
           </div>
-          <div style={{ 
-            fontSize: isMobile ? '0.8rem' : '0.9rem', 
-            color: '#4a5568' 
+          <div style={{
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
+            color: '#4a5568'
           }}>
             <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
           </div>
         </div>
-
         {book.deskripsi_fisik && (
-          <p style={{ 
-            fontSize: isMobile ? '0.75rem' : '0.85rem', 
-            color: '#718096', 
+          <p style={{
+            fontSize: isMobile ? '0.75rem' : '0.85rem',
+            color: '#718096',
             marginTop: '0.75rem',
             lineHeight: '1.5',
             fontStyle: 'italic',
@@ -289,7 +302,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
         )}
       </div>
 
-      {/* PLAYLIST INDICATORS - POSISI BARU: DI ATAS TOMBOL PLAYLIST */}
+      {/* PLAYLIST INDICATORS */}
       {playlistsContainingBook.length > 0 && (
         <div style={{
           marginBottom: '1rem',
@@ -316,7 +329,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             gap: '0.4rem'
           }}>
             {playlistsContainingBook.slice(0, 3).map(playlist => (
-              <span 
+              <span
                 key={playlist.id}
                 style={{
                   backgroundColor: '#edf2f7',
@@ -345,7 +358,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
               </span>
             ))}
             {playlistsContainingBook.length > 3 && (
-              <span 
+              <span
                 style={{
                   color: '#718096',
                   fontSize: '0.75rem',
@@ -357,8 +370,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
                   cursor: 'pointer'
                 }}
                 onClick={(e) => {
-                  e.stopPropagation();
-                  // Buka halaman playlists dengan filter
+                  if (e) e.stopPropagation();
                   window.open('/playlists', '_blank');
                 }}
               >
@@ -369,115 +381,123 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
         </div>
       )}
 
-      {/* Action Buttons */}
-<div style={{
-  marginTop: '0.75rem',
-  display: 'flex',
-  gap: '0.75rem',
-  flexWrap: 'wrap',
-  justifyContent: 'space-between', // ← Biar tombol rata kiri-kanan
-  alignItems: 'center'
-}}>
-
-  {/* Left Side: Playlist Button + OPAC + Pesan */}
-  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-    <PlaylistButton
-      book={book}
-      onShowPlaylistForm={() => {
-        if (!isSelected) {
-          onCardClick(book);
-        }
-        setShowPlaylistForm(true);
-      }}
-      onCloseBookDescription={() => onCardClick(null)}
-    />
-
-    {/* Tombol OPAC */}
-    {book.lihat_opac && book.lihat_opac !== 'null' && (
-      <a
-        href={book.lihat_opac}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          backgroundColor: isHovered ? '#3182ce' : '#4299e1',
-          color: 'white',
-          padding: '0.4rem 0.8rem',
-          borderRadius: '6px',
-          textDecoration: 'none',
-          fontSize: '0.75rem',
-          fontWeight: '500',
-          transition: 'all 0.3s ease',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.25rem'
-        }}
-      >
-        📖 OPAC
-      </a>
-    )}
-
-    {/* Tombol Pesan */}
-    {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
-      <a
-        href={book.link_pesan_koleksi}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          backgroundColor: isHovered ? '#38a169' : '#48bb78',
-          color: 'white',
-          padding: '0.4rem 0.8rem',
-          borderRadius: '6px',
-          textDecoration: 'none',
-          fontSize: '0.75rem',
-          fontWeight: '500',
-          transition: 'all 0.3s ease',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.25rem'
-        }}
-      >
-        📥 Pesan
-      </a>
-    )}
-  </div>
-
-  {/* Right Side: Delete Button (Hanya di playlist detail) */}
-  {onRemoveBook && (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onRemoveBook(book.id);
-      }}
-      style={{
-        backgroundColor: '#f56565',
-        color: 'white',
-        padding: '0.4rem 0.8rem',
-        borderRadius: '6px',
-        border: 'none',
-        fontSize: '0.75rem',
-        fontWeight: '500',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
+      {/* Action Buttons - GUNAKAN CARA YANG SAMA DENGAN FITUR LAIN YANG BERHASIL */}
+      <div style={{
+        marginTop: '0.75rem',
         display: 'flex',
-        alignItems: 'center',
-        gap: '0.25rem'
-      }}
-      onMouseEnter={(e) => {
-        e.target.style.backgroundColor = '#e53e3e';
-        e.target.style.transform = 'scale(1.05)';
-      }}
-      onMouseLeave={(e) => {
-        e.target.style.backgroundColor = '#f56565';
-        e.target.style.transform = 'scale(1)';
-      }}
-    >
-      🗑️ Hapus dari playlist
-    </button>
-  )}
+        gap: '0.75rem',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        {/* Left Side: Playlist Button + OPAC + Pesan */}
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {/* FIXED: Gunakan cara yang sama dengan tombol OPAC yang berhasil */}
+          <button
+            onClick={handleShowModeSelection} // ⚡ LANGSUNG panggil function, tanpa wrapper
+            style={{
+              backgroundColor: isHovered ? '#2b6cb0' : '#4299e1',
+              color: 'white',
+              padding: '0.4rem 0.8rem',
+              borderRadius: '6px',
+              border: 'none',
+              fontSize: '0.75rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
+          >
+            📚 Tambah ke Playlist
+          </button>
 
-</div>
+          {/* Tombol OPAC - CARA YANG SUDAH BERHASIL */}
+          {book.lihat_opac && book.lihat_opac !== 'null' && (
+            <a
+              href={book.lihat_opac}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: isHovered ? '#3182ce' : '#4299e1',
+                color: 'white',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+            >
+              📖 OPAC
+            </a>
+          )}
+
+          {/* Tombol Pesan - CARA YANG SUDAH BERHASIL */}
+          {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
+            <a
+              href={book.link_pesan_koleksi}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: isHovered ? '#38a169' : '#48bb78',
+                color: 'white',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+            >
+              📥 Pesan
+            </a>
+          )}
+        </div>
+
+        {/* Right Side: Delete Button - CARA YANG SUDAH BERHASIL */}
+        {onRemoveBook && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemoveBook(book.id);
+            }}
+            style={{
+              backgroundColor: '#f56565',
+              color: 'white',
+              padding: '0.4rem 0.8rem',
+              borderRadius: '6px',
+              border: 'none',
+              fontSize: '0.75rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#e53e3e';
+              e.target.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#f56565';
+              e.target.style.transform = 'scale(1)';
+            }}
+          >
+            🗑️ Hapus dari playlist
+          </button>
+        )}
+      </div>
     </div>
   );
 };

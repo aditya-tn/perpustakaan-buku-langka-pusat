@@ -1,6 +1,9 @@
-// components/PlaylistButton/PlaylistButton.js - UPDATED WITH MOBILE SUPPORT
+// components/PlaylistButton/PlaylistButton.js - COMPLETE UPDATED VERSION
 import { useState, useEffect } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
+import ChoiceModal from '../PlaylistModal/ChoiceModal';
+import ExpertPlaylistDropdown from './ExpertPlaylistDropdown';
+import NovicePlaylistRecommendations from './NovicePlaylistRecommendations';
 
 // Safe notification hook untuk avoid errors
 const useNotificationSafe = () => {
@@ -26,8 +29,12 @@ const useNotificationSafe = () => {
 const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [addingToPlaylist, setAddingToPlaylist] = useState(null); // Track which playlist is being added to
+  const [addingToPlaylist, setAddingToPlaylist] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // STATE BARU UNTUK DUAL MODE
+  const [currentMode, setCurrentMode] = useState(null); // 'expert' | 'novice'
+  const [showChoiceModal, setShowChoiceModal] = useState(false);
 
   const { playlists, addToPlaylist } = usePlaylist();
   const { addNotification } = useNotificationSafe();
@@ -37,7 +44,6 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -50,16 +56,32 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
         setShowDropdown(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
-    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [showDropdown]);
 
+  // HANDLERS BARU UNTUK DUAL MODE
+  const handleExpertSelect = () => {
+    setCurrentMode('expert');
+    setShowChoiceModal(false);
+    setShowDropdown(false);
+  };
+
+  const handleNoviceSelect = () => {
+    setCurrentMode('novice');
+    setShowChoiceModal(false);
+    setShowDropdown(false);
+  };
+
+  const handleCloseMode = () => {
+    setCurrentMode(null);
+  };
+
+  // HANDLER LAMA (untuk backward compatibility)
   const handleAddToPlaylist = async (playlistId) => {
     const playlist = playlists.find(p => p.id === playlistId);
     if (!playlist || !book) return;
@@ -67,7 +89,7 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
     setAddingToPlaylist(playlistId);
     try {
       const result = await addToPlaylist(playlistId, book);
-      // Notification tambahan untuk UI feedback yang lebih spesifik
+      
       if (result.success) {
         addNotification({
           type: 'success',
@@ -82,14 +104,13 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
       }
       setShowDropdown(false);
     } catch (error) {
-      // Error notification sudah dihandle di context, tapi kita bisa kasih feedback tambahan
       console.error('Error adding to playlist:', error);
     } finally {
       setAddingToPlaylist(null);
     }
   };
 
-  // ⚡ Handle create playlist click
+  // HANDLE CREATE PLAYLIST CLICK
   const handleCreateClick = (e) => {
     e.stopPropagation();
     // Close book description if open
@@ -101,6 +122,8 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
       onShowPlaylistForm();
     }
     setShowDropdown(false);
+    setCurrentMode(null);
+
     // Notification untuk create playlist
     addNotification({
       type: 'info',
@@ -116,17 +139,17 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
   );
 
   return (
-    <div className="playlist-button-container" style={{ 
-      position: 'relative', 
+    <div className="playlist-button-container" style={{
+      position: 'relative',
       display: 'inline-block',
       width: isMobile ? '100%' : 'auto'
     }}>
       
-      {/* Tombol Utama */}
+      {/* TOMBOL UTAMA - SEKARANG BUKA CHOICE MODAL */}
       <button
         onClick={(e) => {
           e.stopPropagation();
-          setShowDropdown(!showDropdown);
+          setShowChoiceModal(true);
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -162,8 +185,38 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
         )}
       </button>
 
-      {/* Dropdown Menu - POSITION FIX FOR MOBILE */}
-      {showDropdown && (
+      {/* CHOICE MODAL BARU */}
+      {showChoiceModal && (
+        <ChoiceModal
+          book={book}
+          onClose={() => setShowChoiceModal(false)}
+          onExpertSelect={handleExpertSelect}
+          onNoviceSelect={handleNoviceSelect}
+        />
+      )}
+
+      {/* EXPERT MODE DROPDOWN */}
+      {currentMode === 'expert' && (
+        <ExpertPlaylistDropdown
+          book={book}
+          onClose={handleCloseMode}
+          onShowPlaylistForm={onShowPlaylistForm}
+          onCloseBookDescription={onCloseBookDescription}
+        />
+      )}
+
+      {/* NOVICE MODE RECOMMENDATIONS */}
+      {currentMode === 'novice' && (
+        <NovicePlaylistRecommendations
+          book={book}
+          onClose={handleCloseMode}
+          onShowPlaylistForm={onShowPlaylistForm}
+          onCloseBookDescription={onCloseBookDescription}
+        />
+      )}
+
+      {/* DROPDOWN LAMA (untuk backward compatibility) - HAPUS JIKA SUDAH TIDAK DIPERLUKAN */}
+      {showDropdown && !currentMode && (
         <div style={{
           position: isMobile ? 'fixed' : 'absolute',
           bottom: isMobile ? '0' : '100%',
@@ -216,8 +269,8 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
           {isMobile && (
             <button
               onClick={(e) => {
-                e.stopPropagation(); // ⚡ PENTING: Stop event propagation
-                e.preventDefault(); // ⚡ PENTING: Prevent default behavior
+                e.stopPropagation();
+                e.preventDefault();
                 setShowDropdown(false);
               }}
               style={{
@@ -229,7 +282,7 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
                 fontSize: '1.5rem',
                 color: '#718096',
                 cursor: 'pointer',
-                zIndex: 1002, // ⚡ PASTIKAN z-index tinggi
+                zIndex: 1002,
                 width: '40px',
                 height: '40px',
                 display: 'flex',
@@ -238,21 +291,6 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
                 borderRadius: '50%',
                 backgroundColor: 'rgba(255,255,255,0.9)',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = 'rgba(0,0,0,0.05)';
-                e.target.style.color = '#4a5568';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.9)';
-                e.target.style.color = '#718096';
-              }}
-              onTouchStart={(e) => {
-                // Feedback visual untuk touch
-                e.target.style.backgroundColor = 'rgba(0,0,0,0.1)';
-              }}
-              onTouchEnd={(e) => {
-                e.target.style.backgroundColor = 'rgba(255,255,255,0.9)';
               }}
             >
               ×
@@ -350,18 +388,6 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
                       }} />
                     )}
                   </div>
-                  {/* Loading bar effect */}
-                  {addingToPlaylist === playlist.id && (
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '0',
-                      left: '0',
-                      right: '0',
-                      height: '2px',
-                      backgroundColor: '#48bb78',
-                      animation: 'loadingBar 2s ease-in-out infinite'
-                    }} />
-                  )}
                 </div>
               ))}
             </div>
@@ -414,7 +440,6 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
             transform: translateY(0) scale(1);
           }
         }
-        
         @keyframes slideUp {
           from {
             opacity: 0;
@@ -425,18 +450,15 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
             transform: translateY(0);
           }
         }
-        
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
-        
         @keyframes pulse {
           0% { opacity: 1; }
           50% { opacity: 0.5; }
           100% { opacity: 1; }
         }
-        
         @keyframes loadingBar {
           0% { transform: translateX(-100%); }
           50% { transform: translateX(0%); }
