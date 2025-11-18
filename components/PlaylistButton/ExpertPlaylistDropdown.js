@@ -23,9 +23,8 @@ const useNotificationSafe = () => {
 
 const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBookDescription, integratedMode = false }) => {
   const { playlists, addToPlaylist } = usePlaylist();
-  const { addNotification } = useNotificationSafe();
+  const { addNotification } = useNotification(); // Pastikan ini di-import dengan benar
   const [addingToPlaylist, setAddingToPlaylist] = useState(null);
-  const [aiScores, setAiScores] = useState({});
 
   const handleAddToPlaylist = async (playlistId) => {
     const playlist = playlists.find(p => p.id === playlistId);
@@ -38,95 +37,80 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
       const result = await addToPlaylist(playlistId, book);
       
       if (result.success) {
-        // 2. Background AI Analysis untuk surprise score
+        // 2. Tampilkan success notification dulu
+        addNotification({
+          type: 'success',
+          title: 'Berhasil! 🎉',
+          message: `"${book.judul}" ditambahkan ke "${playlist.name}"`,
+          icon: '✅',
+          duration: 3000
+        });
+
+        // 3. Background AI Analysis untuk surprise score
         setTimeout(async () => {
           try {
+            console.log('🤖 Starting background AI analysis...');
             const aiAnalysis = await fetch('/api/ai-match-analysis', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ bookId: book.id, playlistId })
             }).then(res => res.json());
 
+            console.log('🤖 AI Analysis result:', aiAnalysis);
+
             if (aiAnalysis.success) {
-              // 3. Save AI score ke database
+              // 4. Save AI score ke database
               await saveAIScoreToDatabase(playlistId, book.id, aiAnalysis.data);
               
-              // 4. Update local state dengan score baru
-              setAiScores(prev => ({
-                ...prev,
-                [playlistId]: aiAnalysis.data
-              }));
-
-              // 5. 🆕 FIX: Tampilkan notifikasi surprise SETELAH analysis selesai
+              // 5. Tampilkan surprise score notification
               showSurpriseScore(aiAnalysis.data, playlist.name);
             }
           } catch (error) {
-            console.error('Background AI analysis failed:', error);
+            console.error('❌ Background AI analysis failed:', error);
           }
-        }, 1000);
+        }, 1500);
 
-        // 🆕 FIX: Jangan close modal dulu, tunggu proses selesai
-        addNotification({
-          type: 'success',
-          title: 'Berhasil! 🎉',
-          message: `"${book.judul}" ditambahkan ke "${playlist.name}"`,
-          icon: '✅'
-        });
-
-        // 🆕 FIX: Tunggu 2 detik sebelum close modal agar user bisa lihat loading
+        // 6. Close modal setelah 2 detik
         setTimeout(() => {
           onClose();
         }, 2000);
-
       }
     } catch (error) {
-      console.error('Failed to add to playlist:', error);
+      console.error('❌ Failed to add to playlist:', error);
       addNotification({
         type: 'error',
         title: 'Gagal Menambahkan',
         message: error.message,
-        icon: '❌'
+        icon: '❌',
+        duration: 5000
       });
       setAddingToPlaylist(null);
     }
   };
 
-  const saveAIScoreToDatabase = async (playlistId, bookId, analysis) => {
-    try {
-      await fetch('/api/save-ai-score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playlistId,
-          bookId,
-          analysis
-        })
-      });
-      console.log('✅ AI score saved to database');
-    } catch (error) {
-      console.error('Failed to save AI score to database:', error);
-    }
-  };
-
   const showSurpriseScore = (analysis, playlistName) => {
-    const getScoreColor = (score) => {
-      if (score >= 80) return { color: '#10B981', emoji: '🏆', message: 'Excellent Choice!' };
-      if (score >= 60) return { color: '#F59E0B', emoji: '🎯', message: 'Great Match!' };
-      return { color: '#EF4444', emoji: '🤔', message: 'Good Choice!' };
+    const getScoreInfo = (score) => {
+      if (score >= 80) return { emoji: '🏆', message: 'Excellent Choice!', color: '#10B981' };
+      if (score >= 60) return { emoji: '🎯', message: 'Great Match!', color: '#F59E0B' };
+      return { emoji: '🤔', message: 'Good Choice!', color: '#EF4444' };
     };
 
-    const scoreInfo = getScoreColor(analysis.matchScore);
+    const scoreInfo = getScoreInfo(analysis.matchScore);
 
-    // 🆕 FIX: Gunakan notification system yang sudah ada
+    // 🎯 Tampilkan surprise notification
     addNotification({
       type: 'success',
       title: `${scoreInfo.emoji} ${scoreInfo.message}`,
       message: `Match Score: ${analysis.matchScore}% dengan "${playlistName}"\n${analysis.reasoning}`,
       icon: '⭐',
-      duration: 5000, // Auto-close setelah 5 detik
+      duration: 6000, // 6 detik agar user punya waktu baca
+      action: {
+        label: 'Lihat Playlist',
+        onClick: () => window.open(`/playlists/${analysis.playlistId}`, '_blank')
+      }
     });
 
-    console.log('🎉 Surprise score notification shown:', analysis.matchScore);
+    console.log('🎉 Surprise score notification shown!');
   };
 
   const getScoreDisplay = (playlistId) => {
@@ -466,4 +450,5 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
 };
 
 export default ExpertPlaylistDropdown;
+
 
