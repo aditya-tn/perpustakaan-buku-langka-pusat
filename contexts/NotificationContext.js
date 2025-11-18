@@ -1,7 +1,15 @@
 // contexts/NotificationContext.js
-import { createContext, useContext, useState } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 
 const NotificationContext = createContext();
+
+export const useNotification = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error('useNotification must be used within NotificationProvider');
+  }
+  return context;
+};
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
@@ -11,60 +19,38 @@ export const NotificationProvider = ({ children }) => {
     const newNotification = {
       id,
       ...notification,
-      timestamp: Date.now()
+      timestamp: new Date().toISOString()
     };
-
+    
     setNotifications(prev => [...prev, newNotification]);
-
-    // Auto remove setelah 3 detik
-    setTimeout(() => {
-      removeNotification(id);
-    }, 3000);
+    
+    // Auto remove setelah duration
+    if (notification.duration) {
+      setTimeout(() => {
+        removeNotification(id);
+      }, notification.duration);
+    }
+    
+    return id;
   };
 
   const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
+    setNotifications(prev => prev.filter(notification => notification.id !== id));
   };
 
-  const value = {
-    notifications,
-    addNotification,
-    removeNotification
+  const clearAllNotifications = () => {
+    setNotifications([]);
   };
 
   return (
-    <NotificationContext.Provider value={value}>
-      {children}
-      <NotificationContainer />
-    </NotificationContext.Provider>
-  );
-};
-
-// Notification Container Component
-const NotificationContainer = () => {
-  const { notifications, removeNotification } = useContext(NotificationContext);
-
-  if (notifications.length === 0) return null;
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: '20px',
-      right: '20px',
-      zIndex: 10000,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
-      maxWidth: '400px'
+    <NotificationContext.Provider value={{
+      notifications,
+      addNotification,
+      removeNotification,
+      clearAllNotifications
     }}>
-      {notifications.map(notification => (
-        <NotificationItem 
-          key={notification.id}
-          notification={notification}
-          onClose={() => removeNotification(notification.id)}
-        />
-      ))}
-    </div>
+      {children}
+    </NotificationContext.Provider>
   );
 };
 
@@ -264,4 +250,5 @@ export const useNotification = () => {
     throw new Error('useNotification must be used within NotificationProvider');
   }
   return context;
+
 };
