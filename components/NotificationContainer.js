@@ -1,4 +1,4 @@
-// components/NotificationContainer.js - COMPLETE COMPONENT
+// components/NotificationContainer.js - FIXED VERSION
 
 import React from 'react';
 import { useNotification } from '../contexts/NotificationContext';
@@ -43,7 +43,7 @@ const NotificationContainer = () => {
       info: {
         backgroundColor: '#ebf8ff',
         border: '1px solid #90cdf4',
-        color: #2c5282'
+        color: '#2c5282' // 🆕 FIX: TAMBAH QUOTE YANG HILANG
       }
     };
 
