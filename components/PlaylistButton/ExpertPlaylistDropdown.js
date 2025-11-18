@@ -25,36 +25,72 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
   const { playlists, addToPlaylist } = usePlaylist();
   const { addNotification } = useNotificationSafe();
   const [addingToPlaylist, setAddingToPlaylist] = useState(null);
+  const [aiScores, setAiScores] = useState({}); // Store AI scores for display
+  const [showScoreNotifications, setShowScoreNotifications] = useState({}); // Control notification display
+
+  // Load existing AI scores ketika component mount
+  useEffect(() => {
+    loadExistingAIScores();
+  }, [book, playlists]);
+
+  const loadExistingAIScores = async () => {
+    const scores = {};
+    for (const playlist of playlists) {
+      try {
+        const response = await fetch(`/api/get-ai-score?playlistId=${playlist.id}&bookId=${book.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.score) {
+            scores[playlist.id] = data.score;
+          }
+        }
+      } catch (error) {
+        console.error(`Error loading AI score for playlist ${playlist.id}:`, error);
+      }
+    }
+    setAiScores(scores);
+  };
 
   const handleAddToPlaylist = async (playlistId) => {
     const playlist = playlists.find(p => p.id === playlistId);
     if (!playlist || !book) return;
 
     setAddingToPlaylist(playlistId);
-    
+
     try {
       // 1. Tambah buku ke playlist
       const result = await addToPlaylist(playlistId, book);
       
-      // 2. Background AI Analysis untuk surprise score
-      setTimeout(async () => {
-        try {
-          const aiAnalysis = await fetch('/api/ai-match-analysis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookId: book.id, playlistId })
-          }).then(res => res.json());
-          
-          // 3. Tampilkan surprise notification
-          if (aiAnalysis.success) {
-            showSurpriseScore(aiAnalysis.data, playlist.name);
-          }
-        } catch (error) {
-          console.error('Background AI analysis failed:', error);
-        }
-      }, 1000);
-      
       if (result.success) {
+        // 2. Background AI Analysis untuk surprise score
+        const aiAnalysis = await fetch('/api/ai-match-analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookId: book.id, playlistId })
+        }).then(res => res.json());
+
+        if (aiAnalysis.success) {
+          // 3. Save AI score ke database
+          await saveAIScoreToDatabase(playlistId, book.id, aiAnalysis.data);
+          
+          // 4. Update local state dengan score baru
+          setAiScores(prev => ({
+            ...prev,
+            [playlistId]: aiAnalysis.data
+          }));
+
+          // 5. Tampilkan notifikasi surprise
+          showSurpriseScore(aiAnalysis.data, playlist.name);
+          
+          // 6. Set timer untuk hide notification setelah 5 detik
+          setTimeout(() => {
+            setShowScoreNotifications(prev => ({
+              ...prev,
+              [playlistId]: false
+            }));
+          }, 5000);
+        }
+
         addNotification({
           type: 'success',
           title: 'Berhasil! 🎉',
@@ -62,7 +98,7 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
           icon: '✅'
         });
       }
-      
+
       onClose();
     } catch (error) {
       console.error('Failed to add to playlist:', error);
@@ -77,19 +113,37 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     }
   };
 
+  const saveAIScoreToDatabase = async (playlistId, bookId, analysis) => {
+    try {
+      await fetch('/api/save-ai-score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playlistId,
+          bookId,
+          analysis
+        })
+      });
+    } catch (error) {
+      console.error('Failed to save AI score to database:', error);
+    }
+  };
+
   const showSurpriseScore = (analysis, playlistName) => {
-    const getScoreEmoji = (score) => {
-      if (score >= 90) return '🏆';
-      if (score >= 80) return '🎯';
-      if (score >= 70) return '👍';
-      return '🤔';
+    const getScoreColor = (score) => {
+      if (score >= 80) return { color: '#10B981', emoji: '🏆', message: 'Excellent Choice!' };
+      if (score >= 60) return { color: '#F59E0B', emoji: '🎯', message: 'Great Match!' };
+      return { color: '#EF4444', emoji: '🤔', message: 'Good Choice!' };
     };
+
+    const scoreInfo = getScoreColor(analysis.matchScore);
 
     addNotification({
       type: 'success',
-      title: `${getScoreEmoji(analysis.matchScore)} Excellent Choice!`,
+      title: `${scoreInfo.emoji} ${scoreInfo.message}`,
       message: `Match Score: ${analysis.matchScore}% dengan "${playlistName}"\n${analysis.reasoning}`,
       icon: '⭐',
+      duration: 5000, // Auto-close setelah 5 detik
       action: {
         label: 'Lihat Playlist',
         onClick: () => window.open(`/playlists/${analysis.playlistId}`, '_blank')
@@ -97,20 +151,97 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     });
   };
 
-  const handleCreatePlaylist = () => {
-    if (onCloseBookDescription) {
-      onCloseBookDescription();
-    }
-    if (onShowPlaylistForm) {
-      onShowPlaylistForm();
-    }
-    onClose();
+  const getScoreDisplay = (playlistId) => {
+    const score = aiScores[playlistId];
+    if (!score) return null;
+
+    const getScoreStyle = (matchScore) => {
+      if (matchScore >= 80) return { background: '#10B981', color: 'white' };
+      if (matchScore >= 60) return { background: '#F59E0B', color: 'white' };
+      if (matchScore >= 40) return { background: '#EF4444', color: 'white' };
+      return { background: '#6B7280', color: 'white' };
+    };
+
+    const style = getScoreStyle(score.matchScore);
+
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        marginLeft: 'auto'
+      }}>
+        {/* Score Badge */}
+        <span style={{
+          backgroundColor: style.background,
+          color: style.color,
+          padding: '0.2rem 0.5rem',
+          borderRadius: '12px',
+          fontSize: '0.7rem',
+          fontWeight: '600',
+          minWidth: '40px',
+          textAlign: 'center'
+        }}>
+          {score.matchScore}%
+        </span>
+
+        {/* Loading Indicator */}
+        {addingToPlaylist === playlistId && (
+          <div style={{
+            width: '16px',
+            height: '16px',
+            border: '2px solid #48bb78',
+            borderTop: '2px solid transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+        )}
+      </div>
+    );
+  };
+
+  const getScoreNotification = (playlistId) => {
+    const score = aiScores[playlistId];
+    const isShowing = showScoreNotifications[playlistId];
+    
+    if (!score || !isShowing) return null;
+
+    const getNotificationStyle = (matchScore) => {
+      if (matchScore >= 80) return { background: '#f0fff4', border: '1px solid #9ae6b4', color: '#22543d' };
+      if (matchScore >= 60) return { background: '#fffaf0', border: '1px solid #faf089', color: '#744210' };
+      return { background: '#fff5f5', border: '1px solid #fc8181', color: '#c53030' };
+    };
+
+    const style = getNotificationStyle(score.matchScore);
+    const messages = {
+      80: '🎉 Excellent! Pilihan yang sangat cocok!',
+      60: '👍 Bagus! Kecocokan yang solid!',
+      40: '💡 Oke! Pertimbangkan review lebih lanjut.'
+    };
+
+    const message = score.matchScore >= 80 ? messages[80] :
+                   score.matchScore >= 60 ? messages[60] : messages[40];
+
+    return (
+      <div style={{
+        ...style,
+        padding: '0.5rem',
+        borderRadius: '6px',
+        fontSize: '0.75rem',
+        fontWeight: '500',
+        marginTop: '0.5rem',
+        animation: 'fadeIn 0.3s ease-in'
+      }}>
+        {message}
+      </div>
+    );
   };
 
   // Filter playlists yang tidak mengandung buku ini
   const availablePlaylists = playlists.filter(playlist =>
     !playlist.books?.some(b => b.id === book.id)
   );
+
 
   // Styling untuk integrated vs standalone mode
   const containerStyle = integratedMode ? {
@@ -198,95 +329,95 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
           </div>
         ) : (
           availablePlaylists.map(playlist => (
-            <div
-              key={playlist.id}
-              onClick={() => handleAddToPlaylist(playlist.id)}
-              style={{
-                padding: integratedMode ? '1rem' : '0.875rem 1rem',
-                cursor: addingToPlaylist === playlist.id ? 'wait' : 'pointer',
-                borderBottom: '1px solid #f7fafc',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                backgroundColor: addingToPlaylist === playlist.id ? '#f0fff4' : 'white',
-                transition: 'background-color 0.2s',
-                ...(integratedMode && {
-                  borderRadius: '6px',
-                  margin: '0.25rem 0'
-                })
-              }}
-              onMouseEnter={(e) => {
-                if (addingToPlaylist !== playlist.id) {
-                  e.currentTarget.style.backgroundColor = '#f7fafc';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (addingToPlaylist !== playlist.id) {
-                  e.currentTarget.style.backgroundColor = 'white';
-                }
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                {addingToPlaylist === playlist.id ? (
-                  <span style={{
-                    animation: 'pulse 1s infinite',
-                    color: '#48bb78'
-                  }}>
-                    ⏳
-                  </span>
-                ) : (
-                  <span>📁</span>
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ 
-                    fontWeight: '500',
-                    color: addingToPlaylist === playlist.id ? '#48bb78' : '#2d3748',
-                    fontSize: integratedMode ? '0.9rem' : '0.85rem'
-                  }}>
-                    {playlist.name}
-                  </div>
-                  {integratedMode && playlist.description && (
-                    <div style={{
-                      fontSize: '0.75rem',
-                      color: '#718096',
-                      marginTop: '0.25rem'
+            <div key={playlist.id}>
+              <div
+                onClick={() => handleAddToPlaylist(playlist.id)}
+                style={{
+                  padding: integratedMode ? '1rem' : '0.875rem 1rem',
+                  cursor: addingToPlaylist === playlist.id ? 'wait' : 'pointer',
+                  borderBottom: '1px solid #f7fafc',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  backgroundColor: addingToPlaylist === playlist.id ? '#f0fff4' : 'white',
+                  transition: 'background-color 0.2s',
+                  ...(integratedMode && {
+                    borderRadius: '6px',
+                    margin: '0.25rem 0'
+                  })
+                }}
+                onMouseEnter={(e) => {
+                  if (addingToPlaylist !== playlist.id) {
+                    e.currentTarget.style.backgroundColor = '#f7fafc';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (addingToPlaylist !== playlist.id) {
+                    e.currentTarget.style.backgroundColor = 'white';
+                  }
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                  {addingToPlaylist === playlist.id ? (
+                    <span style={{
+                      animation: 'pulse 1s infinite',
+                      color: '#48bb78'
                     }}>
-                      {playlist.description.length > 60 
-                        ? `${playlist.description.substring(0, 60)}...` 
-                        : playlist.description
-                      }
-                    </div>
+                      ⏳
+                    </span>
+                  ) : (
+                    <span>📁</span>
                   )}
+                  
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontWeight: '500',
+                      color: addingToPlaylist === playlist.id ? '#48bb78' : '#2d3748',
+                      fontSize: integratedMode ? '0.9rem' : '0.85rem'
+                    }}>
+                      {playlist.name}
+                    </div>
+                    
+                    {integratedMode && playlist.description && (
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: '#718096',
+                        marginTop: '0.25rem'
+                      }}>
+                        {playlist.description.length > 60
+                          ? `${playlist.description.substring(0, 60)}...`
+                          : playlist.description
+                        }
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* AI Score Display */}
+                {getScoreDisplay(playlist.id)}
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    color: '#718096',
+                    backgroundColor: '#e2e8f0',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '8px',
+                    fontWeight: '500',
+                    minWidth: '30px',
+                    textAlign: 'center'
+                  }}>
+                    {playlist.books?.length || 0}
+                  </span>
                 </div>
               </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                <span style={{
-                  fontSize: '0.7rem',
-                  color: '#718096',
-                  backgroundColor: '#e2e8f0',
-                  padding: '0.2rem 0.5rem',
-                  borderRadius: '8px',
-                  fontWeight: '500',
-                  minWidth: '30px',
-                  textAlign: 'center'
-                }}>
-                  {playlist.books?.length || 0}
-                </span>
-                {addingToPlaylist === playlist.id && (
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid #48bb78',
-                    borderTop: '2px solid transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }} />
-                )}
-              </div>
+
+              {/* Score Notification */}
+              {getScoreNotification(playlist.id)}
             </div>
           ))
         )}
@@ -337,6 +468,10 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
           0% { opacity: 1; }
           50% { opacity: 0.5; }
           100% { opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
