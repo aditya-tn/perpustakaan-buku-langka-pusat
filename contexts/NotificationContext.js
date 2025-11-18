@@ -54,6 +54,34 @@ export const NotificationProvider = ({ children }) => {
   );
 };
 
+// Notification Container Component
+const NotificationContainer = () => {
+  const { notifications, removeNotification } = useContext(NotificationContext);
+
+  if (notifications.length === 0) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: '20px',
+      right: '20px',
+      zIndex: 10000,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px',
+      maxWidth: '400px'
+    }}>
+      {notifications.map(notification => (
+        <NotificationItem 
+          key={notification.id}
+          notification={notification}
+          onClose={() => removeNotification(notification.id)}
+        />
+      ))}
+    </div>
+  );
+};
+
 // Notification Item Component
 const NotificationItem = ({ notification, onClose }) => {
   const { type, title, message, icon, action } = notification;
@@ -250,5 +278,4 @@ export const useNotification = () => {
     throw new Error('useNotification must be used within NotificationProvider');
   }
   return context;
-
 };
