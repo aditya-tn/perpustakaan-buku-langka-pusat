@@ -118,12 +118,16 @@ const PlaylistDetail = () => {
 
   // Handle like playlist - FIXED DENGAN NOTIFIKASI
   const [isLiking, setIsLiking] = useState(false);
+  // Di handleLike - tambah debug
   const handleLike = async () => {
-    if (!playlist || isLiking) return;
-    setIsLiking(true);
+    console.log('🔍 LIKE DEBUG - Before:', {
+      playlistId: playlist.id,
+      currentLikes: playlist.like_count
+    });
     
     try {
-      await likePlaylist(playlist.id);
+      const result = await likePlaylist(playlist.id);
+      console.log('🔍 LIKE DEBUG - After:', result);
       
       // Update local state
       setPlaylist(prev => ({
@@ -140,19 +144,10 @@ const PlaylistDetail = () => {
         duration: 2000
       });
 
-    } catch (error) {
-      console.error('Error liking playlist:', error);
-      addNotification({
-        type: 'error',
-        title: 'Gagal Like',
-        message: error.message,
-        icon: '❌',
-        duration: 3000
-      });
-    } finally {
-      setIsLiking(false);
-    }
-  };
+  } catch (error) {
+    console.error('🔍 LIKE DEBUG - Error:', error);
+  }
+};
 
   // Handle delete playlist - FIXED DENGAN NOTIFIKASI
   const handleDeletePlaylist = async (playlistId) => {
