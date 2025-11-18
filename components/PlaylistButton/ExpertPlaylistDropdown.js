@@ -2,29 +2,37 @@
 
 import { useState, useEffect } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
+import { useNotification } from '../../contexts/NotificationContext';
 
-const useNotificationSafe = () => {
-  try {
-    const { useNotification } = require('../../contexts/NotificationContext');
-    return useNotification();
-  } catch (error) {
-    return {
-      addNotification: (notification) => {
-        console.log('📢 Notification:', notification);
-        if (typeof window !== 'undefined') {
-          setTimeout(() => {
-            alert(`📢 ${notification.title}\n${notification.message}`);
-          }, 100);
-        }
-      }
-    };
-  }
-};
-
-const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBookDescription, integratedMode = false }) => {
+const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBookDescription, integratedMode = false, onBookAdded }) => {
   const { playlists, addToPlaylist } = usePlaylist();
-  const { addNotification } = useNotification(); // Pastikan ini di-import dengan benar
+  const { addNotification } = useNotification();
   const [addingToPlaylist, setAddingToPlaylist] = useState(null);
+  const [aiScores, setAiScores] = useState({});
+  const [showScoreNotifications, setShowScoreNotifications] = useState({}); // 🆕 TAMBAH STATE INI
+
+  // Load existing AI scores ketika component mount
+  useEffect(() => {
+    loadExistingAIScores();
+  }, [book, playlists]);
+
+  const loadExistingAIScores = async () => {
+    const scores = {};
+    for (const playlist of playlists) {
+      try {
+        const response = await fetch(`/api/get-ai-score?playlistId=${playlist.id}&bookId=${book.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.score) {
+            scores[playlist.id] = data.score;
+          }
+        }
+      } catch (error) {
+        console.error(`Error loading AI score for playlist ${playlist.id}:`, error);
+      }
+    }
+    setAiScores(scores);
+  };
 
   const handleAddToPlaylist = async (playlistId) => {
     const playlist = playlists.find(p => p.id === playlistId);
@@ -46,6 +54,11 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
           duration: 3000
         });
 
+        // 🆕 TRIGGER REFRESH DI PARENT COMPONENT
+        if (onBookAdded) {
+          onBookAdded();
+        }
+
         // 3. Background AI Analysis untuk surprise score
         setTimeout(async () => {
           try {
@@ -62,15 +75,42 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
               // 4. Save AI score ke database
               await saveAIScoreToDatabase(playlistId, book.id, aiAnalysis.data);
               
-              // 5. Tampilkan surprise score notification
+              // 🆕 TRIGGER REFRESH LAGI SETELAH AI SCORE DISIMPAN
+              if (onBookAdded) {
+                setTimeout(() => {
+                  onBookAdded();
+                }, 1000);
+              }
+
+              // 5. Update local state dengan score baru
+              setAiScores(prev => ({
+                ...prev,
+                [playlistId]: aiAnalysis.data
+              }));
+
+              // 6. Show notification untuk score ini
+              setShowScoreNotifications(prev => ({
+                ...prev,
+                [playlistId]: true
+              }));
+
+              // 7. Tampilkan surprise score notification
               showSurpriseScore(aiAnalysis.data, playlist.name);
+              
+              // 8. Set timer untuk hide notification setelah 5 detik
+              setTimeout(() => {
+                setShowScoreNotifications(prev => ({
+                  ...prev,
+                  [playlistId]: false
+                }));
+              }, 5000);
             }
           } catch (error) {
             console.error('❌ Background AI analysis failed:', error);
           }
         }, 1500);
 
-        // 6. Close modal setelah 2 detik
+        // 9. Close modal setelah 2 detik
         setTimeout(() => {
           onClose();
         }, 2000);
@@ -88,6 +128,29 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     }
   };
 
+
+  const saveAIScoreToDatabase = async (playlistId, bookId, analysis) => {
+    try {
+      const response = await fetch('/api/save-ai-score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playlistId,
+          bookId,
+          analysis
+        })
+      });
+      
+      if (response.ok) {
+        console.log('✅ AI score saved to database');
+      } else {
+        console.error('❌ Failed to save AI score');
+      }
+    } catch (error) {
+      console.error('❌ Error saving AI score to database:', error);
+    }
+  };
+
   const showSurpriseScore = (analysis, playlistName) => {
     const getScoreInfo = (score) => {
       if (score >= 80) return { emoji: '🏆', message: 'Excellent Choice!', color: '#10B981' };
@@ -97,13 +160,12 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
 
     const scoreInfo = getScoreInfo(analysis.matchScore);
 
-    // 🎯 Tampilkan surprise notification
     addNotification({
       type: 'success',
       title: `${scoreInfo.emoji} ${scoreInfo.message}`,
       message: `Match Score: ${analysis.matchScore}% dengan "${playlistName}"\n${analysis.reasoning}`,
       icon: '⭐',
-      duration: 6000, // 6 detik agar user punya waktu baca
+      duration: 6000,
       action: {
         label: 'Lihat Playlist',
         onClick: () => window.open(`/playlists/${analysis.playlistId}`, '_blank')
@@ -199,11 +261,6 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     );
   };
 
-  // Filter playlists yang tidak mengandung buku ini
-  const availablePlaylists = playlists.filter(playlist =>
-    !playlist.books?.some(b => b.id === book.id)
-  );
-
   const handleCreatePlaylist = () => {
     if (onCloseBookDescription) {
       onCloseBookDescription();
@@ -213,6 +270,11 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     }
     onClose();
   };
+
+  // Filter playlists yang tidak mengandung buku ini
+  const availablePlaylists = playlists.filter(playlist =>
+    !playlist.books?.some(b => b.id === book.id)
+  );
 
   // Styling untuk integrated vs standalone mode
   const containerStyle = integratedMode ? {
@@ -384,6 +446,17 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
                   }}>
                     {playlist.books?.length || 0}
                   </span>
+                  
+                  {addingToPlaylist === playlist.id && (
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid #48bb78',
+                      borderTop: '2px solid transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                  )}
                 </div>
               </div>
 
@@ -450,5 +523,3 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
 };
 
 export default ExpertPlaylistDropdown;
-
-

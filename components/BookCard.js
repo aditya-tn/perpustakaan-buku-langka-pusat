@@ -1,4 +1,5 @@
-// components/BookCard.js - FIXED VERSION
+// components/BookCard.js - FIXED VERSION (NO API CALLS)
+
 import { useState, useEffect } from 'react';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import BookDescription from './BookDescription';
@@ -32,15 +33,11 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
   const [showModeSelection, setShowModeSelection] = useState(false);
   const { playlists, trackView } = usePlaylist();
   
-  // 🆕 STATE BARU: Simpan AI scores untuk book ini
+  // 🆕 STATE: Untuk simpan AI scores yang akan ditampilkan
   const [bookAIScores, setBookAIScores] = useState({});
 
-  // 🆕 LOAD AI SCORES ketika component mount
+  // 🆕 FIX: Ambil AI scores dari data playlist yang sudah ada - TANPA API CALLS!
   useEffect(() => {
-    loadAIScoresForBook();
-  }, [book, playlists]);
-
-  const loadAIScoresForBook = async () => {
     const scores = {};
     
     // Cari playlist yang mengandung buku ini
@@ -48,25 +45,22 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
       playlist.books?.some(b => b.id === book.id)
     );
 
-    // Load AI score untuk setiap playlist
-    for (const playlist of playlistsContainingBook) {
-      try {
-        const response = await fetch(`/api/get-ai-score?playlistId=${playlist.id}&bookId=${book.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.score) {
-            scores[playlist.id] = data.score;
-          }
-        }
-      } catch (error) {
-        console.error(`Error loading AI score for playlist ${playlist.id}:`, error);
+    // 🆕 AMBIL AI SCORES DARI DATA PLAYLIST YANG SUDAH DILOAD
+    playlistsContainingBook.forEach(playlist => {
+      // Data AI scores sudah ada di playlist.ai_match_scores (dari Supabase)
+      const aiScores = playlist.ai_match_scores || {};
+      const scoreForThisBook = aiScores[book.id];
+      
+      if (scoreForThisBook) {
+        scores[playlist.id] = scoreForThisBook;
       }
-    }
+    });
     
     setBookAIScores(scores);
-  };
+    console.log(`📊 Loaded AI scores for book ${book.id}:`, Object.keys(scores).length);
+  }, [book, playlists]); // 🆕 HANYA depend pada book dan playlists
 
-  // 🆕 FUNCTION: Tampilkan AI score badge
+  // 🆕 FUNCTION: Render AI score badge
   const renderAIScoreBadge = (playlistId) => {
     const score = bookAIScores[playlistId];
     if (!score) return null;
@@ -94,11 +88,6 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
       </span>
     );
   };
-
-  // Cari playlist yang berisi buku ini
-  const playlistsContainingBook = playlists.filter(playlist =>
-    playlist.books?.some(b => b.id === book.id)
-  );
 
   const handleCardClick = () => {
     console.log('🟢 BookCard clicked:', book.judul);
@@ -133,7 +122,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
     console.log('Playlist created:', newPlaylist);
   };
 
-  // Handle klik playlist indicator - CARA YANG SUDAH BERHASIL
+  // Handle klik playlist indicator
   const handlePlaylistClick = async (playlistId, playlistName, e) => {
     if (e) {
       e.stopPropagation();
@@ -150,22 +139,18 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
     }
   };
 
-  // FIXED: Handle mode selection show - GUNAKAN CARA YANG SAMA DENGAN FITUR LAIN
+  // Handle mode selection show
   const handleShowModeSelection = (e) => {
-    // Gunakan cara yang sama dengan handlePlaylistClick yang berhasil
     if (e) {
       e.stopPropagation();
       e.preventDefault();
     }
-    
     console.log('🎯 Opening mode selection for:', book.judul);
-    
     // Jika card belum selected, select dulu
     if (!isSelected && onCardClick) {
       console.log('🔵 Selecting card first');
       onCardClick(book);
     }
-    
     // Tampilkan mode selection
     setShowModeSelection(true);
     setShowPlaylistForm(false);
@@ -214,6 +199,11 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
       </div>
     );
   }
+
+  // Cari playlist yang berisi buku ini
+  const playlistsContainingBook = playlists.filter(playlist =>
+    playlist.books?.some(b => b.id === book.id)
+  );
 
   return (
     <div
@@ -314,6 +304,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             {book.judul}
           </h4>
         </div>
+
         <div style={{ marginBottom: '1rem' }}>
           <div style={{
             fontSize: isMobile ? '0.8rem' : '0.9rem',
@@ -346,6 +337,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             <strong>Penerbit:</strong> {book.penerbit || 'Tidak diketahui'}
           </div>
         </div>
+
         {book.deskripsi_fisik && (
           <p style={{
             fontSize: isMobile ? '0.75rem' : '0.85rem',
@@ -447,7 +439,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
         </div>
       )}
 
-      {/* Action Buttons - GUNAKAN CARA YANG SAMA DENGAN FITUR LAIN YANG BERHASIL */}
+      {/* Action Buttons */}
       <div style={{
         marginTop: '0.75rem',
         display: 'flex',
@@ -458,9 +450,9 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
       }}>
         {/* Left Side: Playlist Button + OPAC + Pesan */}
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {/* FIXED: Gunakan cara yang sama dengan tombol OPAC yang berhasil */}
+          {/* Playlist Button */}
           <button
-            onClick={handleShowModeSelection} // ⚡ LANGSUNG panggil function, tanpa wrapper
+            onClick={handleShowModeSelection}
             style={{
               backgroundColor: isHovered ? '#2b6cb0' : '#4299e1',
               color: 'white',
@@ -479,7 +471,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             📚 Tambah ke Playlist
           </button>
 
-          {/* Tombol OPAC - CARA YANG SUDAH BERHASIL */}
+          {/* Tombol OPAC */}
           {book.lihat_opac && book.lihat_opac !== 'null' && (
             <a
               href={book.lihat_opac}
@@ -504,7 +496,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             </a>
           )}
 
-          {/* Tombol Pesan - CARA YANG SUDAH BERHASIL */}
+          {/* Tombol Pesan */}
           {book.link_pesan_koleksi && book.link_pesan_koleksi !== 'null' && (
             <a
               href={book.link_pesan_koleksi}
@@ -530,7 +522,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
           )}
         </div>
 
-        {/* Right Side: Delete Button - CARA YANG SUDAH BERHASIL */}
+        {/* Right Side: Delete Button */}
         {onRemoveBook && (
           <button
             onClick={(e) => {
@@ -567,6 +559,5 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
     </div>
   );
 };
-
 
 export default BookCard;

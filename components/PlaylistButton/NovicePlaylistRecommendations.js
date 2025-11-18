@@ -1,29 +1,12 @@
-// components/PlaylistButton/NovicePlaylistRecommendations.js - FIXED VERSION
+// components/PlaylistButton/NovicePlaylistRecommendations.js - COMPLETE FIXED VERSION
+
 import { useState, useEffect } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
+import { useNotification } from '../../contexts/NotificationContext';
 
-// Safe notification hook
-const useNotificationSafe = () => {
-  try {
-    const { useNotification } = require('../../contexts/NotificationContext');
-    return useNotification();
-  } catch (error) {
-    return {
-      addNotification: (notification) => {
-        console.log('📢 Notification:', notification);
-        if (typeof window !== 'undefined') {
-          setTimeout(() => {
-            alert(`📢 ${notification.title}\n${notification.message}`);
-          }, 100);
-        }
-      }
-    };
-  }
-};
-
-const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCloseBookDescription, integratedMode = false }) => {
+const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCloseBookDescription, integratedMode = false, onBookAdded }) => {
   const { playlists, addToPlaylist } = usePlaylist();
-  const { addNotification } = useNotificationSafe();
+  const { addNotification } = useNotification();
   const [aiRecommendations, setAiRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingToPlaylist, setAddingToPlaylist] = useState(null);
@@ -32,39 +15,10 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
     loadAIRecommendations();
   }, [book, playlists]);
 
-  // 🆕 ADD FUNCTION INI DI DALAM COMPONENT
-  const getScoreDisplay = (matchScore) => {
-    const getScoreStyle = (score) => {
-      if (score >= 80) return { background: '#10B981', color: 'white' };
-      if (score >= 60) return { background: '#F59E0B', color: 'white' };
-      if (score >= 40) return { background: '#EF4444', color: 'white' };
-      return { background: '#6B7280', color: 'white' };
-    };
-
-    const style = getScoreStyle(matchScore);
-
-    return (
-      <span style={{
-        backgroundColor: style.background,
-        color: style.color,
-        padding: '0.2rem 0.5rem',
-        borderRadius: '12px',
-        fontSize: '0.7rem',
-        fontWeight: '600',
-        minWidth: '40px',
-        textAlign: 'center',
-        marginLeft: '0.5rem'
-      }}>
-        {matchScore}%
-      </span>
-    );
-  };
-
-  // ... loadAIRecommendations
   const loadAIRecommendations = async () => {
     setLoading(true);
     try {
-      // ⚡ FIX: Sekarang biarkan API yang handle pre-filtering
+      // Filter playlists yang available (tidak mengandung buku ini)
       const availablePlaylists = playlists.filter(playlist =>
         !playlist.books?.some(b => b.id === book.id)
       );
@@ -77,7 +31,7 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
         return;
       }
 
-      // ⚡ FIX: Kirim semua playlist IDs, biar API yang filter
+      // Kirim semua playlist IDs, biar API yang filter
       const response = await fetch('/api/ai-playlist-recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,100 +84,6 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
     }
   };
 
-  // ⚡ FUNCTION BARU: Pre-filter playlist untuk hemat token
-  const preFilterPlaylists = (book, allPlaylists) => {
-    const availablePlaylists = allPlaylists.filter(playlist =>
-      !playlist.books?.some(b => b.id === book.id)
-    );
-
-    // Simple keyword matching untuk pilih 5 terbaik
-    const scoredPlaylists = availablePlaylists.map(playlist => {
-      const score = calculateBasicMatchScore(book, playlist);
-      return { playlist, score };
-    });
-
-    return scoredPlaylists
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5) // ⚡ MAX 5 PLAYLIST UNTUK HEMAT TOKEN
-      .map(item => item.playlist);
-  };
-
-  // ⚡ FUNCTION BARU: Calculate basic match score (sama dengan expert)
-  const calculateBasicMatchScore = (book, playlist) => {
-    const bookText = `${book.judul} ${book.pengarang} ${book.deskripsi_fisik || ''}`.toLowerCase();
-    const playlistText = `${playlist.name} ${playlist.description || ''}`.toLowerCase();
-    
-    const bookWords = new Set(bookText.split(/\s+/).filter(word => word.length > 3));
-    const playlistWords = new Set(playlistText.split(/\s+/).filter(word => word.length > 3));
-    
-    const intersection = [...bookWords].filter(word => playlistWords.has(word)).length;
-    const union = bookWords.size + playlistWords.size - intersection;
-    
-    const baseScore = union > 0 ? (intersection / union) * 100 : 0;
-    
-    // Bonus untuk playlist dengan tema spesifik
-    const themeBonus = playlist.name.includes('Sejarah') && book.judul.includes('sejarah') ? 20 : 0;
-    
-    return Math.min(100, baseScore + themeBonus);
-  };
-
-  // ⚡ FUNCTION BARU: Fetch AI recommendations dengan data proper
-  const fetchAIRecommendations = async (book, filteredPlaylists) => {
-    try {
-      const response = await fetch('/api/ai-playlist-recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookId: book.id,
-          bookTitle: book.judul,
-          bookAuthor: book.pengarang,
-          bookYear: book.tahun_terbit,
-          bookDescription: book.deskripsi_fisik, // ⚡ KIRIM DESKRIPSI JUGA
-          playlistIds: filteredPlaylists.map(p => p.id)
-        })
-      });
-      
-      if (!response.ok) throw new Error('API response not ok');
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        console.log('✅ AI Recommendations received:', result.data.recommendations.length);
-        return result.data.recommendations;
-      } else {
-        throw new Error(result.error || 'Unknown error');
-      }
-      
-    } catch (error) {
-      console.error('❌ AI Recommendations API failed:', error);
-      // Fallback ke basic recommendations
-      return generateSmartFallbackRecommendations(book, filteredPlaylists);
-    }
-  };
-
-  // ⚡ FUNCTION BARU: Smart fallback recommendations
-  const generateSmartFallbackRecommendations = (book, playlists) => {
-    return playlists.map(playlist => {
-      const score = calculateBasicMatchScore(book, playlist);
-      
-      return {
-        playlistId: playlist.id,
-        playlistName: playlist.name,
-        matchScore: Math.round(score),
-        confidence: 0.4, // Low confidence untuk fallback
-        reasoning: getFallbackReasoning(book, playlist, score),
-        improvementSuggestions: ['Analisis AI tidak tersedia - menggunakan matching dasar']
-      };
-    }).sort((a, b) => b.matchScore - a.matchScore);
-  };
-
-  // ⚡ FUNCTION BARU: Get meaningful fallback reasoning
-  const getFallbackReasoning = (book, playlist, score) => {
-    if (score >= 80) return `Kecocokan kuat: "${book.judul}" dengan tema ${playlist.name}`;
-    if (score >= 60) return `Kecocokan sedang berdasarkan kata kunci yang sama`;
-    return `Kecocokan rendah - pertimbangkan review manual`;
-  };
-
   const handleAddToPlaylist = async (playlistId, playlistName) => {
     setAddingToPlaylist(playlistId);
     
@@ -235,32 +95,116 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
           type: 'success',
           title: 'Berhasil! 🎉',
           message: `"${book.judul}" ditambahkan ke "${playlistName}"`,
-          icon: '✅'
+          icon: '✅',
+          duration: 3000
         });
+        
+        // 🆕 TRIGGER REFRESH DI PARENT COMPONENT
+        if (onBookAdded) {
+          onBookAdded();
+        }
+
+        // Save AI score jika ada
+        const recommendation = aiRecommendations.find(rec => rec.playlistId === playlistId);
+        if (recommendation && !recommendation.isFallback) {
+          await saveAIScoreToDatabase(playlistId, book.id, {
+            matchScore: recommendation.matchScore,
+            confidence: recommendation.confidence,
+            reasoning: recommendation.reasoning
+          });
+
+          // 🆕 TRIGGER REFRESH LAGI SETELAH AI SCORE DISIMPAN
+          if (onBookAdded) {
+            setTimeout(() => {
+              onBookAdded();
+            }, 1000);
+          }
+        }
+        
+        onClose();
       }
-      
-      onClose();
     } catch (error) {
       console.error('Failed to add to playlist:', error);
       addNotification({
         type: 'error',
         title: 'Gagal Menambahkan',
         message: error.message,
-        icon: '❌'
+        icon: '❌',
+        duration: 5000
       });
     } finally {
       setAddingToPlaylist(null);
     }
   };
 
+  const saveAIScoreToDatabase = async (playlistId, bookId, analysis) => {
+    try {
+      await fetch('/api/save-ai-score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playlistId,
+          bookId,
+          analysis
+        })
+      });
+      console.log('✅ AI score saved from novice mode');
+    } catch (error) {
+      console.error('Failed to save AI score from novice mode:', error);
+    }
+  };
+
+  // 🆕 TAMBAH FUNCTION YANG HILANG: handleCreatePlaylist
   const handleCreatePlaylist = () => {
+    // Close book description if open
     if (onCloseBookDescription) {
       onCloseBookDescription();
     }
+
+    // Show playlist form
     if (onShowPlaylistForm) {
       onShowPlaylistForm();
     }
+
+    // Close current modal
     onClose();
+
+    // Notification untuk create playlist
+    addNotification({
+      type: 'info',
+      title: 'Buat Playlist Baru',
+      message: 'Isi form untuk membuat playlist baru',
+      icon: '📝',
+      duration: 3000
+    });
+  };
+
+  // 🆕 FUNCTION: Tampilkan AI score badge
+  const getScoreDisplay = (matchScore) => {
+    const getScoreStyle = (score) => {
+      if (score >= 80) return { background: '#10B981', color: 'white' };
+      if (score >= 60) return { background: '#F59E0B', color: 'white' };
+      if (score >= 40) return { background: '#EF4444', color: 'white' };
+      return { background: '#6B7280', color: 'white' };
+    };
+
+    const style = getScoreStyle(matchScore);
+
+    return (
+      <span style={{
+        backgroundColor: style.background,
+        color: style.color,
+        padding: '0.2rem 0.5rem',
+        borderRadius: '12px',
+        fontSize: '0.7rem',
+        fontWeight: '600',
+        minWidth: '40px',
+        textAlign: 'center',
+        marginLeft: '0.5rem'
+      }}>
+        {matchScore}%
+      </span>
+    );
   };
 
   // Styling untuk integrated vs standalone mode
@@ -314,7 +258,7 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
           <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🤖</div>
           <div style={{ marginBottom: '0.5rem' }}>AI sedang menganalisis playlist...</div>
           <div style={{ fontSize: '0.8rem', color: '#a0aec0' }}>
-            Mencari {preFilterPlaylists(book, playlists).length} playlist terbaik untuk "{book.judul}"
+            Mencari playlist terbaik untuk "{book.judul}"
           </div>
           <div style={{
             width: '100%',

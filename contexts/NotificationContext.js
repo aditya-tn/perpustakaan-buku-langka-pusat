@@ -1,18 +1,17 @@
-// contexts/NotificationContext.js - COMPLETE FIXED VERSION
+// contexts/NotificationContext.js -
 
 import React, { createContext, useState, useContext, useCallback } from 'react';
 
-// Notification structure
 const createNotification = (notification) => {
   const id = Date.now() + Math.random();
   return {
     id,
-    type: 'info', // 'success', 'error', 'warning', 'info'
+    type: 'info',
     title: '',
     message: '',
     icon: 'ℹ️',
-    duration: 5000, // 5 seconds default
-    action: null, // { label: string, onClick: function }
+    duration: 5000,
+    action: null,
     ...notification,
     timestamp: new Date().toISOString()
   };
@@ -49,7 +48,6 @@ export const NotificationProvider = ({ children }) => {
     
     setNotifications(prev => [...prev, newNotification]);
     
-    // Auto remove setelah duration
     if (newNotification.duration && newNotification.duration > 0) {
       setTimeout(() => {
         removeNotification(newNotification.id);

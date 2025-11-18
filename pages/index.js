@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
-import BookDescription from '../components/BookDescription'
 import BookCard from '../components/BookCard'
 
 // Helper function untuk extract tahun dari berbagai format
@@ -421,6 +420,9 @@ export default function Home() {
   const [showStats, setShowStats] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
   
+  // 🆕 STATE BARU: Refresh trigger untuk BookCard
+  const [refreshBookCards, setRefreshBookCards] = useState(0)
+
   // Search Intelligence States
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -465,6 +467,12 @@ export default function Home() {
     { label: "🇮🇩 1945-1965", range: [1945, 1965], description: "Era kemerdekaan" },
     { label: "📚 1965-1990", range: [1965, 1990], description: "Modern awal" }
   ];
+
+  // 🆕 FUNCTION: Trigger refresh book cards
+  const triggerBookCardRefresh = () => {
+    console.log('🔄 Triggering BookCard refresh...');
+    setRefreshBookCards(prev => prev + 1);
+  };
 
   // Helper untuk count buku dengan tahun valid
   const countValidYears = (books) => {
@@ -697,7 +705,7 @@ export default function Home() {
     setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] });
   };
 
-  // EXACT MATCH SEARCH EXECUTION
+ // EXACT MATCH SEARCH EXECUTION
   const executeSearch = async (searchQuery) => {
     if (!searchQuery.trim()) {
       setHasSearched(false)
@@ -707,8 +715,8 @@ export default function Home() {
     setActiveSynonyms([]);
     setOriginalSearchResults([]);
     setActivePeriod(null);
-    setLastSearchTerm(searchQuery); // Simpan term pencarian terakhir
-    setHasSearched(true); // Tandai bahwa pencarian telah dilakukan
+    setLastSearchTerm(searchQuery);
+    setHasSearched(true);
     
     const lang = detectLanguage(searchQuery);
     setDetectedLanguage(lang);
@@ -755,7 +763,7 @@ export default function Home() {
     }
   };
 
-  // Handler untuk klik kartu
+  // Handler untuk klik kartu - UPDATE DENGAN REFRESH TRIGGER
   const handleCardClick = (book) => {
     // Jika book adalah null (dari tombol close), atau klik buku yang sama
     if (!book || (selectedBook && selectedBook.id === book.id)) {
@@ -763,6 +771,9 @@ export default function Home() {
     } else {
       setSelectedBook(book);
     }
+    
+    // 🆕 TRIGGER REFRESH ketika card diklik untuk update AI scores
+    triggerBookCardRefresh();
   };
 
   // Toggle Synonyms
@@ -834,7 +845,7 @@ export default function Home() {
     setLiveSearchEnabled(prev => !prev)
   }
 
-  // Clear current search
+  // Clear current search - UPDATE DENGAN RESET REFRESH
   const clearSearch = () => {
     setSearchTerm('')
     setSearchResults([])
@@ -845,8 +856,9 @@ export default function Home() {
     setActiveSynonyms([])
     setActiveFilters({ tahunRange: [MIN_YEAR, MAX_YEAR] })
     setActivePeriod(null)
-    setHasSearched(false) // Reset status pencarian
-    setLastSearchTerm('') // Reset term terakhir
+    setHasSearched(false)
+    setLastSearchTerm('')
+    setRefreshBookCards(0) // 🆕 RESET REFRESH COUNTER
     
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current)
@@ -1382,7 +1394,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* No Results Section - Tampilkan ketika tidak ada hasil setelah pencarian */}
+      {/* No Results Section */}
       {hasSearched && searchResults.length === 0 && !loading && (
         <section style={{ 
           maxWidth: '800px', 
@@ -1587,50 +1599,50 @@ export default function Home() {
           padding: isMobile ? '0 1rem' : '0 2rem'
         }}>
 
-{/* Search-within-Search Panel - OPTIMIZED COMPACT LAYOUT */}
-<div style={{
-  backgroundColor: 'white',
-  padding: isMobile ? '1rem' : '1.25rem',
-  borderRadius: '12px',
-  boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-  marginBottom: '2rem',
-  border: '1px solid #e2e8f0'
-}}>
-  <div style={{
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  }}>
-    <h3 style={{ 
-      fontSize: isMobile ? '1.1rem' : '1.25rem', 
-      fontWeight: '700',
-      color: '#2d3748',
-      margin: 0
-    }}>
-      🔎 Filter Hasil Pencarian
-    </h3>
-    
-    {isWithinSearchActive && (
-      <button
-        onClick={clearWithinSearch}
-        style={{
-          padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
-          backgroundColor: '#f7fafc',
-          color: '#718096',
-          border: '1px solid #e2e8f0',
-          borderRadius: '6px',
-          cursor: 'pointer',
-          fontSize: isMobile ? '0.75rem' : '0.8rem',
-          fontWeight: '500'
-        }}
-      >
-        ✕ Hapus Filter
-      </button>
-    )}
-  </div>
+         {/* Search-within-Search Panel */}
+          <div style={{
+            backgroundColor: 'white',
+            padding: isMobile ? '1rem' : '1.25rem',
+            borderRadius: '12px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            marginBottom: '2rem',
+            border: '1px solid #e2e8f0'
+          }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}>
+            <h3 style={{ 
+              fontSize: isMobile ? '1.1rem' : '1.25rem', 
+              fontWeight: '700',
+              color: '#2d3748',
+              margin: 0
+            }}>
+              🔎 Filter Hasil Pencarian
+            </h3>
+            
+            {isWithinSearchActive && (
+              <button
+                onClick={clearWithinSearch}
+                style={{
+                  padding: isMobile ? '0.4rem 0.8rem' : '0.5rem 1rem',
+                  backgroundColor: '#f7fafc',
+                  color: '#718096',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '0.75rem' : '0.8rem',
+                  fontWeight: '500'
+                }}
+              >
+                ✕ Hapus Filter
+              </button>
+            )}
+          </div>
 
   {/* COMPACT 3-COLUMN LAYOUT */}
   <div style={{
@@ -2080,60 +2092,60 @@ export default function Home() {
   )}
 </div>
 
-{/* Results Header */}
-<div style={{
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: isMobile ? 'flex-start' : 'center',
-  marginBottom: '2rem',
-  flexWrap: 'wrap',
-  gap: '1rem',
-  flexDirection: isMobile ? 'column' : 'row'
-}}>
-  <div style={{ flex: 1 }}>
-    <h3 style={{ 
-      fontSize: isMobile ? '1.5rem' : '1.75rem', 
-      fontWeight: '700',
-      color: '#2d3748',
-      margin: 0,
-      marginBottom: '0.5rem'
-    }}>
-      Hasil Pencarian
-    </h3>
-    
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.75rem',
-      flexWrap: 'wrap'
-    }}>
-      <p style={{ 
-        color: '#718096',
-        margin: 0,
-        fontSize: isMobile ? '0.9rem' : '1rem'
-      }}>
-        {isWithinSearchActive ? (
-          <>
-            <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
-            {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
-            {` untuk "${searchTerm}"`}
-            {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
-            {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
-              ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
-          </>
-        ) : (
-          <>
-            <strong>{searchResults.length}</strong> buku ditemukan
-            {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
-            {` untuk "${searchTerm}"`}
-            {activeSynonyms.length > 0 && synonymsEnabled && (
-              <span style={{color: '#4299e1', fontWeight: '600'}}>
-                {' '}• {activeSynonyms.length} synonyms
-              </span>
-            )}
-          </>
-        )}
-      </p>
+          {/* Results Header */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            marginBottom: '2rem',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            flexDirection: isMobile ? 'column' : 'row'
+          }}>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ 
+              fontSize: isMobile ? '1.5rem' : '1.75rem', 
+              fontWeight: '700',
+              color: '#2d3748',
+              margin: 0,
+              marginBottom: '0.5rem'
+            }}>
+              Hasil Pencarian
+            </h3>
+            
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              flexWrap: 'wrap'
+            }}>
+              <p style={{ 
+                color: '#718096',
+                margin: 0,
+                fontSize: isMobile ? '0.9rem' : '1rem'
+              }}>
+                {isWithinSearchActive ? (
+                  <>
+                    <strong>{filteredResults.length}</strong> dari <strong>{searchResults.length}</strong> buku 
+                    {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
+                    {` untuk "${searchTerm}"`}
+                    {withinSearchTerm && ` + filter: "${withinSearchTerm}"`}
+                    {(activeFilters.tahunRange[0] !== MIN_YEAR || activeFilters.tahunRange[1] !== MAX_YEAR) && 
+                      ` + tahun: ${activeFilters.tahunRange[0]}-${activeFilters.tahunRange[1]}`}
+                  </>
+                ) : (
+                  <>
+                    <strong>{searchResults.length}</strong> buku ditemukan
+                    {synonymsEnabled ? ' dengan synonyms' : ' (exact match only)'}
+                    {` untuk "${searchTerm}"`}
+                    {activeSynonyms.length > 0 && synonymsEnabled && (
+                      <span style={{color: '#4299e1', fontWeight: '600'}}>
+                        {' '}• {activeSynonyms.length} synonyms
+                      </span>
+                    )}
+                  </>
+                )}
+              </p>
 
       {/* NEW: Small OPAC Button next to results info */}
       <a 
@@ -2205,7 +2217,7 @@ export default function Home() {
   </div>
 </div>
 
-          {/* Book Grid - FIXED VERSION */}
+          {/* Book Grid - UPDATED DENGAN REFRESH TRIGGER */}
           <style>
           {`
             @keyframes fadeIn {
@@ -2230,26 +2242,29 @@ export default function Home() {
           `}
           </style>
 
-          {/* Book Grid */}
-<div style={{
-  display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
-  gap: isMobile ? '2rem 1rem' : '2rem 1.5rem',
-  marginBottom: '3rem',
-  alignItems: 'stretch'
-}}>
-  {currentItems.map((book) => (
-    <div key={book.id} style={{ marginBottom: isMobile ? '1.5rem' : '3rem' }}>
-      <BookCard 
-        book={book}
-        isMobile={isMobile}
-        isSelected={selectedBook?.id === book.id}
-        showDescription={selectedBook?.id === book.id}
-        onCardClick={handleCardClick}
-      />
-    </div>
-  ))}
-</div>
+
+          {/* Book Grid - UPDATED DENGAN REFRESH TRIGGER */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
+            gap: isMobile ? '2rem 1rem' : '2rem 1.5rem',
+            marginBottom: '3rem',
+            alignItems: 'stretch'
+          }}>
+            {currentItems.map((book) => (
+              <div key={book.id} style={{ marginBottom: isMobile ? '1.5rem' : '3rem' }}>
+                <BookCard 
+                  book={book}
+                  isMobile={isMobile}
+                  isSelected={selectedBook?.id === book.id}
+                  showDescription={selectedBook?.id === book.id}
+                  onCardClick={handleCardClick}
+                  refreshTrigger={refreshBookCards} // 🆕 PASS REFRESH TRIGGER
+                  onBookAdded={triggerBookCardRefresh} // 🆕 PASS REFRESH CALLBACK
+                />
+              </div>
+            ))}
+          </div>
 
 
           {/* No Filtered Results Message */}

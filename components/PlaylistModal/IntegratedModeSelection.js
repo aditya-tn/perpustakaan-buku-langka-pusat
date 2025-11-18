@@ -4,7 +4,7 @@ import { usePlaylist } from '../../contexts/PlaylistContext';
 import ExpertPlaylistDropdown from '../PlaylistButton/ExpertPlaylistDropdown';
 import NovicePlaylistRecommendations from '../PlaylistButton/NovicePlaylistRecommendations';
 
-const IntegratedModeSelection = ({ book, onClose, onShowPlaylistForm }) => {
+const IntegratedModeSelection = ({ book, onClose, onShowPlaylistForm, onBookAdded }) => {
   const [currentMode, setCurrentMode] = useState(null); // 'expert' | 'novice'
   const [showInitialChoice, setShowInitialChoice] = useState(true);
 
@@ -241,6 +241,7 @@ const IntegratedModeSelection = ({ book, onClose, onShowPlaylistForm }) => {
           onClose={handleCloseMode}
           onShowPlaylistForm={onShowPlaylistForm}
           integratedMode={true}
+          onBookAdded={onBookAdded} // 🆕 PASS REFRESH CALLBACK
         />
       )}
 
@@ -250,6 +251,7 @@ const IntegratedModeSelection = ({ book, onClose, onShowPlaylistForm }) => {
           onClose={handleCloseMode}
           onShowPlaylistForm={onShowPlaylistForm}
           integratedMode={true}
+          onBookAdded={onBookAdded} // 🆕 PASS REFRESH CALLBACK
         />
       )}
     </div>

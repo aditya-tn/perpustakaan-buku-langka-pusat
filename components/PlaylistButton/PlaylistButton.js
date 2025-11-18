@@ -1,6 +1,7 @@
 // components/PlaylistButton/PlaylistButton.js - COMPLETE UPDATED VERSION
 import { useState, useEffect } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
+import { useNotification } from '../../contexts/NotificationContext'; // 🆕 FIX IMPORT
 import ChoiceModal from '../PlaylistModal/ChoiceModal';
 import ExpertPlaylistDropdown from './ExpertPlaylistDropdown';
 import NovicePlaylistRecommendations from './NovicePlaylistRecommendations';
@@ -31,13 +32,10 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
   const [isHovered, setIsHovered] = useState(false);
   const [addingToPlaylist, setAddingToPlaylist] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  
-  // STATE BARU UNTUK DUAL MODE
-  const [currentMode, setCurrentMode] = useState(null); // 'expert' | 'novice'
+  const [currentMode, setCurrentMode] = useState(null);
   const [showChoiceModal, setShowChoiceModal] = useState(false);
-
   const { playlists, addToPlaylist } = usePlaylist();
-  const { addNotification } = useNotificationSafe();
+  const { addNotification } = useNotification();
 
   // Mobile detection
   useEffect(() => {
@@ -113,25 +111,27 @@ const PlaylistButton = ({ book, onShowPlaylistForm, onCloseBookDescription }) =>
   // HANDLE CREATE PLAYLIST CLICK
   const handleCreateClick = (e) => {
     e.stopPropagation();
-    // Close book description if open
+    
     if (onCloseBookDescription) {
       onCloseBookDescription();
     }
-    // Show playlist form
+    
     if (onShowPlaylistForm) {
       onShowPlaylistForm();
     }
+    
     setShowDropdown(false);
     setCurrentMode(null);
-
-    // Notification untuk create playlist
+    
     addNotification({
       type: 'info',
       title: 'Buat Playlist Baru',
       message: 'Isi form untuk membuat playlist baru',
-      icon: '📝'
+      icon: '📝',
+      duration: 3000
     });
   };
+
 
   // Filter playlists yang tidak mengandung buku ini (untuk avoid duplicate)
   const availablePlaylists = playlists.filter(playlist =>

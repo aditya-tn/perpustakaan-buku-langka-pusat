@@ -1,4 +1,4 @@
-// services/aiMatchingService.js - SIMPLIFIED ROBUST VERSION
+// services/aiMatchingService.js - COMPLETE FIXED VERSION
 
 import { generateAIResponse } from '../lib/gemini';
 
@@ -121,7 +121,8 @@ export const aiMatchingService = {
   getCommonThemes(bookText, playlistText) {
     const themes = [
       'sejarah', 'militer', 'medis', 'pendidikan', 'kolonial', 
-      'indonesia', 'belanda', 'kesehatan', 'tentara', 'perang'
+      'indonesia', 'belanda', 'kesehatan', 'tentara', 'perang',
+      'hukum', 'undang', 'disiplin', 'nasional', 'indonesia'
     ];
     
     return themes.filter(theme => 
@@ -172,7 +173,7 @@ Hanya JSON array.
 `.trim();
   },
 
-  // 🆕 METHOD: Parse simple AI response
+  // 🆕 METHOD: Parse simple AI response - ENHANCED MATCHING LOGIC
   parseSimpleAIResponse(aiResponse, book, topPlaylists) {
     try {
       console.log('🔄 Parsing simple AI response...');
@@ -194,16 +195,13 @@ Hanya JSON array.
       const parsed = JSON.parse(cleanResponse);
 
       if (Array.isArray(parsed)) {
-        // 🆕 FIX: Map AI response ke playlist yang sesuai
+        // 🆕 ENHANCED: Better playlist matching dengan multiple strategies
         const recommendations = parsed.map((rec, index) => {
-          // Cari playlist berdasarkan name (case insensitive)
-          const playlist = topPlaylists.find(item => 
-            item.playlist.name.toLowerCase().includes(rec.playlistName.toLowerCase()) ||
-            rec.playlistName.toLowerCase().includes(item.playlist.name.toLowerCase())
-          )?.playlist || topPlaylists[index]?.playlist;
-
+          const playlist = this.findMatchingPlaylist(rec.playlistName, topPlaylists, index);
+          
           if (!playlist) {
             console.warn(`⚠️ No matching playlist found for: ${rec.playlistName}`);
+            console.log('Available playlists:', topPlaylists.map(p => p.playlist.name));
             return null;
           }
 
@@ -211,8 +209,8 @@ Hanya JSON array.
             playlistId: playlist.id,
             playlistName: playlist.name,
             matchScore: this.validateScore(rec.matchScore),
-            confidence: 0.8, // Higher confidence untuk AI results
-            reasoning: rec.reason || rec.reasoning || `Kecocokan dengan ${playlist.name}`,
+            confidence: 0.8,
+            reasoning: rec.reason || rec.reasoning || `Kecocokan dengan "${playlist.name}"`,
             improvementSuggestions: [],
             isFallback: false,
             ruleBasedScore: topPlaylists.find(item => item.playlist.id === playlist.id)?.score || 50
@@ -230,6 +228,57 @@ Hanya JSON array.
       console.log('📝 Raw response:', aiResponse);
       throw error;
     }
+  },
+
+  // 🆕 METHOD: Enhanced playlist matching dengan multiple strategies
+  findMatchingPlaylist(aiPlaylistName, topPlaylists, index) {
+    // Strategy 1: Exact match
+    let playlist = topPlaylists.find(item => 
+      item.playlist.name === aiPlaylistName
+    )?.playlist;
+
+    // Strategy 2: Case insensitive match
+    if (!playlist) {
+      playlist = topPlaylists.find(item => 
+        item.playlist.name.toLowerCase() === aiPlaylistName.toLowerCase()
+      )?.playlist;
+    }
+
+    // Strategy 3: Remove emoji and compare
+    if (!playlist) {
+      const cleanAIPlaylistName = aiPlaylistName.replace(/[^\w\s]/g, '').trim();
+      playlist = topPlaylists.find(item => {
+        const cleanPlaylistName = item.playlist.name.replace(/[^\w\s]/g, '').trim();
+        return cleanPlaylistName === cleanAIPlaylistName;
+      })?.playlist;
+    }
+
+    // Strategy 4: Contains match (partial)
+    if (!playlist) {
+      const cleanAIPlaylistName = aiPlaylistName.replace(/[^\w\s]/g, '').trim().toLowerCase();
+      playlist = topPlaylists.find(item => {
+        const cleanPlaylistName = item.playlist.name.replace(/[^\w\s]/g, '').trim().toLowerCase();
+        return cleanPlaylistName.includes(cleanAIPlaylistName) || 
+               cleanAIPlaylistName.includes(cleanPlaylistName);
+      })?.playlist;
+    }
+
+    // Strategy 5: Match by keywords
+    if (!playlist) {
+      const aiKeywords = aiPlaylistName.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+      playlist = topPlaylists.find(item => {
+        const playlistKeywords = item.playlist.name.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+        return aiKeywords.some(keyword => playlistKeywords.includes(keyword));
+      })?.playlist;
+    }
+
+    // Strategy 6: Fallback to index
+    if (!playlist && topPlaylists[index]) {
+      playlist = topPlaylists[index].playlist;
+      console.warn(`⚠️ Using index fallback for playlist matching: ${aiPlaylistName} → ${playlist.name}`);
+    }
+
+    return playlist;
   },
 
   // 🆕 METHOD: Rule-based results
@@ -276,13 +325,20 @@ Hanya JSON array.
       const hasApiKey = !!process.env.GEMINI_API_KEY;
       const hasGeminiFunction = typeof generateAIResponse === 'function';
       
+      console.log('🔍 Gemini Availability Check:', {
+        hasApiKey,
+        hasGeminiFunction,
+        apiKeyLength: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0
+      });
+
       return hasApiKey && hasGeminiFunction;
     } catch (error) {
+      console.error('❌ Error checking Gemini availability:', error);
       return false;
     }
   },
 
-  // ... METHOD YANG SUDAH ADA ...
+  // EXISTING METHODS - PASTIKAN SEMUA ADA
   createAnalysisPrompt(book, playlist) {
     const bookDescription = book.deskripsi_buku || book.deskripsi_fisik || 'Tidak ada deskripsi';
     const descriptionSource = book.deskripsi_source === 'ai-enhanced' ? '[Deskripsi AI]' : '[Deskripsi Basic]';
@@ -311,6 +367,8 @@ FORMAT: JSON saja.
 
   parseAIResponse(aiResponse, book, playlist) {
     try {
+      console.log('🔄 Parsing AI response...');
+      
       const cleanResponse = aiResponse.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(cleanResponse);
 
@@ -328,6 +386,7 @@ FORMAT: JSON saja.
       };
     } catch (error) {
       console.error('❌ Failed to parse AI response:', error);
+      console.log('📝 Raw AI response was:', aiResponse);
       return this.getFallbackAnalysis(book, playlist);
     }
   },

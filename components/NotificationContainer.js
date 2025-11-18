@@ -1,6 +1,6 @@
-// components/NotificationContainer.js - FIXED VERSION
+// components/NotificationContainer.js - FIXED WITH REACT IMPORT
 
-import React from 'react';
+import React from 'react'; // 🆕 IMPORT INI PERLU!
 import { useNotification } from '../contexts/NotificationContext';
 
 const NotificationContainer = () => {
@@ -8,10 +8,7 @@ const NotificationContainer = () => {
 
   const getNotificationStyle = (type) => {
     const baseStyle = {
-      position: 'fixed',
-      top: '20px',
-      right: '20px',
-      zIndex: 10000,
+      position: 'relative', // Changed from fixed
       minWidth: '300px',
       maxWidth: '400px',
       padding: '1rem',
@@ -43,7 +40,7 @@ const NotificationContainer = () => {
       info: {
         backgroundColor: '#ebf8ff',
         border: '1px solid #90cdf4',
-        color: '#2c5282' // 🆕 FIX: TAMBAH QUOTE YANG HILANG
+        color: '#2c5282' // 🆕 FIX: Missing quote
       }
     };
 
@@ -70,10 +67,9 @@ const NotificationContainer = () => {
   return (
     <div style={{
       position: 'fixed',
-      top: 0,
-      right: 0,
+      top: '20px',
+      right: '20px',
       zIndex: 10000,
-      padding: '20px',
       display: 'flex',
       flexDirection: 'column',
       gap: '10px',
@@ -122,7 +118,8 @@ const NotificationContainer = () => {
               <div style={{
                 fontSize: '0.8rem',
                 lineHeight: '1.4',
-                opacity: 0.9
+                opacity: 0.9,
+                whiteSpace: 'pre-line' // 🆕 Agar \n bekerja
               }}>
                 {notification.message}
               </div>
@@ -204,17 +201,6 @@ const NotificationContainer = () => {
           to {
             opacity: 1;
             transform: translateX(0);
-          }
-        }
-        
-        @keyframes slideOut {
-          from {
-            opacity: 1;
-            transform: translateX(0);
-          }
-          to {
-            opacity: 0;
-            transform: translateX(100%);
           }
         }
       `}</style>
