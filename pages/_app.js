@@ -1,6 +1,7 @@
-// pages/_app.js - Tambahkan NotificationProvider DAN Viewport Meta
+// pages/_app.js - TAMBAH NOTIFICATIONCONTAINER
 import { PlaylistProvider } from '../contexts/PlaylistContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import NotificationContainer from '../components/NotificationContainer'; // 🆕 IMPORT INI
 import Head from 'next/head';
 
 function MyApp({ Component, pageProps }) {
@@ -22,6 +23,8 @@ function MyApp({ Component, pageProps }) {
       <NotificationProvider>
         <PlaylistProvider>
           <Component {...pageProps} />
+          {/* 🆕 TAMBAH NOTIFICATION CONTAINER DI SINI */}
+          <NotificationContainer />
         </PlaylistProvider>
       </NotificationProvider>
     </>
