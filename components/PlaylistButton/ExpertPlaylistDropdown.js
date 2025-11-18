@@ -1,5 +1,5 @@
 // components/PlaylistButton/ExpertPlaylistDropdown.js - FULL UPDATED
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 
 // Safe notification hook
@@ -479,3 +479,4 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
 };
 
 export default ExpertPlaylistDropdown;
+
