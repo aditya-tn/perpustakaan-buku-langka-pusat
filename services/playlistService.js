@@ -496,8 +496,7 @@ reportPlaylist: async (playlistId) => {
       console.error('❌ Error getting all AI scores:', error);
       return {};
     }
-  }
-},
+  },
   
   /**
    * Health check - test connection to Supabase
