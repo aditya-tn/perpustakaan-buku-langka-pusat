@@ -143,11 +143,28 @@ const PlaylistsPage = () => {
   );
 
   // Playlist card component
-  const PlaylistCard = ({ playlist }) => {
-    const isOwner = playlist.created_by === userId;
+  const PlaylistCard = ({ playlist, onTrackView }) => {
+    const router = useRouter();
     
+    const handleClick = async (e) => {
+      e.preventDefault();
+      
+      try {
+        // Track view sebelum navigate
+        await onTrackView(playlist.id);
+        console.log('✅ Tracked view for playlist:', playlist.id);
+      } catch (error) {
+        console.error('❌ Tracking failed:', error);
+      }
+      
+      // Navigate setelah tracking
+      router.push(`/playlists/${playlist.id}`);
+    };
+  
     return (
-      <div style={{
+      <div 
+        onClick={handleClick} // ✅ PAKAI HANDLER BARU
+        style={{
         backgroundColor: 'white',
         padding: '1.5rem',
         borderRadius: '12px',
