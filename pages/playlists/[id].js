@@ -10,7 +10,7 @@ import BookCard from '../../components/BookCard';
 const PlaylistDetail = () => {
   const router = useRouter();
   const { id } = router.query;
-  const { playlists, userId, likePlaylist, trackView, deletePlaylist, removeFromPlaylist } = usePlaylist();
+  const { playlists, userId, likePlaylist, trackView, deletePlaylist, removeBookFromPlaylist } = usePlaylist();
   
   const [initialLoad, setInitialLoad] = useState(true);
   const [playlist, setPlaylist] = useState(null);
@@ -26,7 +26,7 @@ const PlaylistDetail = () => {
   // Function untuk handle remove book
   const handleRemoveBook = async (bookId) => {
     try {
-      await removeFromPlaylist(id, bookId);
+      await removeBookFromPlaylist(id, bookId);
       setDeleteBookConfirm(null);
     } catch (error) {
       console.error('Failed to remove book:', error);
