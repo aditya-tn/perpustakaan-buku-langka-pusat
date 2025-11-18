@@ -16,13 +16,24 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     loadExistingAIScores();
   }, [book, playlists]);
 
-  const loadExistingAIScores = () => {
+  const loadExistingAIScores = async () => {
+    console.log('🔄 Loading existing AI scores from local state...');
+    
     const scores = {};
+    
+    // 🚀 AMBIL DATA DARI LOCAL STATE - TANPA API CALL
     playlists.forEach(playlist => {
-      const score = (playlist.ai_match_scores || {})[book.id];
-      if (score) scores[playlist.id] = score;
+      const aiScores = playlist.ai_match_scores || {};
+      const scoreForThisBook = aiScores[book.id];
+      
+      if (scoreForThisBook) {
+        scores[playlist.id] = scoreForThisBook;
+        console.log(`✅ Found AI score for playlist ${playlist.name}:`, scoreForThisBook.matchScore);
+      }
     });
+    
     setAiScores(scores);
+    console.log('📊 Total AI scores loaded:', Object.keys(scores).length);
   };
 
   const handleAddToPlaylist = async (playlistId) => {
@@ -515,3 +526,4 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
 
 
 export default ExpertPlaylistDropdown;
+
