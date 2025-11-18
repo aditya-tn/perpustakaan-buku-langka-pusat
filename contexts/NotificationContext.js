@@ -30,8 +30,8 @@ export const NotificationProvider = ({ children }) => {
         removeNotification(id);
       }, notification.duration);
     }
-    
-    return id;
+
+   return id;
   };
 
   const removeNotification = (id) => {
@@ -41,8 +41,7 @@ export const NotificationProvider = ({ children }) => {
   const clearAllNotifications = () => {
     setNotifications([]);
   };
-
-  return (
+    return (
     <NotificationContext.Provider value={{
       notifications,
       addNotification,
