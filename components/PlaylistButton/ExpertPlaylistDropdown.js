@@ -16,21 +16,12 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     loadExistingAIScores();
   }, [book, playlists]);
 
-  const loadExistingAIScores = async () => {
+  const loadExistingAIScores = () => {
     const scores = {};
-    for (const playlist of playlists) {
-      try {
-        const response = await fetch(`/api/get-ai-score?playlistId=${playlist.id}&bookId=${book.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.score) {
-            scores[playlist.id] = data.score;
-          }
-        }
-      } catch (error) {
-        console.error(`Error loading AI score for playlist ${playlist.id}:`, error);
-      }
-    }
+    playlists.forEach(playlist => {
+      const score = (playlist.ai_match_scores || {})[book.id];
+      if (score) scores[playlist.id] = score;
+    });
     setAiScores(scores);
   };
 
@@ -521,5 +512,6 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     </div>
   );
 };
+
 
 export default ExpertPlaylistDropdown;
