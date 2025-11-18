@@ -1,8 +1,9 @@
-// components/PlaylistButton/ExpertPlaylistDropdown.js - FULL UPDATED
+// components/PlaylistButton/ExpertPlaylistDropdown.js - FIXED VERSION
+
+// 🆕 TAMBAHKAN IMPORT useEffect
 import { useState, useEffect } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 
-// Safe notification hook
 const useNotificationSafe = () => {
   try {
     const { useNotification } = require('../../contexts/NotificationContext');
@@ -28,7 +29,7 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
   const [aiScores, setAiScores] = useState({}); // Store AI scores for display
   const [showScoreNotifications, setShowScoreNotifications] = useState({}); // Control notification display
 
-  // Load existing AI scores ketika component mount
+  // 🆕 FIX: useEffect sudah di-import sekarang
   useEffect(() => {
     loadExistingAIScores();
   }, [book, playlists]);
@@ -242,6 +243,15 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     !playlist.books?.some(b => b.id === book.id)
   );
 
+  const handleCreatePlaylist = () => {
+    if (onCloseBookDescription) {
+      onCloseBookDescription();
+    }
+    if (onShowPlaylistForm) {
+      onShowPlaylistForm();
+    }
+    onClose();
+  };
 
   // Styling untuk integrated vs standalone mode
   const containerStyle = integratedMode ? {
@@ -479,4 +489,3 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
 };
 
 export default ExpertPlaylistDropdown;
-
