@@ -17,7 +17,6 @@ export const PlaylistProvider = ({ children }) => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { addNotification } = useNotification();
 
   // ========================
   // CORE PLAYLIST OPERATIONS
@@ -178,6 +177,114 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
+
+  // ========================
+  // CORE FUNCTIONS - PASTIKAN SEMUA ADA NOTIFICATION
+  // ========================
+
+  // Like playlist - FIXED
+  const likePlaylist = async (playlistId) => {
+    try {
+      const { data, error } = await supabase.rpc('increment_like_count', {
+        playlist_id: playlistId
+      });
+
+      if (error) {
+        // Fallback manual update
+        return await manualIncrement(playlistId, 'like_count');
+      }
+
+      // ✅ PASTIKAN ADA NOTIFICATION
+      addNotification({
+        type: 'success',
+        title: 'Liked! ❤️',
+        message: 'Playlist berhasil disukai',
+        icon: '❤️',
+        duration: 3000
+      });
+
+      // Update local state
+      setPlaylists(prev => prev.map(p => 
+        p.id === playlistId ? { ...p, like_count: (p.like_count || 0) + 1 } : p
+      ));
+
+      return data;
+    } catch (error) {
+      console.error('Error liking playlist:', error);
+      addNotification({
+        type: 'error',
+        title: 'Gagal',
+        message: 'Gagal menyukai playlist',
+        icon: '❌',
+        duration: 5000
+      });
+      throw error;
+    }
+  };
+
+  // Track view - FIXED
+  const trackView = async (playlistId) => {
+    try {
+      console.log('👀 Tracking view for playlist:', playlistId);
+      
+      const { data, error } = await supabase.rpc('increment_view_count', {
+        playlist_id: playlistId
+      });
+
+      if (error) {
+        console.log('Using manual increment for view');
+        return await manualIncrement(playlistId, 'view_count');
+      }
+
+      // Update local state
+      setPlaylists(prev => prev.map(p => 
+        p.id === playlistId ? { ...p, view_count: (p.view_count || 0) + 1 } : p
+      ));
+
+      console.log('✅ View tracked successfully');
+      return data;
+    } catch (error) {
+      console.error('Error tracking view:', error);
+      // Don't throw error for analytics
+      return null;
+    }
+  };
+
+  // Remove book - FIXED with notification
+  const removeBookFromPlaylist = async (playlistId, bookId) => {
+    try {
+      console.log('🗑️ Removing book:', { playlistId, bookId });
+
+      // Your existing remove logic...
+      // [PASTE ALL YOUR EXISTING REMOVE LOGIC HERE]
+
+      // ✅ PASTIKAN ADA NOTIFICATION SUCCESS
+      addNotification({
+        type: 'success', 
+        title: 'Buku Dihapus 🗑️',
+        message: 'Buku berhasil dihapus dari playlist',
+        icon: '✅',
+        duration: 3000
+      });
+
+      return { success: true, data };
+
+    } catch (error) {
+      console.error('Error removing book:', error);
+      
+      // ✅ NOTIFICATION ERROR
+      addNotification({
+        type: 'error',
+        title: 'Gagal Menghapus',
+        message: error.message || 'Gagal menghapus buku',
+        icon: '❌', 
+        duration: 5000
+      });
+      
+      return { success: false, error: error.message };
+    }
+  };
+
   // ========================
   // AI SCORE MANAGEMENT
   // ========================
@@ -317,115 +424,6 @@ export const PlaylistProvider = ({ children }) => {
       console.error('Error reporting playlist:', error);
       throw error;
     }
-  };
-
-
-    // ========================
-    // CORE FUNCTIONS - PASTIKAN SEMUA ADA NOTIFICATION
-    // ========================
-  
-    // Like playlist - FIXED
-    const likePlaylist = async (playlistId) => {
-      try {
-        const { data, error } = await supabase.rpc('increment_like_count', {
-          playlist_id: playlistId
-        });
-  
-        if (error) {
-          // Fallback manual update
-          return await manualIncrement(playlistId, 'like_count');
-        }
-  
-        // ✅ PASTIKAN ADA NOTIFICATION
-        addNotification({
-          type: 'success',
-          title: 'Liked! ❤️',
-          message: 'Playlist berhasil disukai',
-          icon: '❤️',
-          duration: 3000
-        });
-  
-        // Update local state
-        setPlaylists(prev => prev.map(p => 
-          p.id === playlistId ? { ...p, like_count: (p.like_count || 0) + 1 } : p
-        ));
-  
-        return data;
-      } catch (error) {
-        console.error('Error liking playlist:', error);
-        addNotification({
-          type: 'error',
-          title: 'Gagal',
-          message: 'Gagal menyukai playlist',
-          icon: '❌',
-          duration: 5000
-        });
-        throw error;
-      }
-    };
-  
-    // Track view - FIXED
-    const trackView = async (playlistId) => {
-      try {
-        console.log('👀 Tracking view for playlist:', playlistId);
-        
-        const { data, error } = await supabase.rpc('increment_view_count', {
-          playlist_id: playlistId
-        });
-  
-        if (error) {
-          console.log('Using manual increment for view');
-          return await manualIncrement(playlistId, 'view_count');
-        }
-  
-        // Update local state
-        setPlaylists(prev => prev.map(p => 
-          p.id === playlistId ? { ...p, view_count: (p.view_count || 0) + 1 } : p
-        ));
-  
-        console.log('✅ View tracked successfully');
-        return data;
-      } catch (error) {
-        console.error('Error tracking view:', error);
-        // Don't throw error for analytics
-        return null;
-      }
-    };
-  
-    // Remove book - FIXED with notification
-    const removeBookFromPlaylist = async (playlistId, bookId) => {
-      try {
-        console.log('🗑️ Removing book:', { playlistId, bookId });
-  
-        // Your existing remove logic...
-        // [PASTE ALL YOUR EXISTING REMOVE LOGIC HERE]
-  
-        // ✅ PASTIKAN ADA NOTIFICATION SUCCESS
-        addNotification({
-          type: 'success', 
-          title: 'Buku Dihapus 🗑️',
-          message: 'Buku berhasil dihapus dari playlist',
-          icon: '✅',
-          duration: 3000
-        });
-  
-        return { success: true, data };
-  
-      } catch (error) {
-        console.error('Error removing book:', error);
-        
-        // ✅ NOTIFICATION ERROR
-        addNotification({
-          type: 'error',
-          title: 'Gagal Menghapus',
-          message: error.message || 'Gagal menghapus buku',
-          icon: '❌', 
-          duration: 5000
-        });
-        
-        return { success: false, error: error.message };
-      }
-    };
   };
 
   // ========================
@@ -588,5 +586,4 @@ export const PlaylistProvider = ({ children }) => {
       {children}
     </PlaylistContext.Provider>
   );
-
 };
