@@ -1,7 +1,7 @@
 // pages/_app.js - TAMBAH NOTIFICATIONCONTAINER
 import { PlaylistProvider } from '../contexts/PlaylistContext';
 import { NotificationProvider } from '../contexts/NotificationContext';
-import NotificationContainer from '../components/NotificationContainer'; // 🆕 IMPORT INI
+import NotificationContainer from '../components/NotificationContainer';
 import Head from 'next/head';
 
 function MyApp({ Component, pageProps }) {
@@ -32,3 +32,4 @@ function MyApp({ Component, pageProps }) {
 }
 
 export default MyApp;
+
