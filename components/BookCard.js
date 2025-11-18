@@ -1,5 +1,5 @@
 // components/BookCard.js - FIXED VERSION
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePlaylist } from '../contexts/PlaylistContext';
 import BookDescription from './BookDescription';
 import CreatePlaylistForm from './PlaylistModal/CreatePlaylistForm';
@@ -30,8 +30,70 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
   const [isHovered, setIsHovered] = useState(false);
   const [showPlaylistForm, setShowPlaylistForm] = useState(false);
   const [showModeSelection, setShowModeSelection] = useState(false);
-  
   const { playlists, trackView } = usePlaylist();
+  
+  // 🆕 STATE BARU: Simpan AI scores untuk book ini
+  const [bookAIScores, setBookAIScores] = useState({});
+
+  // 🆕 LOAD AI SCORES ketika component mount
+  useEffect(() => {
+    loadAIScoresForBook();
+  }, [book, playlists]);
+
+  const loadAIScoresForBook = async () => {
+    const scores = {};
+    
+    // Cari playlist yang mengandung buku ini
+    const playlistsContainingBook = playlists.filter(playlist =>
+      playlist.books?.some(b => b.id === book.id)
+    );
+
+    // Load AI score untuk setiap playlist
+    for (const playlist of playlistsContainingBook) {
+      try {
+        const response = await fetch(`/api/get-ai-score?playlistId=${playlist.id}&bookId=${book.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.score) {
+            scores[playlist.id] = data.score;
+          }
+        }
+      } catch (error) {
+        console.error(`Error loading AI score for playlist ${playlist.id}:`, error);
+      }
+    }
+    
+    setBookAIScores(scores);
+  };
+
+  // 🆕 FUNCTION: Tampilkan AI score badge
+  const renderAIScoreBadge = (playlistId) => {
+    const score = bookAIScores[playlistId];
+    if (!score) return null;
+
+    const getScoreStyle = (matchScore) => {
+      if (matchScore >= 80) return { background: '#10B981', color: 'white' };
+      if (matchScore >= 60) return { background: '#F59E0B', color: 'white' };
+      if (matchScore >= 40) return { background: '#EF4444', color: 'white' };
+      return { background: '#6B7280', color: 'white' };
+    };
+
+    const style = getScoreStyle(score.matchScore);
+
+    return (
+      <span style={{
+        backgroundColor: style.background,
+        color: style.color,
+        padding: '0.15rem 0.4rem',
+        borderRadius: '8px',
+        fontSize: '0.65rem',
+        fontWeight: '600',
+        marginLeft: '0.3rem'
+      }}>
+        AI: {score.matchScore}%
+      </span>
+    );
+  };
 
   // Cari playlist yang berisi buku ini
   const playlistsContainingBook = playlists.filter(playlist =>
@@ -302,7 +364,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
         )}
       </div>
 
-      {/* PLAYLIST INDICATORS */}
+      {/* 🆕 UPDATED: PLAYLIST INDICATORS DENGAN AI SCORES */}
       {playlistsContainingBook.length > 0 && (
         <div style={{
           marginBottom: '1rem',
@@ -340,7 +402,9 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
                   border: '1px solid #cbd5e0',
                   fontWeight: '500',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center'
                 }}
                 onClick={(e) => handlePlaylistClick(playlist.id, playlist.name, e)}
                 onMouseEnter={(e) => {
@@ -355,6 +419,8 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
                 }}
               >
                 {playlist.name}
+                {/* 🆕 TAMBAH AI SCORE BADGE */}
+                {renderAIScoreBadge(playlist.id)}
               </span>
             ))}
             {playlistsContainingBook.length > 3 && (
@@ -501,5 +567,6 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
     </div>
   );
 };
+
 
 export default BookCard;
