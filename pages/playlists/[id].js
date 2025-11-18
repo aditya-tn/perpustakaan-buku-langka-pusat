@@ -118,34 +118,36 @@ const PlaylistDetail = () => {
 
   // Handle like playlist - FIXED DENGAN NOTIFIKASI
   const [isLiking, setIsLiking] = useState(false);
-  // Di handleLike - tambah debug
-  const handleLike = async () => {
-    console.log('🔍 LIKE DEBUG - Before:', {
-      playlistId: playlist.id,
-      currentLikes: playlist.like_count
-    });
+const handleLike = async () => {
+  if (!playlist || isLiking) return;
+  setIsLiking(true);
+  
+  try {
+    const result = await likePlaylist(playlist.id);
     
-    try {
-      const result = await likePlaylist(playlist.id);
-      console.log('🔍 LIKE DEBUG - After:', result);
-      
-      // Update local state
-      setPlaylist(prev => ({
-        ...prev,
-        like_count: (prev.like_count || 0) + 1
-      }));
-
-      // NOTIFIKASI SUCCESS
-      addNotification({
-        type: 'success',
-        title: 'Liked! ❤️',
-        message: 'Playlist berhasil disukai',
-        icon: '❤️',
-        duration: 2000
-      });
+    // ✅ MANUAL RELOAD DATA SETELAH LIKE
+    const freshPlaylist = await playlistService.getPlaylistById(id);
+    setPlaylist(freshPlaylist);
+    
+    addNotification({
+      type: 'success',
+      title: 'Liked! ❤️',
+      message: 'Playlist berhasil disukai',
+      icon: '❤️',
+      duration: 2000
+    });
 
   } catch (error) {
-    console.error('🔍 LIKE DEBUG - Error:', error);
+    console.error('Error liking playlist:', error);
+    addNotification({
+      type: 'error',
+      title: 'Gagal Like',
+      message: error.message,
+      icon: '❌',
+      duration: 3000
+    });
+  } finally {
+    setIsLiking(false);
   }
 };
 
