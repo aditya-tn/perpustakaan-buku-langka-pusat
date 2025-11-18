@@ -406,30 +406,46 @@ reportPlaylist: async (playlistId) => {
   /**
    * Save AI match score untuk buku di playlist
    */
-  saveAIMatchScore: async (playlistId, bookId, analysis) => {
-    try {
-      const { data, error } = await supabase.rpc('update_ai_match_score', {
-        playlist_id: playlistId,
-        book_id: bookId,
-        match_score: analysis.matchScore,
+saveAIMatchScore: async (playlistId, bookId, analysis) => {
+  try {
+    console.log('💾 Saving AI score directly...');
+    
+    // 1. Get current playlist data
+    const playlist = await playlistService.getPlaylistById(playlistId);
+    
+    // 2. Update scores locally
+    const currentScores = playlist.ai_match_scores || {};
+    const updatedScores = {
+      ...currentScores,
+      [bookId]: {
+        matchScore: analysis.matchScore,
         confidence: analysis.confidence,
-        reasoning: analysis.reasoning
-      });
-
-      if (error) {
-        console.error('❌ Supabase RPC error for AI score:', error);
-        // Fallback: manual update
-        return await playlistService._manualAIScoreUpdate(playlistId, bookId, analysis);
+        reasoning: analysis.reasoning,
+        analyzedAt: new Date().toISOString()
       }
-
-      console.log('✅ AI match score saved:', { playlistId, bookId, score: analysis.matchScore });
-      return data;
-
-    } catch (error) {
-      console.error('❌ Error saving AI score:', error);
-      throw error;
-    }
-  },
+    };
+    
+    // 3. Single direct update - FAST! 🚀
+    const { data, error } = await supabase
+      .from('community_playlists')
+      .update({
+        ai_match_scores: updatedScores,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', playlistId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    console.log('✅ AI score saved directly:', analysis.matchScore);
+    return data;
+    
+  } catch (error) {
+    console.error('❌ Direct save failed:', error);
+    throw error;
+  }
+},
 
   /**
    * Manual fallback untuk AI score update
