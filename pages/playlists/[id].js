@@ -1,17 +1,20 @@
-// pages/playlists/[id].js - COMPLETE FIXED VERSION
+// pages/playlists/[id].js - COMPLETE FIXED VERSION (1300+ LINES)
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '../../components/Layout';
 import { usePlaylist } from '../../contexts/PlaylistContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import { playlistService, analyticsService, searchService } from '../../services/indexService';
 import BookCard from '../../components/BookCard';
 
 const PlaylistDetail = () => {
   const router = useRouter();
   const { id } = router.query;
-  const { playlists, userId, likePlaylist, trackView, deletePlaylist, removeBookFromPlaylist } = usePlaylist();
   
+  const { playlists, userId, likePlaylist, trackView, deletePlaylist, removeBookFromPlaylist } = usePlaylist();
+  const { addNotification } = useNotification();
+
   const [initialLoad, setInitialLoad] = useState(true);
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,19 +26,37 @@ const PlaylistDetail = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleteBookConfirm, setDeleteBookConfirm] = useState(null);
 
-  // Function untuk handle remove book
+  // Function untuk handle remove book - FIXED DENGAN NOTIFIKASI
   const handleRemoveBook = async (bookId) => {
     try {
-      await removeBookFromPlaylist(id, bookId);
-      setDeleteBookConfirm(null);
+      const result = await removeBookFromPlaylist(id, bookId);
+      
+      if (result.success) {
+        addNotification({
+          type: 'success',
+          title: 'Buku Dihapus 🗑️',
+          message: 'Buku berhasil dihapus dari playlist',
+          icon: '✅',
+          duration: 3000
+        });
+        setDeleteBookConfirm(null);
+      } else {
+        throw new Error(result.error);
+      }
     } catch (error) {
       console.error('Failed to remove book:', error);
+      addNotification({
+        type: 'error',
+        title: 'Gagal Menghapus',
+        message: error.message,
+        icon: '❌',
+        duration: 5000
+      });
     }
   };
-  
-  // STATE UNTUK EXPANDABLE CARDS - SEDERHANA SEPERTI BERANDA
-  const [selectedBook, setSelectedBook] = useState(null);
 
+  // STATE UNTUK EXPANDABLE CARDS
+  const [selectedBook, setSelectedBook] = useState(null);
   const viewCountedRef = useRef(false);
 
   // Helper function untuk extract tahun
@@ -49,7 +70,6 @@ const PlaylistDetail = () => {
   useEffect(() => {
     const loadPlaylistData = async () => {
       if (!id) return;
-      
       setLoading(true);
       setError(null);
 
@@ -90,39 +110,83 @@ const PlaylistDetail = () => {
     loadPlaylistData();
   }, [id, playlists, trackView]);
 
-  // HANDLE CARD CLICK - SANGAT SEDERHANA
+  // HANDLE CARD CLICK
   const handleCardClick = (book) => {
     console.log('🎯 Card clicked:', book?.judul || 'null (closing)');
-    setSelectedBook(book); // book = null ketika close
+    setSelectedBook(book);
   };
 
-  // Handle like playlist
-const [isLiking, setIsLiking] = useState(false);
-
-const handleLike = async () => {
-  if (!playlist || isLiking) return;
-  
-  setIsLiking(true);
-  try {
-    await likePlaylist(playlist.id);
+  // Handle like playlist - FIXED DENGAN NOTIFIKASI
+  const [isLiking, setIsLiking] = useState(false);
+  const handleLike = async () => {
+    if (!playlist || isLiking) return;
+    setIsLiking(true);
     
-    // Animasi local state
-    setPlaylist(prev => ({
-      ...prev,
-      like_count: (prev.like_count || 0) + 1
-    }));
+    try {
+      await likePlaylist(playlist.id);
+      
+      // Update local state
+      setPlaylist(prev => ({
+        ...prev,
+        like_count: (prev.like_count || 0) + 1
+      }));
 
-    // Notification akan muncul otomatis dari context
-    
-  } catch (error) {
-    console.error('Error liking playlist:', error);
-  } finally {
-    setIsLiking(false);
-  }
-};
+      // NOTIFIKASI SUCCESS
+      addNotification({
+        type: 'success',
+        title: 'Liked! ❤️',
+        message: 'Playlist berhasil disukai',
+        icon: '❤️',
+        duration: 2000
+      });
+
+    } catch (error) {
+      console.error('Error liking playlist:', error);
+      addNotification({
+        type: 'error',
+        title: 'Gagal Like',
+        message: error.message,
+        icon: '❌',
+        duration: 3000
+      });
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
+  // Handle delete playlist - FIXED DENGAN NOTIFIKASI
+  const handleDeletePlaylist = async (playlistId) => {
+    try {
+      const result = await deletePlaylist(playlistId);
+      
+      if (result.success) {
+        addNotification({
+          type: 'success',
+          title: 'Playlist Dihapus 🗑️',
+          message: 'Playlist berhasil dihapus',
+          icon: '✅',
+          duration: 3000
+        });
+        setDeleteConfirm(null);
+        router.push('/playlists');
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      addNotification({
+        type: 'error',
+        title: 'Gagal Menghapus',
+        message: error.message,
+        icon: '❌',
+        duration: 5000
+      });
+      setDeleteConfirm(null);
+    }
+  };
 
   // Filter books based on search
-  const filteredBooks = playlist?.books?.filter(book => 
+  const filteredBooks = playlist?.books?.filter(book =>
     book.judul?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     book.pengarang?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     book.penerbit?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -136,8 +200,8 @@ const handleLike = async () => {
           padding: '3rem',
           color: '#718096'
         }}>
-          <div style={{ 
-            fontSize: '2rem', 
+          <div style={{
+            fontSize: '2rem',
             marginBottom: '1rem',
             animation: 'pulse 1.5s infinite'
           }}>📚</div>
@@ -160,8 +224,8 @@ const handleLike = async () => {
   if (error || !playlist) {
     return (
       <Layout>
-        <div style={{ 
-          textAlign: 'center', 
+        <div style={{
+          textAlign: 'center',
           padding: '3rem',
           backgroundColor: 'white',
           borderRadius: '12px',
@@ -244,7 +308,6 @@ const handleLike = async () => {
               }}>
                 {playlist.name}
               </h1>
-              
               {playlist.description && (
                 <p style={{
                   fontSize: '1.1rem',
@@ -255,7 +318,6 @@ const handleLike = async () => {
                   {playlist.description}
                 </p>
               )}
-
               {/* Metadata */}
               <div style={{
                 display: 'flex',
@@ -268,7 +330,7 @@ const handleLike = async () => {
                 <span>❤️ {playlist.like_count || 0} likes</span>
                 <span>👁️ {playlist.view_count || 0} views</span>
                 <span>
-                  Dibuat oleh {playlist.created_by === userId ? 'Anda' : 'Komunitas'} • 
+                  Dibuat oleh {playlist.created_by === userId ? 'Anda' : 'Komunitas'} •
                   {' '}{new Date(playlist.created_at).toLocaleDateString('id-ID')}
                 </span>
               </div>
@@ -300,7 +362,7 @@ const handleLike = async () => {
                 {isLiking ? '❤️' : '❤️'} Like Playlist
               </button>
 
-              {/* TOMBOL DELETE - SIAPAPUN BISA HAPUS */}
+              {/* TOMBOL DELETE */}
               <button
                 onClick={() => setDeleteConfirm({
                   playlistId: playlist.id,
@@ -336,14 +398,13 @@ const handleLike = async () => {
                 🗑️ Hapus Playlist
               </button>
             </div>
-
           </div>
         </div>
       </section>
 
       {/* Navigation Tabs */}
-      <section style={{ 
-        maxWidth: '1200px', 
+      <section style={{
+        maxWidth: '1200px',
         margin: '0 auto',
         padding: '0 2rem'
       }}>
@@ -384,8 +445,8 @@ const handleLike = async () => {
       </section>
 
       {/* Main Content */}
-      <section style={{ 
-        maxWidth: '1200px', 
+      <section style={{
+        maxWidth: '1200px',
         margin: '0 auto 3rem auto',
         padding: '0 2rem'
       }}>
@@ -422,7 +483,7 @@ const handleLike = async () => {
               </span>
             </div>
 
-            {/* Books Grid - MENGGUNAKAN BOOKCARD COMPONENT ASLI */}
+            {/* Books Grid */}
             {filteredBooks.length === 0 ? (
               <div style={{
                 textAlign: 'center',
@@ -462,7 +523,7 @@ const handleLike = async () => {
                         bookId,
                         bookTitle: bookToDelete?.judul || 'Buku ini',
                         playlistName: playlist.name,
-                        step: 1  // ← TAMBAH INI untuk 2-step system
+                        step: 1
                       });
                     }}
                   />
@@ -482,7 +543,7 @@ const handleLike = async () => {
             <h2 style={{ color: '#2d3748', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               📊 Statistik Playlist
             </h2>
-            
+
             {/* Engagement Metrics */}
             <div style={{
               display: 'grid',
@@ -490,7 +551,7 @@ const handleLike = async () => {
               gap: '1.5rem',
               marginBottom: '2rem'
             }}>
-              <div style={{ 
+              <div style={{
                 textAlign: 'center',
                 padding: '1.5rem',
                 backgroundColor: '#ebf8ff',
@@ -503,8 +564,8 @@ const handleLike = async () => {
                 <div style={{ fontSize: '0.9rem', color: '#2c5282', fontWeight: '600' }}>Total Views</div>
                 <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.25rem' }}>Dilihat oleh komunitas</div>
               </div>
-              
-              <div style={{ 
+
+              <div style={{
                 textAlign: 'center',
                 padding: '1.5rem',
                 backgroundColor: '#fff5f5',
@@ -517,8 +578,8 @@ const handleLike = async () => {
                 <div style={{ fontSize: '0.9rem', color: '#c53030', fontWeight: '600' }}>Total Likes</div>
                 <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.25rem' }}>Disukai oleh komunitas</div>
               </div>
-              
-              <div style={{ 
+
+              <div style={{
                 textAlign: 'center',
                 padding: '1.5rem',
                 backgroundColor: '#f0fff4',
@@ -532,7 +593,7 @@ const handleLike = async () => {
                 <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: '0.25rem' }}>Dalam playlist ini</div>
               </div>
             </div>
-        
+
             {/* Content Analysis */}
             <div style={{
               display: 'grid',
@@ -567,8 +628,8 @@ const handleLike = async () => {
                             borderBottom: '1px solid #e2e8f0'
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ 
-                                fontWeight: '600', 
+                              <span style={{
+                                fontWeight: '600',
                                 color: '#2d3748',
                                 minWidth: '50px'
                               }}>
@@ -590,22 +651,22 @@ const handleLike = async () => {
                                 }} />
                               </div>
                             </div>
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
                               gap: '0.5rem',
                               minWidth: '80px',
                               justifyContent: 'flex-end'
                             }}>
-                              <span style={{ 
-                                fontWeight: '600', 
+                              <span style={{
+                                fontWeight: '600',
                                 color: '#4a5568',
                                 fontSize: '0.9rem'
                               }}>
                                 {count}
                               </span>
-                              <span style={{ 
-                                color: '#718096', 
+                              <span style={{
+                                color: '#718096',
                                 fontSize: '0.8rem',
                                 minWidth: '35px'
                               }}>
@@ -618,7 +679,7 @@ const handleLike = async () => {
                   </div>
                 </div>
               )}
-        
+
               {/* Language Distribution */}
               {stats.books.byLanguage && (
                 <div>
@@ -637,13 +698,11 @@ const handleLike = async () => {
                       .map(([language, count]) => {
                         const languageLabels = {
                           indonesia: '🇮🇩 Indonesia',
-                          english: '🇺🇸 English', 
+                          english: '🇺🇸 English',
                           dutch: '🇳🇱 Dutch',
                           other: '🌍 Other'
                         };
-                        
                         const percentage = (count / stats.books.total * 100).toFixed(1);
-                        
                         return (
                           <div key={language} style={{
                             display: 'flex',
@@ -656,15 +715,15 @@ const handleLike = async () => {
                               {languageLabels[language] || language}
                             </span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ 
-                                fontWeight: '600', 
+                              <span style={{
+                                fontWeight: '600',
                                 color: '#2d3748',
                                 fontSize: '0.9rem'
                               }}>
                                 {count}
                               </span>
-                              <span style={{ 
-                                color: '#718096', 
+                              <span style={{
+                                color: '#718096',
                                 fontSize: '0.8rem',
                                 minWidth: '40px'
                               }}>
@@ -678,7 +737,7 @@ const handleLike = async () => {
                 </div>
               )}
             </div>
-        
+
             {/* Recent Activity */}
             {stats.books.recentAdditions && stats.books.recentAdditions.length > 0 && (
               <div>
@@ -711,8 +770,8 @@ const handleLike = async () => {
                       window.open(`/?highlight=${book.id}`, '_blank');
                     }}
                     >
-                      <div style={{ 
-                        fontWeight: '600', 
+                      <div style={{
+                        fontWeight: '600',
                         color: '#2d3748',
                         marginBottom: '0.5rem',
                         fontSize: '0.9rem',
@@ -735,8 +794,7 @@ const handleLike = async () => {
                 </div>
               </div>
             )}
-        
-            
+
             {/* Playlist Metadata */}
             <div style={{
               marginTop: '2rem',
@@ -859,467 +917,418 @@ const handleLike = async () => {
           </div>
         )}
 
-              {/* ⬇️⬇️⬇️ PASTE DELETE CONFIRMATION MODAL DI SINI ⬇️⬇️⬇️ */}
-      {deleteConfirm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '1rem'
-        }}
-        onClick={() => setDeleteConfirm(null)}
-        >
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
           <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '12px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-            maxWidth: '450px',
-            width: '100%',
-            textAlign: 'center'
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1rem'
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={() => setDeleteConfirm(null)}
           >
-            {/* STEP 1: Konfirmasi Basic */}
-            {deleteConfirm.step === 1 && (
-              <>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
-                  Hapus Playlist?
-                </h3>
-                <p style={{ color: '#718096', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-                  Anda akan menghapus playlist:<br />
-                  <strong>"{deleteConfirm.playlistName}"</strong>
-                </p>
-                
-                <div style={{ 
-                  backgroundColor: '#fffaf0', 
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  border: '1px solid #fed7d7',
-                  marginBottom: '1.5rem',
-                  textAlign: 'left'
-                }}>
-                  <div style={{ fontWeight: '600', color: '#c53030', marginBottom: '0.5rem' }}>
-                    ⚠️ Perhatian:
-                  </div>
-                  <ul style={{ color: '#744210', fontSize: '0.9rem', margin: 0, paddingLeft: '1.2rem', lineHeight: '1.4' }}>
-                    <li>Playlist akan dihapus permanen</li>
-                    <li>{deleteConfirm.bookCount} buku akan dihapus dari playlist</li>
-                    <li>Tindakan ini tidak dapat dibatalkan</li>
-                  </ul>
-                </div>
-
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => setDeleteConfirm(null)}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: '#e2e8f0',
-                      color: '#4a5568',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      flex: 1
-                    }}
-                  >
-                    Batalkan
-                  </button>
-                  <button 
-                    onClick={() => setDeleteConfirm(prev => ({ ...prev, step: 2 }))}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: '#f56565',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      flex: 1
-                    }}
-                  >
-                    Lanjutkan
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* STEP 2: Verifikasi Nama Playlist - NO PASTE ALLOWED */}
-            {deleteConfirm.step === 2 && (
-              <>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
-                  Verifikasi Penghapusan
-                </h3>
-                <p style={{ color: '#718096', marginBottom: '1rem', lineHeight: '1.5' }}>
-                  Ketik <strong>manual</strong> nama playlist berikut:<br />
-                  <strong style={{ color: '#e53e3e', fontSize: '1.1rem' }}>
-                    "{deleteConfirm.playlistName}"
-                  </strong>
-                </p>
-
-                {/* Warning Message */}
-                <div style={{
-                  backgroundColor: '#fffaf0',
-                  padding: '0.75rem',
-                  borderRadius: '6px',
-                  border: '1px solid #fed7d7',
-                  marginBottom: '1rem',
-                  fontSize: '0.8rem',
-                  color: '#744210'
-                }}>
-                  ⚠️ <strong>Copy-paste tidak diperbolehkan.</strong> Harap ketik manual.
-                </div>
-
-                <input
-                  type="text"
-                  value={deleteConfirm.verificationText || ''}
-                  onChange={(e) => setDeleteConfirm(prev => ({ 
-                    ...prev, 
-                    verificationText: e.target.value 
-                  }))}
-                  onPaste={(e) => {
-                    e.preventDefault();
-                    setDeleteConfirm(prev => ({ 
-                      ...prev, 
-                      pasteAttempted: true 
-                    }));
-                    
-                    e.target.style.borderColor = '#f56565';
-                    e.target.style.backgroundColor = '#fed7d7';
-                    setTimeout(() => {
-                      e.target.style.borderColor = '#e2e8f0';
-                      e.target.style.backgroundColor = 'white';
-                    }, 1000);
-                  }}
-                  onCopy={(e) => e.preventDefault()}
-                  onCut={(e) => e.preventDefault()}
-                  placeholder="Ketik manual nama playlist..."
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: deleteConfirm.pasteAttempted ? '2px solid #f56565' : '1px solid #e2e8f0',
-                    borderRadius: '6px',
-                    fontSize: '0.9rem',
-                    marginBottom: '0.5rem',
-                    outline: 'none',
-                    backgroundColor: deleteConfirm.pasteAttempted ? '#fed7d7' : 'white',
-                    transition: 'all 0.3s ease'
-                  }}
-                />
-
-                {deleteConfirm.pasteAttempted && (
+            <div style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+              maxWidth: '450px',
+              width: '100%',
+              textAlign: 'center'
+            }}
+            onClick={(e) => e.stopPropagation()}
+            >
+              {/* STEP 1: Konfirmasi Basic */}
+              {deleteConfirm.step === 1 && (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+                  <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                    Hapus Playlist?
+                  </h3>
+                  <p style={{ color: '#718096', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                    Anda akan menghapus playlist:<br />
+                    <strong>"{deleteConfirm.playlistName}"</strong>
+                  </p>
                   <div style={{
-                    color: '#e53e3e',
-                    fontSize: '0.8rem',
+                    backgroundColor: '#fffaf0',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: '1px solid #fed7d7',
+                    marginBottom: '1.5rem',
+                    textAlign: 'left'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#c53030', marginBottom: '0.5rem' }}>
+                      ⚠️ Perhatian:
+                    </div>
+                    <ul style={{ color: '#744210', fontSize: '0.9rem', margin: 0, paddingLeft: '1.2rem', lineHeight: '1.4' }}>
+                      <li>Playlist akan dihapus permanen</li>
+                      <li>{deleteConfirm.bookCount} buku akan dihapus dari playlist</li>
+                      <li>Tindakan ini tidak dapat dibatalkan</li>
+                    </ul>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#e2e8f0',
+                        color: '#4a5568',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        flex: 1
+                      }}
+                    >
+                      Batalkan
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(prev => ({ ...prev, step: 2 }))}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#f56565',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        flex: 1
+                      }}
+                    >
+                      Lanjutkan
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* STEP 2: Verifikasi Nama Playlist */}
+              {deleteConfirm.step === 2 && (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+                  <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                    Verifikasi Penghapusan
+                  </h3>
+                  <p style={{ color: '#718096', marginBottom: '1rem', lineHeight: '1.5' }}>
+                    Ketik <strong>manual</strong> nama playlist berikut:<br />
+                    <strong style={{ color: '#e53e3e', fontSize: '1.1rem' }}>
+                      "{deleteConfirm.playlistName}"
+                    </strong>
+                  </p>
+                  {/* Warning Message */}
+                  <div style={{
+                    backgroundColor: '#fffaf0',
+                    padding: '0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid #fed7d7',
                     marginBottom: '1rem',
+                    fontSize: '0.8rem',
+                    color: '#744210'
+                  }}>
+                    ⚠️ <strong>Copy-paste tidak diperbolehkan.</strong> Harap ketik manual.
+                  </div>
+                  <input
+                    type="text"
+                    value={deleteConfirm.verificationText || ''}
+                    onChange={(e) => setDeleteConfirm(prev => ({
+                      ...prev,
+                      verificationText: e.target.value
+                    }))}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      setDeleteConfirm(prev => ({
+                        ...prev,
+                        pasteAttempted: true
+                      }));
+                      e.target.style.borderColor = '#f56565';
+                      e.target.style.backgroundColor = '#fed7d7';
+                      setTimeout(() => {
+                        e.target.style.borderColor = '#e2e8f0';
+                        e.target.style.backgroundColor = 'white';
+                      }, 1000);
+                    }}
+                    onCopy={(e) => e.preventDefault()}
+                    onCut={(e) => e.preventDefault()}
+                    placeholder="Ketik manual nama playlist..."
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: deleteConfirm.pasteAttempted ? '2px solid #f56565' : '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      fontSize: '0.9rem',
+                      marginBottom: '0.5rem',
+                      outline: 'none',
+                      backgroundColor: deleteConfirm.pasteAttempted ? '#fed7d7' : 'white',
+                      transition: 'all 0.3s ease'
+                    }}
+                  />
+                  {deleteConfirm.pasteAttempted && (
+                    <div style={{
+                      color: '#e53e3e',
+                      fontSize: '0.8rem',
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      ❌ Copy-paste tidak diperbolehkan. Harap ketik manual.
+                    </div>
+                  )}
+                  {/* Typing indicator */}
+                  <div style={{
+                    fontSize: '0.7rem',
+                    color: '#718096',
+                    marginBottom: '1.5rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem'
                   }}>
-                    ❌ Copy-paste tidak diperbolehkan. Harap ketik manual.
+                    {deleteConfirm.verificationText && deleteConfirm.verificationText !== deleteConfirm.playlistName && (
+                      <>❌ Teks tidak sesuai</>
+                    )}
+                    {deleteConfirm.verificationText && deleteConfirm.verificationText === deleteConfirm.playlistName && (
+                      <>✅ Teks sesuai</>
+                    )}
+                    {!deleteConfirm.verificationText && (
+                      <>⌨️ Ketik nama playlist di atas</>
+                    )}
                   </div>
-                )}
-
-                {/* Typing indicator */}
-                <div style={{
-                  fontSize: '0.7rem',
-                  color: '#718096',
-                  marginBottom: '1.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  {deleteConfirm.verificationText && deleteConfirm.verificationText !== deleteConfirm.playlistName && (
-                    <>❌ Teks tidak sesuai</>
-                  )}
-                  {deleteConfirm.verificationText && deleteConfirm.verificationText === deleteConfirm.playlistName && (
-                    <>✅ Teks sesuai</>
-                  )}
-                  {!deleteConfirm.verificationText && (
-                    <>⌨️ Ketik nama playlist di atas</>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => setDeleteConfirm(prev => ({ ...prev, step: 1, verificationText: '', pasteAttempted: false }))}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: '#e2e8f0',
-                      color: '#4a5568',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      flex: 1
-                    }}
-                  >
-                    Kembali
-                  </button>
-                  <button 
-                    onClick={async () => {
-                      try {
-                        await deletePlaylist(deleteConfirm.playlistId);
-                        setDeleteConfirm(null);
-                        router.push('/playlists');
-                      } catch (error) {
-                        console.error('Delete failed:', error);
-                        setDeleteConfirm(null);
-                      }
-                    }}
-                    disabled={deleteConfirm.verificationText !== deleteConfirm.playlistName}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: deleteConfirm.verificationText === deleteConfirm.playlistName ? '#f56565' : '#cbd5e0',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: deleteConfirm.verificationText === deleteConfirm.playlistName ? 'pointer' : 'not-allowed',
-                      fontWeight: '500',
-                      flex: 1,
-                      opacity: deleteConfirm.verificationText === deleteConfirm.playlistName ? 1 : 0.6
-                    }}
-                  >
-                    Hapus Permanen
-                  </button>
-                </div>
-              </>
-            )}
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => setDeleteConfirm(prev => ({ ...prev, step: 1, verificationText: '', pasteAttempted: false }))}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#e2e8f0',
+                        color: '#4a5568',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        flex: 1
+                      }}
+                    >
+                      Kembali
+                    </button>
+                    <button
+                      onClick={() => handleDeletePlaylist(deleteConfirm.playlistId)}
+                      disabled={deleteConfirm.verificationText !== deleteConfirm.playlistName}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: deleteConfirm.verificationText === deleteConfirm.playlistName ? '#f56565' : '#cbd5e0',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: deleteConfirm.verificationText === deleteConfirm.playlistName ? 'pointer' : 'not-allowed',
+                        fontWeight: '500',
+                        flex: 1,
+                        opacity: deleteConfirm.verificationText === deleteConfirm.playlistName ? 1 : 0.6
+                      }}
+                    >
+                      Hapus Permanen
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      {/* ⬆️⬆️⬆️ HINGGA DI SINI ⬆️⬆️⬆️ */}
-      
-      {/* Delete Book Confirmation Modal dengan 2-Step Verification */}
-      {deleteBookConfirm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '1rem'
-        }}
-        onClick={() => setDeleteBookConfirm(null)}
-        >
+        )}
+
+        {/* Delete Book Confirmation Modal */}
+        {deleteBookConfirm && (
           <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '12px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-            maxWidth: '500px',
-            width: '100%',
-            textAlign: 'center'
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1rem'
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={() => setDeleteBookConfirm(null)}
           >
-            {/* STEP 1: Konfirmasi Basic */}
-            {deleteBookConfirm.step === 1 && (
-              <>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
-                  Hapus Buku dari Playlist?
-                </h3>
-                <p style={{ color: '#718096', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-                  Anda akan menghapus buku:<br />
-                  <strong style={{ color: '#2d3748', fontSize: '1.1rem' }}>
-                    "{deleteBookConfirm.bookTitle}"
-                  </strong>
-                </p>
-                
-                <div style={{ 
-                  backgroundColor: '#fffaf0', 
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  border: '1px solid #fed7d7',
-                  marginBottom: '1.5rem',
-                  textAlign: 'left'
-                }}>
-                  <div style={{ fontWeight: '600', color: '#c53030', marginBottom: '0.5rem' }}>
-                    ⚠️ Perhatian:
+            <div style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+              maxWidth: '500px',
+              width: '100%',
+              textAlign: 'center'
+            }}
+            onClick={(e) => e.stopPropagation()}
+            >
+              {/* STEP 1: Konfirmasi Basic */}
+              {deleteBookConfirm.step === 1 && (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
+                  <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                    Hapus Buku dari Playlist?
+                  </h3>
+                  <p style={{ color: '#718096', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                    Anda akan menghapus buku:<br />
+                    <strong style={{ color: '#2d3748', fontSize: '1.1rem' }}>
+                      "{deleteBookConfirm.bookTitle}"
+                    </strong>
+                  </p>
+                  <div style={{
+                    backgroundColor: '#fffaf0',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: '1px solid #fed7d7',
+                    marginBottom: '1.5rem',
+                    textAlign: 'left'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#c53030', marginBottom: '0.5rem' }}>
+                      ⚠️ Perhatian:
+                    </div>
+                    <ul style={{ color: '#744210', fontSize: '0.9rem', margin: 0, paddingLeft: '1.2rem', lineHeight: '1.4' }}>
+                      <li>Buku akan dihapus dari playlist "{deleteBookConfirm.playlistName}"</li>
+                      <li>Buku tetap tersedia di koleksi utama</li>
+                      <li>Tindakan ini tidak dapat dibatalkan</li>
+                    </ul>
                   </div>
-                  <ul style={{ color: '#744210', fontSize: '0.9rem', margin: 0, paddingLeft: '1.2rem', lineHeight: '1.4' }}>
-                    <li>Buku akan dihapus dari playlist "{deleteBookConfirm.playlistName}"</li>
-                    <li>Buku tetap tersedia di koleksi utama</li>
-                    <li>Tindakan ini tidak dapat dibatalkan</li>
-                  </ul>
-                </div>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => setDeleteBookConfirm(null)}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#e2e8f0',
+                        color: '#4a5568',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        flex: 1
+                      }}
+                    >
+                      Batalkan
+                    </button>
+                    <button
+                      onClick={() => setDeleteBookConfirm(prev => ({ ...prev, step: 2 }))}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#f56565',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        flex: 1
+                      }}
+                    >
+                      Lanjutkan
+                    </button>
+                  </div>
+                </>
+              )}
 
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => setDeleteBookConfirm(null)}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: '#e2e8f0',
-                      color: '#4a5568',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      flex: 1
-                    }}
-                  >
-                    Batalkan
-                  </button>
-                  <button 
-                    onClick={() => setDeleteBookConfirm(prev => ({ ...prev, step: 2 }))}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: '#f56565',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      flex: 1
-                    }}
-                  >
-                    Lanjutkan
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* STEP 2: Pertanyaan Kontekstual */}
-            {deleteBookConfirm.step === 2 && (
-              <>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤔</div>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
-                  Konfirmasi Penghapusan
-                </h3>
-                
-                {/* PERTANYAAN KONTEKSTUAL */}
-                <div style={{
-                  backgroundColor: '#ebf8ff',
-                  padding: '1.5rem',
-                  borderRadius: '8px',
-                  border: '1px solid #bee3f8',
-                  marginBottom: '1.5rem',
-                  textAlign: 'center'
-                }}>
-                  <p style={{ 
-                    color: '#2b6cb0', 
-                    fontSize: '1rem',
-                    fontWeight: '600',
-                    margin: '0 0 0.5rem 0',
-                    lineHeight: '1.4'
+              {/* STEP 2: Pertanyaan Kontekstual */}
+              {deleteBookConfirm.step === 2 && (
+                <>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤔</div>
+                  <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                    Konfirmasi Penghapusan
+                  </h3>
+                  {/* PERTANYAAN KONTEKSTUAL */}
+                  <div style={{
+                    backgroundColor: '#ebf8ff',
+                    padding: '1.5rem',
+                    borderRadius: '8px',
+                    border: '1px solid #bee3f8',
+                    marginBottom: '1.5rem',
+                    textAlign: 'center'
                   }}>
-                    Apakah buku
-                  </p>
-                  <p style={{ 
-                    color: '#2d3748', 
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    margin: '0 0 0.5rem 0'
+                    <p style={{
+                      color: '#2b6cb0',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      margin: '0 0 0.5rem 0',
+                      lineHeight: '1.4'
+                    }}>
+                      Apakah buku
+                    </p>
+                    <p style={{
+                      color: '#2d3748',
+                      fontSize: '1.1rem',
+                      fontWeight: '700',
+                      margin: '0 0 0.5rem 0'
+                    }}>
+                      "{deleteBookConfirm.bookTitle}"
+                    </p>
+                    <p style={{
+                      color: '#2b6cb0',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      margin: 0,
+                      lineHeight: '1.4'
+                    }}>
+                      tidak cocok untuk playlist<br />
+                      <span style={{ color: '#2d3748' }}>"{deleteBookConfirm.playlistName}"</span> ini?
+                    </p>
+                  </div>
+                  <p style={{
+                    color: '#718096',
+                    fontSize: '0.9rem',
+                    marginBottom: '2rem',
+                    lineHeight: '1.5'
                   }}>
-                    "{deleteBookConfirm.bookTitle}"
+                    Tindakan ini membantu kami memahami preferensi kurasi komunitas.
                   </p>
-                  <p style={{ 
-                    color: '#2b6cb0', 
-                    fontSize: '1rem',
-                    fontWeight: '600',
-                    margin: 0,
-                    lineHeight: '1.4'
-                  }}>
-                    tidak cocok untuk playlist<br />
-                    <span style={{ color: '#2d3748' }}>"{deleteBookConfirm.playlistName}"</span> ini?
-                  </p>
-                </div>
-
-                <p style={{ 
-                  color: '#718096', 
-                  fontSize: '0.9rem',
-                  marginBottom: '2rem',
-                  lineHeight: '1.5'
-                }}>
-                  Tindakan ini membantu kami memahami preferensi kurasi komunitas.
-                </p>
-
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => setDeleteBookConfirm(prev => ({ ...prev, step: 1 }))}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: '#e2e8f0',
-                      color: '#4a5568',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      flex: 1
-                    }}
-                  >
-                    Kembali
-                  </button>
-                  <button 
-                    onClick={() => handleRemoveBook(deleteBookConfirm.bookId)}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      backgroundColor: '#f56565',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      flex: 1
-                    }}
-                  >
-                    Ya, Tidak Cocok
-                  </button>
-                </div>
-              </>
-            )}
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => setDeleteBookConfirm(prev => ({ ...prev, step: 1 }))}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#e2e8f0',
+                        color: '#4a5568',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        flex: 1
+                      }}
+                    >
+                      Kembali
+                    </button>
+                    <button
+                      onClick={() => handleRemoveBook(deleteBookConfirm.bookId)}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        backgroundColor: '#f56565',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '500',
+                        flex: 1
+                      }}
+                    >
+                      Ya, Tidak Cocok
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      
+        )}
       </section>
 
-      {/* CSS Animation */}
-      <style>
-      {`
-        @keyframes fadeIn {
-          from { 
-            opacity: 0; 
-            transform: translateY(10px); 
-          }
-          to { 
-            opacity: 1; 
-            transform: translateY(0); 
-          }
-        }
-        
-        .book-card-hover {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .book-card-hover:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15) !important;
-        }
-      `}
-      </style>
       <style jsx>{`
         @keyframes pulse {
           0% { transform: scale(1); }
           50% { transform: scale(1.1); }
           100% { transform: scale(1); }
         }
-        
         @keyframes heartBeat {
           0% { transform: scale(1); }
           25% { transform: scale(1.3); }
