@@ -1,5 +1,4 @@
-// contexts/PlaylistContext.js - COMPLETE VERSION WITH FIX
-
+// contexts/PlaylistContext.js - FIXED VERSION
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -18,21 +17,15 @@ export const PlaylistProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ========================
-  // CORE PLAYLIST OPERATIONS
-  // ========================
-
-  // Load playlists dari Supabase - INCLUDE AI SCORES
+  // Load playlists
   const loadPlaylists = async () => {
     setLoading(true);
     setError(null);
-    
     try {
       console.log('🔄 Loading playlists from Supabase...');
-      
       const { data, error } = await supabase
         .from('community_playlists')
-        .select('*') // ✅ SUDAH INCLUDING ai_match_scores!
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -40,9 +33,7 @@ export const PlaylistProvider = ({ children }) => {
       }
 
       console.log(`✅ Playlists loaded: ${data?.length || 0} playlists`);
-      
       setPlaylists(data || []);
-      
     } catch (err) {
       console.error('❌ Error loading playlists:', err);
       setError(err.message);
@@ -66,7 +57,7 @@ export const PlaylistProvider = ({ children }) => {
           ...playlistData,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          ai_match_scores: {} // ✅ INIT AI SCORES EMPTY
+          ai_match_scores: {}
         }])
         .select()
         .single();
@@ -76,7 +67,6 @@ export const PlaylistProvider = ({ children }) => {
       // Update local state
       setPlaylists(prev => [data, ...prev]);
       return { success: true, data };
-
     } catch (error) {
       console.error('Error creating playlist:', error);
       return { success: false, error: error.message };
@@ -122,7 +112,7 @@ export const PlaylistProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setPlaylists(prev => prev.map(p => 
+      setPlaylists(prev => prev.map(p =>
         p.id === playlistId ? data : p
       ));
 
@@ -135,7 +125,7 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
-  // Remove book from playlist
+  // Remove book from playlist - FIXED (TANPA NOTIFIKASI)
   const removeBookFromPlaylist = async (playlistId, bookId) => {
     try {
       // First get current playlist
@@ -164,7 +154,7 @@ export const PlaylistProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setPlaylists(prev => prev.map(p => 
+      setPlaylists(prev => prev.map(p =>
         p.id === playlistId ? data : p
       ));
 
@@ -177,13 +167,7 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
-  // ========================
-  // AI SCORE MANAGEMENT
-  // ========================
-
-  /**
-   * Save AI match score untuk buku di playlist
-   */
+  // AI Score Management
   const saveAIMatchScore = async (playlistId, bookId, analysis) => {
     try {
       // Get current playlist
@@ -210,7 +194,7 @@ export const PlaylistProvider = ({ children }) => {
       // Update database
       const { data, error } = await supabase
         .from('community_playlists')
-        .update({ 
+        .update({
           ai_match_scores: updatedScores,
           updated_at: new Date().toISOString()
         })
@@ -221,7 +205,7 @@ export const PlaylistProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setPlaylists(prev => prev.map(p => 
+      setPlaylists(prev => prev.map(p =>
         p.id === playlistId ? data : p
       ));
 
@@ -234,14 +218,11 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Get AI match score untuk buku di playlist - FROM LOCAL STATE
-   */
   const getAIMatchScore = (playlistId, bookId) => {
     try {
       const playlist = playlists.find(p => p.id === playlistId);
       if (!playlist) return null;
-      
+
       const scores = playlist.ai_match_scores || {};
       return scores[bookId] || null;
     } catch (error) {
@@ -250,11 +231,7 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
-  // ========================
-  // SOCIAL FEATURES
-  // ========================
-
-  // Track playlist view
+  // Social Features - FIXED (TANPA NOTIFIKASI)
   const trackView = async (playlistId) => {
     try {
       const { data, error } = await supabase.rpc('increment_view_count', {
@@ -263,20 +240,17 @@ export const PlaylistProvider = ({ children }) => {
 
       if (error) {
         console.error('Supabase RPC error:', error);
-        // Fallback manual update
         return await manualIncrement(playlistId, 'view_count');
       }
 
       console.log('✅ Playlist view tracked:', playlistId);
       return data;
-
     } catch (error) {
       console.error('Error tracking view:', error);
       return null;
     }
   };
 
-  // Like playlist
   const likePlaylist = async (playlistId) => {
     try {
       const { data, error } = await supabase.rpc('increment_like_count', {
@@ -290,14 +264,12 @@ export const PlaylistProvider = ({ children }) => {
 
       console.log('✅ Playlist liked:', playlistId);
       return data;
-
     } catch (error) {
       console.error('Error liking playlist:', error);
       throw error;
     }
   };
 
-  // Report playlist
   const reportPlaylist = async (playlistId) => {
     try {
       const { data, error } = await supabase.rpc('increment_report_count', {
@@ -311,22 +283,39 @@ export const PlaylistProvider = ({ children }) => {
 
       console.log('✅ Playlist reported:', playlistId);
       return data;
-
     } catch (error) {
       console.error('Error reporting playlist:', error);
       throw error;
     }
   };
 
-  // ========================
-  // SEARCH & DISCOVERY
-  // ========================
+  // Delete playlist - FIXED (TANPA NOTIFIKASI)
+  const deletePlaylist = async (playlistId) => {
+    try {
+      const { error } = await supabase
+        .from('community_playlists')
+        .delete()
+        .eq('id', playlistId);
 
-  // Search playlists by name or description
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
+      setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+      console.log('✅ Playlist deleted:', playlistId);
+      return { success: true };
+
+    } catch (error) {
+      console.error('Error deleting playlist:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Search & Discovery
   const searchPlaylists = async (query, options = {}) => {
     try {
       const { limit = 20, offset = 0 } = options;
-
       const { data, error } = await supabase
         .from('community_playlists')
         .select('*')
@@ -337,14 +326,12 @@ export const PlaylistProvider = ({ children }) => {
 
       if (error) throw error;
       return data || [];
-
     } catch (error) {
       console.error('Error searching playlists:', error);
       throw error;
     }
   };
 
-  // Get popular playlists
   const getPopularPlaylists = async (limit = 10) => {
     try {
       const { data, error } = await supabase
@@ -356,14 +343,12 @@ export const PlaylistProvider = ({ children }) => {
 
       if (error) throw error;
       return data || [];
-
     } catch (error) {
       console.error('Error getting popular playlists:', error);
       throw error;
     }
   };
 
-  // Get user's playlists
   const getUserPlaylists = async (userId) => {
     try {
       const { data, error } = await supabase
@@ -374,18 +359,13 @@ export const PlaylistProvider = ({ children }) => {
 
       if (error) throw error;
       return data || [];
-
     } catch (error) {
       console.error('Error getting user playlists:', error);
       throw error;
     }
   };
 
-  // ========================
-  // HELPER FUNCTIONS
-  // ========================
-
-  // Manual increment fallback
+  // Helper functions
   const manualIncrement = async (playlistId, field) => {
     try {
       const playlist = playlists.find(p => p.id === playlistId);
@@ -404,24 +384,21 @@ export const PlaylistProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setPlaylists(prev => prev.map(p => 
+      setPlaylists(prev => prev.map(p =>
         p.id === playlistId ? data : p
       ));
 
       return data;
-
     } catch (error) {
       console.error('Manual increment error:', error);
       throw error;
     }
   };
 
-  // Refresh playlists
   const refreshPlaylists = () => {
     loadPlaylists();
   };
 
-  // Health check
   const healthCheck = async () => {
     try {
       const { data, error } = await supabase
@@ -448,26 +425,29 @@ export const PlaylistProvider = ({ children }) => {
     playlists,
     loading,
     error,
-    
+
     // Core Operations
     createPlaylist,
     addToPlaylist,
     removeBookFromPlaylist,
-    
+
     // AI Score Management
     saveAIMatchScore,
     getAIMatchScore,
-    
+
     // Social Features
     trackView,
     likePlaylist,
     reportPlaylist,
-    
+
+    // Delete
+    deletePlaylist,
+
     // Search & Discovery
     searchPlaylists,
     getPopularPlaylists,
     getUserPlaylists,
-    
+
     // Utilities
     refreshPlaylists,
     healthCheck
