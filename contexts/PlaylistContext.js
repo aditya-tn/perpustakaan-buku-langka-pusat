@@ -232,41 +232,67 @@ export const PlaylistProvider = ({ children }) => {
   };
 
   // Social Features - FIXED (TANPA NOTIFIKASI)
-  const trackView = async (playlistId) => {
-    try {
-      const { data, error } = await supabase.rpc('increment_view_count', {
-        playlist_id: playlistId
-      });
+const trackView = async (playlistId) => {
+  try {
+    const { data, error } = await supabase.rpc('increment_view_count', {
+      playlist_id: playlistId
+    });
 
-      if (error) {
-        console.error('Supabase RPC error:', error);
-        return await manualIncrement(playlistId, 'view_count');
-      }
-
-      console.log('✅ Playlist view tracked:', playlistId);
-      return data;
-    } catch (error) {
-      console.error('Error tracking view:', error);
-      return null;
+    if (error) {
+      console.error('❌ Supabase RPC error:', error);
+      return await manualIncrement(playlistId, 'view_count');
     }
-  };
 
+    console.log('✅ Playlist view tracked:', playlistId, 'New count:', data?.view_count);
+    
+    // ✅ FORCE REFRESH PLAYLISTS SETELAH UPDATE
+    await loadPlaylists(); // INI YANG PERLU DITAMBAH!
+    
+    return { 
+      success: true, 
+      data,
+      view_count: data?.view_count 
+    };
+
+  } catch (error) {
+    console.error('❌ Error tracking view:', error);
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  }
+};
+
+  // contexts/PlaylistContext.js - UPDATE
+  
   const likePlaylist = async (playlistId) => {
     try {
       const { data, error } = await supabase.rpc('increment_like_count', {
         playlist_id: playlistId
       });
-
+  
       if (error) {
-        console.error('Supabase RPC error:', error);
+        console.error('❌ Supabase RPC error:', error);
         return await manualIncrement(playlistId, 'like_count');
       }
-
-      console.log('✅ Playlist liked:', playlistId);
-      return data;
+  
+      console.log('✅ Playlist liked:', playlistId, 'New count:', data?.like_count);
+      
+      // ✅ FORCE REFRESH PLAYLISTS SETELAH UPDATE
+      await loadPlaylists(); // INI YANG PERLU DITAMBAH!
+      
+      return { 
+        success: true, 
+        data,
+        like_count: data?.like_count 
+      };
+  
     } catch (error) {
-      console.error('Error liking playlist:', error);
-      throw error;
+      console.error('❌ Error in likePlaylist:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
   };
 
@@ -459,3 +485,4 @@ export const PlaylistProvider = ({ children }) => {
     </PlaylistContext.Provider>
   );
 };
+
