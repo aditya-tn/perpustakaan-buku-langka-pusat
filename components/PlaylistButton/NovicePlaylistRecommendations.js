@@ -32,6 +32,35 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
     loadAIRecommendations();
   }, [book, playlists]);
 
+  // 🆕 ADD FUNCTION INI DI DALAM COMPONENT
+  const getScoreDisplay = (matchScore) => {
+    const getScoreStyle = (score) => {
+      if (score >= 80) return { background: '#10B981', color: 'white' };
+      if (score >= 60) return { background: '#F59E0B', color: 'white' };
+      if (score >= 40) return { background: '#EF4444', color: 'white' };
+      return { background: '#6B7280', color: 'white' };
+    };
+
+    const style = getScoreStyle(matchScore);
+
+    return (
+      <span style={{
+        backgroundColor: style.background,
+        color: style.color,
+        padding: '0.2rem 0.5rem',
+        borderRadius: '12px',
+        fontSize: '0.7rem',
+        fontWeight: '600',
+        minWidth: '40px',
+        textAlign: 'center',
+        marginLeft: '0.5rem'
+      }}>
+        {matchScore}%
+      </span>
+    );
+  };
+
+  // ... loadAIRecommendations
   const loadAIRecommendations = async () => {
     setLoading(true);
     try {
@@ -375,13 +404,15 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
               }}
               onClick={() => handleAddToPlaylist(rec.playlistId, rec.playlistName)}
             >
-              {/* Match Score Badge */}
+              {/* 🆕 UPDATED: Match Score Section dengan Permanent Score Display */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                marginBottom: '0.75rem'
+                marginBottom: '0.75rem',
+                flexWrap: 'wrap'
               }}>
+                {/* Main Match Score Badge */}
                 <div style={{
                   padding: '0.35rem 0.75rem',
                   backgroundColor: getScoreColor(rec.matchScore).background,
@@ -393,7 +424,10 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
                 }}>
                   {rec.matchScore}% Match
                 </div>
-                
+
+                {/* 🆕 PERMANENT SCORE DISPLAY - akan tetap visible */}
+                {getScoreDisplay(rec.matchScore)}
+
                 {/* AI Confidence Indicator */}
                 {!rec.isFallback && (
                   <div style={{
@@ -412,7 +446,7 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
                     AI Analysis
                   </div>
                 )}
-                
+
                 {/* Fallback Indicator */}
                 {rec.isFallback && (
                   <div style={{
@@ -450,7 +484,10 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
                 fontWeight: '600',
                 color: '#2d3748',
                 marginBottom: '0.5rem',
-                fontSize: integratedMode ? '1rem' : '0.9rem'
+                fontSize: integratedMode ? '1rem' : '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
               }}>
                 {rec.playlistName}
               </div>
@@ -480,7 +517,7 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
         )}
       </div>
 
-      {/* Create New Playlist Button */}
+      {/* Create New Playlist */}
       <div
         onClick={handleCreatePlaylist}
         style={{
@@ -531,7 +568,7 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
   );
 };
 
-// Helper function untuk score colors
+// Helper function untuk score colors (tetap di luar component)
 const getScoreColor = (score) => {
   if (score >= 80) return { background: '#f0fff4', color: '#22543d', border: '#9ae6b4' };
   if (score >= 60) return { background: '#fffaf0', color: '#744210', border: '#faf089' };
