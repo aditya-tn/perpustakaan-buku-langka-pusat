@@ -1,7 +1,7 @@
 // pages/index.js - UPDATED WITH CLICKABLE CARDS
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Head from 'next/head'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase' // ✅ SUDAH ADA
 import Layout from '../components/Layout'
 import BookCard from '../components/BookCard'
 
@@ -280,6 +280,28 @@ const rankSearchResultsWithExactPriority = (results, searchWords, originalQuery,
   });
 };
 
+  // 🎯 FIX: Handle playlist click dari index page
+  const handlePlaylistClickFromIndex = async (playlistId, playlistName, e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
+    console.log('🎯 Tracking view from index page for playlist:', playlistId);
+    
+    try {
+      // Track view sebelum navigate - SEKARANG trackView sudah terdefinisi
+      await trackView(playlistId);
+      console.log('✅ Tracked view from index page');
+    } catch (error) {
+      console.error('❌ Tracking failed from index:', error);
+    }
+    
+    // Navigate setelah tracking
+    window.open(`/playlists/${playlistId}`, '_blank');
+  };
+
+  
 // Enhanced exact match search dengan improved priority handling
 const performExactMatchSearch = async (searchQuery, useSynonyms = true) => {
   const searchWords = searchQuery.trim().split(/\s+/).filter(word => word.length > 0);
@@ -468,6 +490,67 @@ export default function Home() {
     { label: "📚 1965-1990", range: [1965, 1990], description: "Modern awal" }
   ];
 
+   // 🎯 MANUAL TRACKVIEW FUNCTION - TANPA usePlaylist
+  const manualTrackView = async (playlistId) => {
+    try {
+      console.log('🎯 Manual tracking view for:', playlistId);
+      
+      // Coba RPC function dulu
+      const { data, error } = await supabase.rpc('increment_view_count', {
+        playlist_id: playlistId
+      });
+
+      if (error) {
+        console.log('🔄 RPC failed, trying direct update...');
+        // Fallback: manual update
+        const { data: playlist, error: fetchError } = await supabase
+          .from('community_playlists')
+          .select('view_count')
+          .eq('id', playlistId)
+          .single();
+          
+        if (fetchError) throw fetchError;
+        
+        const newViewCount = (playlist.view_count || 0) + 1;
+        const { error: updateError } = await supabase
+          .from('community_playlists')
+          .update({ view_count: newViewCount })
+          .eq('id', playlistId);
+          
+        if (updateError) throw updateError;
+        
+        console.log('✅ Manual view update successful:', newViewCount);
+        return { success: true, view_count: newViewCount };
+      }
+      
+      console.log('✅ View tracked successfully via RPC');
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Manual tracking failed:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // 🎯 HANDLER UNTUK PLAYLIST CLICK DARI INDEX
+  const handlePlaylistClickFromIndex = async (playlistId, playlistName, e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
+    console.log('🎯 Tracking view from index page for playlist:', playlistId);
+    
+    try {
+      await manualTrackView(playlistId);
+      console.log('✅ Tracked view from index page');
+    } catch (error) {
+      console.error('❌ Tracking failed from index:', error);
+    }
+    
+    // Buka playlist di tab baru
+    window.open(`/playlists/${playlistId}`, '_blank');
+  };
+  
   // 🆕 FUNCTION: Trigger refresh book cards
   const triggerBookCardRefresh = () => {
     console.log('🔄 Triggering BookCard refresh...');
@@ -2244,27 +2327,28 @@ export default function Home() {
 
 
           {/* Book Grid - UPDATED DENGAN REFRESH TRIGGER */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: isMobile ? '2rem 1rem' : '2rem 1.5rem',
-            marginBottom: '3rem',
-            alignItems: 'stretch'
-          }}>
-            {currentItems.map((book) => (
-              <div key={book.id} style={{ marginBottom: isMobile ? '1.5rem' : '3rem' }}>
-                <BookCard 
-                  book={book}
-                  isMobile={isMobile}
-                  isSelected={selectedBook?.id === book.id}
-                  showDescription={selectedBook?.id === book.id}
-                  onCardClick={handleCardClick}
-                  refreshTrigger={refreshBookCards} // 🆕 PASS REFRESH TRIGGER
-                  onBookAdded={triggerBookCardRefresh} // 🆕 PASS REFRESH CALLBACK
-                />
-              </div>
-            ))}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
+        gap: isMobile ? '2rem 1rem' : '2rem 1.5rem',
+        marginBottom: '3rem',
+        alignItems: 'stretch'
+      }}>
+        {currentItems.map((book) => (
+          <div key={book.id} style={{ marginBottom: isMobile ? '1.5rem' : '3rem' }}>
+            <BookCard
+              book={book}
+              isMobile={isMobile}
+              isSelected={selectedBook?.id === book.id}
+              showDescription={selectedBook?.id === book.id}
+              onCardClick={handleCardClick}
+              refreshTrigger={refreshBookCards}
+              onBookAdded={triggerBookCardRefresh}
+              onPlaylistClick={handlePlaylistClickFromIndex} // ✅ GUNAKAN MANUAL HANDLER
+            />
           </div>
+        ))}
+      </div>
 
 
           {/* No Filtered Results Message */}

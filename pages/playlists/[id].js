@@ -7,12 +7,13 @@ import { usePlaylist } from '../../contexts/PlaylistContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { playlistService, analyticsService, searchService } from '../../services/indexService';
 import BookCard from '../../components/BookCard';
+import { supabase } from '../../lib/supabase';
 
 const PlaylistDetail = () => {
   const router = useRouter();
   const { id } = router.query;
   
-  const { playlists, userId, likePlaylist, trackView, deletePlaylist, removeBookFromPlaylist } = usePlaylist();
+  const { playlists, userId, likePlaylist, trackView, deletePlaylist, removeBookFromPlaylist } = usePlaylist()
   const { addNotification } = useNotification();
 
   const [initialLoad, setInitialLoad] = useState(true);
@@ -55,6 +56,42 @@ const PlaylistDetail = () => {
     }
   };
 
+  // 🎯 MANUAL FUNCTION - SAMA DENGAN INDEX.JS
+  const manualTrackView = async (playlistId) => {
+    try {
+      console.log('🎯 Manual tracking view for:', playlistId);
+      const { data, error } = await supabase.rpc('increment_view_count', {
+        playlist_id: playlistId
+      });
+
+      if (error) throw error;
+      console.log('✅ Manual view tracked successfully');
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Manual tracking failed:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // 🎯 HANDLER DENGAN MANUAL FUNCTION
+  const handlePlaylistClickFromDetail = async (playlistId, playlistName, e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
+    console.log('🎯 Tracking view from playlist detail page:', playlistId);
+    
+    try {
+      await manualTrackView(playlistId);
+      console.log('✅ Tracked view from playlist detail');
+    } catch (error) {
+      console.error('❌ Tracking failed from playlist detail:', error);
+    }
+    
+    window.open(`/playlists/${playlistId}`, '_blank');
+  };
+
   // STATE UNTUK EXPANDABLE CARDS
   const [selectedBook, setSelectedBook] = useState(null);
   const viewCountedRef = useRef(false);
@@ -90,15 +127,6 @@ const PlaylistDetail = () => {
         setStats(playlistStats);
         setSimilarPlaylists(similar);
 
-        if (!viewCountedRef.current) {
-          try {
-            await trackView(id);
-            viewCountedRef.current = true;
-          } catch (trackError) {
-            console.error('❌ Error tracking view:', trackError);
-          }
-        }
-
       } catch (err) {
         console.error('Error loading playlist:', err);
         setError('Playlist tidak ditemukan atau terjadi error');
@@ -108,7 +136,7 @@ const PlaylistDetail = () => {
     };
 
     loadPlaylistData();
-  }, [id, playlists, trackView]);
+  }, [id, playlists]);
 
   // HANDLE CARD CLICK
   const handleCardClick = (book) => {
@@ -118,38 +146,38 @@ const PlaylistDetail = () => {
 
   // Handle like playlist - FIXED DENGAN NOTIFIKASI
   const [isLiking, setIsLiking] = useState(false);
-const handleLike = async () => {
-  if (!playlist || isLiking) return;
-  setIsLiking(true);
-  
-  try {
-    const result = await likePlaylist(playlist.id);
-    
-    // ✅ MANUAL RELOAD DATA SETELAH LIKE
-    const freshPlaylist = await playlistService.getPlaylistById(id);
-    setPlaylist(freshPlaylist);
-    
-    addNotification({
-      type: 'success',
-      title: 'Liked! ❤️',
-      message: 'Playlist berhasil disukai',
-      icon: '❤️',
-      duration: 2000
-    });
+  const handleLike = async () => {
+    if (!playlist || isLiking) return;
+    setIsLiking(true);
 
-  } catch (error) {
-    console.error('Error liking playlist:', error);
-    addNotification({
-      type: 'error',
-      title: 'Gagal Like',
-      message: error.message,
-      icon: '❌',
-      duration: 3000
-    });
-  } finally {
-    setIsLiking(false);
-  }
-};
+    try {
+      const result = await likePlaylist(playlist.id);
+      
+      // ✅ MANUAL RELOAD DATA SETELAH LIKE
+      const freshPlaylist = await playlistService.getPlaylistById(id);
+      setPlaylist(freshPlaylist);
+      
+      addNotification({
+        type: 'success',
+        title: 'Liked! ❤️',
+        message: 'Playlist berhasil disukai',
+        icon: '❤️',
+        duration: 2000
+      });
+
+    } catch (error) {
+      console.error('Error liking playlist:', error);
+      addNotification({
+        type: 'error',
+        title: 'Gagal Like',
+        message: error.message,
+        icon: '❌',
+        duration: 3000
+      });
+    } finally {
+      setIsLiking(false);
+    }
+  };
 
   // Handle delete playlist - FIXED DENGAN NOTIFIKASI
   const handleDeletePlaylist = async (playlistId) => {
@@ -507,21 +535,22 @@ const handleLike = async () => {
                 gap: '4rem',
                 alignItems: 'stretch'
               }}>
-                {filteredBooks.map((book, index) => (
-                  <BookCard
-                    key={book.id || index}
-                    book={book}
-                    isSelected={selectedBook?.id === book.id}
-                    showDescription={selectedBook?.id === book.id}
-                    onCardClick={handleCardClick}
-                    onRemoveBook={(bookId) => {
-                      const bookToDelete = filteredBooks.find(b => b.id === bookId);
-                      setDeleteBookConfirm({
-                        bookId,
-                        bookTitle: bookToDelete?.judul || 'Buku ini',
-                        playlistName: playlist.name,
-                        step: 1
-                      });
+              {filteredBooks.map((book, index) => (
+                <BookCard
+                  key={book.id || index}
+                  book={book}
+                  isSelected={selectedBook?.id === book.id}
+                  showDescription={selectedBook?.id === book.id}
+                  onCardClick={handleCardClick}
+                  onPlaylistClick={handlePlaylistClickFromDetail} // ✅ INI YANG BENAR
+                  onRemoveBook={(bookId) => {
+                    const bookToDelete = filteredBooks.find(b => b.id === bookId);
+                    setDeleteBookConfirm({
+                      bookId,
+                      bookTitle: bookToDelete?.judul || 'Buku ini',
+                      playlistName: playlist.name,
+                      step: 1
+                    });
                     }}
                   />
                 ))}

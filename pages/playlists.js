@@ -164,20 +164,19 @@ const PlaylistsPage = () => {
 
   // Playlist card component - ✅ DIPERBAIKI
   const PlaylistCard = ({ playlist }) => {
-    const isOwner = playlist.created_by === userId; // ✅ TAMBAH INI
+    const isOwner = playlist.created_by === userId;
 
     const handleClick = async (e) => {
       e.preventDefault();
       
+      // HANYA tracking di sini, tidak perlu di handler lain
       try {
-        // Track view sebelum navigate
         await trackView(playlist.id);
-        console.log('✅ Tracked view for playlist:', playlist.id);
+        console.log('✅ Tracked view from playlists page:', playlist.id);
       } catch (error) {
         console.error('❌ Tracking failed:', error);
       }
       
-      // Navigate setelah tracking
       router.push(`/playlists/${playlist.id}`);
     };
 

@@ -27,7 +27,7 @@ const extractYearFromString = (yearStr) => {
   return null;
 };
 
-const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescription = false, onRemoveBook = null }) => {
+const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescription = false, onRemoveBook = null, onPlaylistClick = null }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPlaylistForm, setShowPlaylistForm] = useState(false);
   const [showModeSelection, setShowModeSelection] = useState(false);
@@ -122,19 +122,28 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
     console.log('Playlist created:', newPlaylist);
   };
 
+
   // Handle klik playlist indicator
   const handlePlaylistClick = async (playlistId, playlistName, e) => {
     if (e) {
       e.stopPropagation();
       e.preventDefault();
     }
-    console.log('🎯 Opening playlist:', playlistName, playlistId);
-    try {
-      await trackView(playlistId);
-      console.log('✅ View tracked for playlist:', playlistId);
-      window.open(`/playlists/${playlistId}`, '_blank');
-    } catch (error) {
-      console.error('❌ Error tracking view:', error);
+
+    console.log('🎯 BookCard playlist click:', {
+      playlistId,
+      playlistName,
+      hasOnPlaylistClick: !!onPlaylistClick,
+      fromPage: window.location.pathname
+    });
+    
+    if (onPlaylistClick) {
+      // Jika ada custom handler dari parent, gunakan itu
+      console.log('✅ Using custom onPlaylistClick handler');
+      await onPlaylistClick(playlistId, playlistName, e);
+    } else {
+      // Default behavior - langsung buka tanpa tracking
+      console.log('❌ No custom handler, using default (no tracking)');
       window.open(`/playlists/${playlistId}`, '_blank');
     }
   };

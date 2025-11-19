@@ -232,63 +232,152 @@ export const PlaylistProvider = ({ children }) => {
   };
 
   // Social Features - FIXED (TANPA NOTIFIKASI)
-const trackView = async (playlistId) => {
-  try {
-    const { data, error } = await supabase.rpc('increment_view_count', {
-      playlist_id: playlistId
-    });
+  const trackView = async (playlistId) => {
+    try {
+      console.log('🎯 Tracking view for playlist:', playlistId);
+      
+      // 1. Optimistic update - update UI langsung
+      setPlaylists(prev => prev.map(playlist => 
+        playlist.id === playlistId 
+          ? { 
+              ...playlist, 
+              view_count: (playlist.view_count || 0) + 1 
+            }
+          : playlist
+      ));
 
-    if (error) {
-      console.error('❌ Supabase RPC error:', error);
-      return await manualIncrement(playlistId, 'view_count');
+      // 2. Debounce mechanism - prevent rapid duplicate calls
+      const now = Date.now();
+      const lastTrackTime = window.lastTrackTimes?.[playlistId] || 0;
+      
+      // Skip jika track dalam 3 detik terakhir
+      if (now - lastTrackTime < 3000) {
+        console.log('⏩ Skipping duplicate track view (debounced):', playlistId);
+        return { success: true, skipped: true };
+      }
+      
+      // Update last track time
+      if (!window.lastTrackTimes) window.lastTrackTimes = {};
+      window.lastTrackTimes[playlistId] = now;
+
+      // 3. Update database
+      const { data, error } = await supabase.rpc('increment_view_count', {
+        playlist_id: playlistId
+      });
+
+      if (error) {
+        console.error('❌ Supabase RPC error:', error);
+        // Fallback ke manual increment
+        return await manualIncrement(playlistId, 'view_count');
+      }
+
+      console.log('✅ Playlist view tracked:', playlistId, 'New count:', data?.view_count);
+      
+      // 4. Sync dengan database (optional, untuk memastikan data terupdate)
+      // Tapi JANGAN loadPlaylists() karena terlalu berat
+      // Sebagai gantinya, update local state dengan data dari RPC
+      if (data?.view_count) {
+        setPlaylists(prev => prev.map(playlist => 
+          playlist.id === playlistId 
+            ? { ...playlist, view_count: data.view_count }
+            : playlist
+        ));
+      }
+      
+      return { 
+        success: true, 
+        data,
+        view_count: data?.view_count 
+      };
+
+    } catch (error) {
+      console.error('❌ Error tracking view:', error);
+      
+      // Rollback optimistic update jika error
+      setPlaylists(prev => prev.map(playlist => 
+        playlist.id === playlistId 
+          ? { 
+              ...playlist, 
+              view_count: Math.max(0, (playlist.view_count || 1) - 1) 
+            }
+          : playlist
+      ));
+      
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
+  };
 
-    console.log('✅ Playlist view tracked:', playlistId, 'New count:', data?.view_count);
-    
-    // ✅ FORCE REFRESH PLAYLISTS SETELAH UPDATE
-    await loadPlaylists(); // INI YANG PERLU DITAMBAH!
-    
-    return { 
-      success: true, 
-      data,
-      view_count: data?.view_count 
-    };
-
-  } catch (error) {
-    console.error('❌ Error tracking view:', error);
-    return { 
-      success: false, 
-      error: error.message 
-    };
-  }
-};
-
-  // contexts/PlaylistContext.js - UPDATE
+  // LIKE
   
   const likePlaylist = async (playlistId) => {
     try {
+      console.log('❤️ Tracking like for playlist:', playlistId);
+      
+      // 1. Optimistic update
+      setPlaylists(prev => prev.map(playlist => 
+        playlist.id === playlistId 
+          ? { 
+              ...playlist, 
+              like_count: (playlist.like_count || 0) + 1 
+            }
+          : playlist
+      ));
+
+      // 2. Debounce mechanism
+      const now = Date.now();
+      const lastLikeTime = window.lastLikeTimes?.[playlistId] || 0;
+      
+      if (now - lastLikeTime < 3000) {
+        console.log('⏩ Skipping duplicate like (debounced):', playlistId);
+        return { success: true, skipped: true };
+      }
+      
+      if (!window.lastLikeTimes) window.lastLikeTimes = {};
+      window.lastLikeTimes[playlistId] = now;
+
+      // 3. Update database
       const { data, error } = await supabase.rpc('increment_like_count', {
         playlist_id: playlistId
       });
-  
+
       if (error) {
         console.error('❌ Supabase RPC error:', error);
         return await manualIncrement(playlistId, 'like_count');
       }
-  
+
       console.log('✅ Playlist liked:', playlistId, 'New count:', data?.like_count);
       
-      // ✅ FORCE REFRESH PLAYLISTS SETELAH UPDATE
-      await loadPlaylists(); // INI YANG PERLU DITAMBAH!
+      // 4. Sync dengan database
+      if (data?.like_count) {
+        setPlaylists(prev => prev.map(playlist => 
+          playlist.id === playlistId 
+            ? { ...playlist, like_count: data.like_count }
+            : playlist
+        ));
+      }
       
       return { 
         success: true, 
         data,
         like_count: data?.like_count 
       };
-  
+
     } catch (error) {
       console.error('❌ Error in likePlaylist:', error);
+      
+      // Rollback optimistic update
+      setPlaylists(prev => prev.map(playlist => 
+        playlist.id === playlistId 
+          ? { 
+              ...playlist, 
+              like_count: Math.max(0, (playlist.like_count || 1) - 1) 
+            }
+          : playlist
+      ));
+      
       return { 
         success: false, 
         error: error.message 
