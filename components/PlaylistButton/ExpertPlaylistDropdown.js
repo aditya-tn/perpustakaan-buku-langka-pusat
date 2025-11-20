@@ -263,15 +263,36 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     );
   };
 
-  const handleCreatePlaylist = () => {
-    if (onCloseBookDescription) {
-      onCloseBookDescription();
-    }
-    if (onShowPlaylistForm) {
-      onShowPlaylistForm();
-    }
-    onClose();
-  };
+const handleCreatePlaylist = (e) => {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  
+  console.log('🎯 Expert Mode - Create new playlist clicked');
+  console.log('🔧 Props available:', {
+    hasOnShowPlaylistForm: !!onShowPlaylistForm,
+    hasOnCloseBookDescription: !!onCloseBookDescription,
+    hasOnClose: !!onClose
+  });
+
+  // 🆪 HANYA PANGGIL onCloseBookDescription JIKA ADA
+  if (onCloseBookDescription) {
+    console.log('✅ Calling onCloseBookDescription');
+    onCloseBookDescription();
+  }
+
+  // 🆪 HANYA PANGGIL onShowPlaylistForm JIKA ADA
+  if (onShowPlaylistForm) {
+    console.log('✅ Calling onShowPlaylistForm');
+    onShowPlaylistForm();
+  } else {
+    console.error('❌ onShowPlaylistForm is not available!');
+  }
+
+  // 🚫 JANGAN PANGGIL onClose() DI SINI - biarkan parent yang handle
+  // onClose(); // 🆪 COMMENT/REMOVE BARIS INI
+};
 
   // Filter playlists yang tidak mengandung buku ini
   const availablePlaylists = playlists.filter(playlist =>

@@ -155,29 +155,37 @@ const NovicePlaylistRecommendations = ({ book, onClose, onShowPlaylistForm, onCl
   };
 
   // 🆕 TAMBAH FUNCTION YANG HILANG: handleCreatePlaylist
-  const handleCreatePlaylist = () => {
-    // Close book description if open
-    if (onCloseBookDescription) {
-      onCloseBookDescription();
-    }
+const handleCreatePlaylist = (e) => {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  
+  console.log('🔍 [NOVICE DEBUG] handleCreatePlaylist called');
+  console.log('🔍 [NOVICE DEBUG] All props:', {
+    onShowPlaylistForm: typeof onShowPlaylistForm,
+    onCloseBookDescription: typeof onCloseBookDescription,
+    onClose: typeof onClose,
+    integratedMode: integratedMode,
+    hasOnBookAdded: !!onBookAdded
+  });
 
-    // Show playlist form
-    if (onShowPlaylistForm) {
-      onShowPlaylistForm();
-    }
+  // 🆪 TEST: Coba panggil onShowPlaylistForm langsung
+  if (onShowPlaylistForm) {
+    console.log('✅ [NOVICE DEBUG] Calling onShowPlaylistForm directly');
+    onShowPlaylistForm();
+    console.log('✅ [NOVICE DEBUG] onShowPlaylistForm called successfully');
+  } else {
+    console.error('❌ [NOVICE DEBUG] onShowPlaylistForm is UNDEFINED!');
+    
+    // 🆪 FALLBACK: Coba buka form secara manual
+    console.log('🔄 [NOVICE DEBUG] Trying fallback approach...');
+    // Tambahkan fallback logic di sini
+  }
 
-    // Close current modal
-    onClose();
-
-    // Notification untuk create playlist
-    addNotification({
-      type: 'info',
-      title: 'Buat Playlist Baru',
-      message: 'Isi form untuk membuat playlist baru',
-      icon: '📝',
-      duration: 3000
-    });
-  };
+  // 🆪 JANGAN PANGGIL onClose() DULU - TEST TANPA INI
+  // onClose();
+};
 
   // 🆕 FUNCTION: Tampilkan AI score badge
   const getScoreDisplay = (matchScore) => {
