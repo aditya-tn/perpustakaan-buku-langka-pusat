@@ -1,17 +1,18 @@
-// pages/playlists.js - COMPLETE FIXED VERSION
+// pages/playlists.js - COMPLETE MOBILE OPTIMIZED VERSION
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Layout from '../components/Layout';
 import { usePlaylist } from '../contexts/PlaylistContext';
-import { useNotification } from '../contexts/NotificationContext'; // ✅ TAMBAH INI
+import { useNotification } from '../contexts/NotificationContext';
 import { searchService, analyticsService } from '../services/indexService';
 
 const PlaylistsPage = () => {
   const router = useRouter();
-  const { playlists, loading, userId, deletePlaylist, trackView } = usePlaylist(); // ✅ TAMBAH trackView
-  const { addNotification } = useNotification(); // ✅ TAMBAH INI
-  
+  const { playlists, loading, userId, deletePlaylist, trackView } = usePlaylist();
+  const { addNotification } = useNotification();
+
+  const [isMobile, setIsMobile] = useState(false);
   const [view, setView] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -19,7 +20,14 @@ const PlaylistsPage = () => {
   const [sortBy, setSortBy] = useState('recent');
   const [stats, setStats] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [hoveredPlaylist, setHoveredPlaylist] = useState(null);
+
+  // Detect mobile screen
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Load platform stats
   useEffect(() => {
@@ -98,13 +106,11 @@ const PlaylistsPage = () => {
 
   const filteredPlaylists = getFilteredPlaylists();
 
-  // Handle delete playlist - ✅ DIPERBAIKI DENGAN NOTIFIKASI
+  // Handle delete playlist
   const handleDeletePlaylist = async (playlistData) => {
     try {
       await deletePlaylist(playlistData.playlistId);
       setDeleteConfirm(null);
-      
-      // ✅ TAMBAH NOTIFIKASI SUKSES
       addNotification({
         type: 'success',
         title: 'Playlist Dihapus 🗑️',
@@ -114,8 +120,6 @@ const PlaylistsPage = () => {
       });
     } catch (error) {
       console.error('Delete failed:', error);
-      
-      // ✅ TAMBAH NOTIFIKASI ERROR
       addNotification({
         type: 'error',
         title: 'Gagal Menghapus',
@@ -126,19 +130,22 @@ const PlaylistsPage = () => {
     }
   };
 
-  // Stats cards component
+  // Stats Card Component
   const StatCard = ({ title, value, description, icon }) => (
     <div style={{
       backgroundColor: 'white',
-      padding: '1.5rem',
+      padding: isMobile ? '1rem' : '1.5rem',
       borderRadius: '12px',
       boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
       border: '1px solid #e2e8f0',
       textAlign: 'center'
     }}>
-      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{icon}</div>
+      <div style={{ 
+        fontSize: isMobile ? '1.5rem' : '2rem', 
+        marginBottom: '0.5rem' 
+      }}>{icon}</div>
       <div style={{
-        fontSize: '1.5rem',
+        fontSize: isMobile ? '1.25rem' : '1.5rem',
         fontWeight: '700',
         color: '#2d3748',
         marginBottom: '0.25rem'
@@ -146,7 +153,7 @@ const PlaylistsPage = () => {
         {value}
       </div>
       <div style={{
-        fontSize: '0.9rem',
+        fontSize: isMobile ? '0.8rem' : '0.9rem',
         fontWeight: '600',
         color: '#4a5568',
         marginBottom: '0.25rem'
@@ -154,7 +161,7 @@ const PlaylistsPage = () => {
         {title}
       </div>
       <div style={{
-        fontSize: '0.75rem',
+        fontSize: isMobile ? '0.7rem' : '0.75rem',
         color: '#718096'
       }}>
         {description}
@@ -162,30 +169,27 @@ const PlaylistsPage = () => {
     </div>
   );
 
-  // Playlist card component - ✅ DIPERBAIKI
-  const PlaylistCard = ({ playlist }) => {
+  // Playlist Card Component - MOBILE OPTIMIZED
+  const PlaylistCard = ({ playlist, isMobile = false }) => {
     const isOwner = playlist.created_by === userId;
 
     const handleClick = async (e) => {
       e.preventDefault();
-      
-      // HANYA tracking di sini, tidak perlu di handler lain
       try {
         await trackView(playlist.id);
-        console.log('✅ Tracked view from playlists page:', playlist.id);
+        console.log('✅ Tracked view for playlist:', playlist.id);
       } catch (error) {
         console.error('❌ Tracking failed:', error);
       }
-      
       router.push(`/playlists/${playlist.id}`);
     };
 
     return (
-      <div 
-        onClick={handleClick} // ✅ PAKAI HANDLER BARU
+      <div
+        onClick={handleClick}
         style={{
           backgroundColor: 'white',
-          padding: '1.5rem',
+          padding: isMobile ? '1.25rem' : '1.5rem',
           borderRadius: '12px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           border: '1px solid #e2e8f0',
@@ -197,11 +201,11 @@ const PlaylistsPage = () => {
           position: 'relative',
           overflow: 'hidden'
         }}
-        onMouseEnter={() => setHoveredPlaylist(playlist.id)}
-        onMouseLeave={() => setHoveredPlaylist(null)}
+        onMouseEnter={(e) => !isMobile && (e.currentTarget.style.transform = 'translateY(-2px)')}
+        onMouseLeave={(e) => !isMobile && (e.currentTarget.style.transform = 'translateY(0)')}
       >
         {/* Delete Button - Show on hover for owner */}
-        {isOwner && ( // ✅ TAMBAH CONDITIONAL RENDERING
+        {isOwner && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -215,29 +219,20 @@ const PlaylistsPage = () => {
             }}
             style={{
               position: 'absolute',
-              top: '0.75rem',
-              right: '0.75rem',
-              background: '#f56565',
+              top: isMobile ? '0.5rem' : '0.75rem',
+              right: isMobile ? '0.5rem' : '0.75rem',
+              background: 'hsla(0, 0%, 100%, 1.00)',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
-              padding: '0.4rem 0.6rem',
-              fontSize: '0.7rem',
+              padding: isMobile ? '0.3rem 0.5rem' : '0.4rem 0.6rem',
+              fontSize: isMobile ? '0.6rem' : '0.7rem',
               fontWeight: '600',
               cursor: 'pointer',
               zIndex: 10,
               display: 'flex',
               alignItems: 'center',
-              gap: '0.25rem',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#e53e3e';
-              e.target.style.transform = 'scale(1.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#f56565';
-              e.target.style.transform = 'scale(1)';
+              gap: '0.25rem'
             }}
           >
             🗑️
@@ -252,7 +247,7 @@ const PlaylistsPage = () => {
         }}>
           <h3 style={{
             margin: '0 0 0.5rem 0',
-            fontSize: '1.1rem',
+            fontSize: isMobile ? '1rem' : '1.1rem',
             fontWeight: '600',
             color: '#2d3748',
             lineHeight: '1.4',
@@ -260,14 +255,14 @@ const PlaylistsPage = () => {
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
-            paddingRight: isOwner ? '2rem' : '0'
+            paddingRight: isOwner ? (isMobile ? '1.5rem' : '2rem') : '0'
           }}>
             {playlist.name}
           </h3>
           {playlist.description && (
             <p style={{
               margin: 0,
-              fontSize: '0.85rem',
+              fontSize: isMobile ? '0.8rem' : '0.85rem',
               color: '#718096',
               lineHeight: '1.5',
               display: '-webkit-box',
@@ -283,9 +278,9 @@ const PlaylistsPage = () => {
         {/* Stats */}
         <div style={{
           display: 'flex',
-          gap: '1rem',
+          gap: isMobile ? '0.75rem' : '1rem',
           marginBottom: '1rem',
-          fontSize: '0.75rem',
+          fontSize: isMobile ? '0.7rem' : '0.75rem',
           color: '#718096'
         }}>
           <span>📚 {playlist.books?.length || 0} buku</span>
@@ -297,7 +292,7 @@ const PlaylistsPage = () => {
         {playlist.books && playlist.books.length > 0 && (
           <div style={{ marginTop: 'auto' }}>
             <div style={{
-              fontSize: '0.8rem',
+              fontSize: isMobile ? '0.75rem' : '0.8rem',
               fontWeight: '600',
               color: '#4a5568',
               marginBottom: '0.5rem'
@@ -311,7 +306,7 @@ const PlaylistsPage = () => {
             }}>
               {playlist.books.slice(0, 3).map((book, index) => (
                 <div key={index} style={{
-                  fontSize: '0.75rem',
+                  fontSize: isMobile ? '0.7rem' : '0.75rem',
                   color: '#718096',
                   padding: '0.25rem 0.5rem',
                   backgroundColor: '#f7fafc',
@@ -328,7 +323,7 @@ const PlaylistsPage = () => {
               ))}
               {playlist.books.length > 3 && (
                 <div style={{
-                  fontSize: '0.7rem',
+                  fontSize: isMobile ? '0.65rem' : '0.7rem',
                   color: '#4299e1',
                   textAlign: 'center',
                   fontStyle: 'italic'
@@ -340,45 +335,65 @@ const PlaylistsPage = () => {
           </div>
         )}
 
-        {/* Footer */}
-        <div style={{
-          marginTop: '1rem',
-          paddingTop: '1rem',
-          borderTop: '1px solid #e2e8f0',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.7rem',
-          color: '#718096'
-        }}>
+      {/* Footer - UPDATE dengan creator info */}
+      <div style={{
+        marginTop: '1rem',
+        paddingTop: '1rem',
+        borderTop: '1px solid #e2e8f0',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: isMobile ? '0.7rem' : '0.75rem',
+        color: '#718096',
+        flexWrap: 'wrap',
+        gap: '0.5rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <span>
-            Dibuat oleh {isOwner ? 'Anda' : 'Komunitas'}
-          </span>
-          <span>
-            {new Date(playlist.created_at).toLocaleDateString('id-ID')}
+            Dibuat oleh         {  /* 🆕 TAMPILKAN CREATOR NAME */}
+            {playlist.creator_name && (
+              <span style={{
+                backgroundColor: '#edf2f7',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '12px',
+                fontSize: isMobile ? '0.7rem' : '0.75rem',
+                color: '#4a5568',
+                border: '1px solid #cbd5e0'
+              }}>
+                {playlist.creator_name}
+              </span>
+        )}
           </span>
         </div>
+        <span>
+          {new Date(playlist.created_at).toLocaleDateString('id-ID')}
+        </span>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   return (
-    <Layout>
+    <Layout isMobile={isMobile}>
       <Head>
         <title>Playlists Komunitas - Perpustakaan Buku Langka</title>
         <meta name="description" content="Jelajahi playlist buku yang dikurasi komunitas" />
       </Head>
 
-      {/* Hero Section */}
+      {/* Hero Section - MOBILE OPTIMIZED */}
       <section style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
-        padding: '3rem 2rem',
+        padding: isMobile ? '2rem 1rem' : '3rem 2rem',
         textAlign: 'center'
       }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <div style={{ 
+          maxWidth: '800px', 
+          margin: '0 auto',
+          padding: isMobile ? '0' : '0 1rem'
+        }}>
           <h1 style={{
-            fontSize: '3rem',
+            fontSize: isMobile ? '2rem' : '3rem',
             fontWeight: '800',
             marginBottom: '1rem',
             lineHeight: '1.2'
@@ -386,8 +401,8 @@ const PlaylistsPage = () => {
             Playlists Komunitas
           </h1>
           <p style={{
-            fontSize: '1.25rem',
-            marginBottom: '2rem',
+            fontSize: isMobile ? '1rem' : '1.25rem',
+            marginBottom: isMobile ? '1.5rem' : '2rem',
             opacity: 0.9,
             fontWeight: '300',
             lineHeight: '1.5'
@@ -395,12 +410,12 @@ const PlaylistsPage = () => {
             Temukan koleksi buku yang dikurasi oleh komunitas pencinta literatur
           </p>
 
-          {/* Stats Overview */}
+          {/* Stats Overview - Mobile Grid */}
           {stats && (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: '1rem',
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+              gap: isMobile ? '0.75rem' : '1rem',
               marginTop: '2rem'
             }}>
               <StatCard
@@ -432,35 +447,39 @@ const PlaylistsPage = () => {
         </div>
       </section>
 
-      {/* Main Content */}
+      {/* Main Content - MOBILE OPTIMIZED */}
       <section style={{
         maxWidth: '1400px',
-        margin: '2rem auto',
-        padding: '0 2rem'
+        margin: isMobile ? '1rem auto' : '2rem auto',
+        padding: isMobile ? '0 1rem' : '0 2rem'
       }}>
-        
-        {/* Controls */}
+        {/* Controls - Mobile Optimized */}
         <div style={{
           backgroundColor: 'white',
-          padding: '1.5rem',
+          padding: isMobile ? '1rem' : '1.5rem',
           borderRadius: '12px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          marginBottom: '2rem',
+          marginBottom: '1.5rem',
           border: '1px solid #e2e8f0'
         }}>
           <div style={{
             display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
             justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
+            alignItems: isMobile ? 'stretch' : 'center',
             gap: '1rem'
           }}>
-            
-            {/* View Tabs */}
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* View Tabs - Mobile Scrollable */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '0.5rem', 
+              flexWrap: 'wrap',
+              overflowX: isMobile ? 'auto' : 'visible',
+              paddingBottom: isMobile ? '0.5rem' : '0'
+            }}>
               {[
-                { key: 'all', label: 'Semua Playlists', icon: '📚' },
-                { key: 'my', label: 'Playlists Saya', icon: '👤' },
+                { key: 'all', label: 'Semua', icon: '📚' },
+                { key: 'my', label: 'Saya', icon: '👤' },
                 { key: 'popular', label: 'Populer', icon: '❤️' },
                 { key: 'trending', label: 'Trending', icon: '🔥' }
               ].map(tab => (
@@ -468,18 +487,19 @@ const PlaylistsPage = () => {
                   key={tab.key}
                   onClick={() => setView(tab.key)}
                   style={{
-                    padding: '0.75rem 1rem',
+                    padding: isMobile ? '0.6rem 0.8rem' : '0.75rem 1rem',
                     border: 'none',
                     borderRadius: '8px',
                     backgroundColor: view === tab.key ? '#4299e1' : '#f7fafc',
                     color: view === tab.key ? 'white' : '#4a5568',
                     cursor: 'pointer',
                     fontWeight: '500',
-                    fontSize: '0.9rem',
+                    fontSize: isMobile ? '0.8rem' : '0.9rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s'
+                    gap: '0.3rem',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
                   <span>{tab.icon}</span>
@@ -488,51 +508,62 @@ const PlaylistsPage = () => {
               ))}
             </div>
 
-            {/* Search Box */}
-            <div style={{ position: 'relative', minWidth: '300px' }}>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari playlist atau buku..."
+            {/* Search & Sort - Mobile Stack */}
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: '1rem',
+              width: isMobile ? '100%' : 'auto'
+            }}>
+              {/* Search Box */}
+              <div style={{ 
+                position: 'relative', 
+                width: isMobile ? '100%' : '300px' 
+              }}>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari playlist..."
+                  style={{
+                    width: '100%',
+                    padding: isMobile ? '0.6rem 0.8rem 0.6rem 2.2rem' : '0.75rem 1rem 0.75rem 2.5rem',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: isMobile ? '0.85rem' : '0.9rem',
+                    outline: 'none'
+                  }}
+                />
+                <span style={{
+                  position: 'absolute',
+                  left: isMobile ? '0.6rem' : '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#718096'
+                }}>
+                  🔍
+                </span>
+              </div>
+
+              {/* Sort Options */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
                 style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem 0.75rem 2.5rem',
+                  padding: isMobile ? '0.6rem 0.8rem' : '0.75rem 1rem',
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  outline: 'none'
+                  backgroundColor: 'white',
+                  fontSize: isMobile ? '0.85rem' : '0.9rem',
+                  outline: 'none',
+                  width: isMobile ? '100%' : '150px'
                 }}
-              />
-              <span style={{
-                position: 'absolute',
-                left: '0.75rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#718096'
-              }}>
-                🔍
-              </span>
+              >
+                <option value="recent">Terbaru</option>
+                <option value="popular">Paling Populer</option>
+                <option value="name">A-Z</option>
+              </select>
             </div>
-
-            {/* Sort Options */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              style={{
-                padding: '0.75rem 1rem',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                backgroundColor: 'white',
-                fontSize: '0.9rem',
-                outline: 'none',
-                minWidth: '150px'
-              }}
-            >
-              <option value="recent">Terbaru</option>
-              <option value="popular">Paling Populer</option>
-              <option value="name">A-Z</option>
-            </select>
           </div>
 
           {/* Active Filters Info */}
@@ -542,7 +573,7 @@ const PlaylistsPage = () => {
             backgroundColor: '#f0fff4',
             border: '1px solid #9ae6b4',
             borderRadius: '6px',
-            fontSize: '0.8rem',
+            fontSize: isMobile ? '0.75rem' : '0.8rem',
             color: '#22543d'
           }}>
             Menampilkan {filteredPlaylists.length} playlist
@@ -552,29 +583,44 @@ const PlaylistsPage = () => {
           </div>
         </div>
 
-        {/* Playlists Grid */}
+        {/* Playlists Grid - Mobile Single Column */}
         {loading ? (
           <div style={{
             textAlign: 'center',
             padding: '3rem',
             color: '#718096'
           }}>
-            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
+            <div style={{ 
+              fontSize: isMobile ? '1.5rem' : '2rem', 
+              marginBottom: '1rem',
+              animation: 'pulse 1.5s infinite'
+            }}>⏳</div>
             Memuat playlists...
           </div>
         ) : filteredPlaylists.length === 0 ? (
           <div style={{
             textAlign: 'center',
-            padding: '3rem',
+            padding: isMobile ? '2rem 1rem' : '3rem',
             backgroundColor: 'white',
             borderRadius: '12px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
           }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
-            <h3 style={{ color: '#4a5568', marginBottom: '0.5rem' }}>
+            <div style={{ 
+              fontSize: isMobile ? '2rem' : '3rem', 
+              marginBottom: '1rem' 
+            }}>📚</div>
+            <h3 style={{ 
+              color: '#4a5568', 
+              marginBottom: '0.5rem',
+              fontSize: isMobile ? '1.1rem' : '1.25rem'
+            }}>
               {searchQuery ? 'Tidak ada hasil pencarian' : 'Belum ada playlist'}
             </h3>
-            <p style={{ color: '#718096', marginBottom: '1.5rem' }}>
+            <p style={{ 
+              color: '#718096',
+              marginBottom: '1.5rem',
+              fontSize: isMobile ? '0.85rem' : '1rem'
+            }}>
               {searchQuery
                 ? `Coba kata kunci lain atau buat playlist "${searchQuery}"`
                 : 'Jadilah yang pertama membuat playlist komunitas!'
@@ -584,13 +630,14 @@ const PlaylistsPage = () => {
               <button
                 onClick={() => window.location.href = '/'}
                 style={{
-                  padding: '0.75rem 1.5rem',
+                  padding: isMobile ? '0.6rem 1.2rem' : '0.75rem 1.5rem',
                   backgroundColor: '#4299e1',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
                   cursor: 'pointer',
-                  fontWeight: '500'
+                  fontWeight: '500',
+                  fontSize: isMobile ? '0.85rem' : '0.9rem'
                 }}
               >
                 📚 Buat Playlist Pertama
@@ -600,8 +647,8 @@ const PlaylistsPage = () => {
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: '2rem' // ✅ REDUCED GAP untuk better layout
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
+            gap: isMobile ? '1.5rem' : '2rem'
           }}>
             {filteredPlaylists.map(playlist => (
               <PlaylistCard key={playlist.id} playlist={playlist} />
@@ -610,7 +657,7 @@ const PlaylistsPage = () => {
         )}
       </section>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal - MOBILE OPTIMIZED */}
       {deleteConfirm && (
         <div style={{
           position: 'fixed',
@@ -623,16 +670,16 @@ const PlaylistsPage = () => {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 10000,
-          padding: '1rem'
+          padding: isMobile ? '0.5rem' : '1rem'
         }}
         onClick={() => setDeleteConfirm(null)}
         >
           <div style={{
             backgroundColor: 'white',
-            padding: '2rem',
+            padding: isMobile ? '1.5rem' : '2rem',
             borderRadius: '12px',
             boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-            maxWidth: '450px',
+            maxWidth: isMobile ? '95%' : '450px',
             width: '100%',
             textAlign: 'center'
           }}
@@ -641,38 +688,64 @@ const PlaylistsPage = () => {
             {/* STEP 1: Konfirmasi Basic */}
             {deleteConfirm.step === 1 && (
               <>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                <div style={{ 
+                  fontSize: isMobile ? '2.5rem' : '3rem', 
+                  marginBottom: '1rem' 
+                }}>⚠️</div>
+                <h3 style={{ 
+                  margin: '0 0 1rem 0', 
+                  color: '#2d3748',
+                  fontSize: isMobile ? '1.1rem' : '1.25rem'
+                }}>
                   Hapus Playlist?
                 </h3>
-                <p style={{ color: '#718096', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                <p style={{ 
+                  color: '#718096', 
+                  marginBottom: '1.5rem', 
+                  lineHeight: '1.5',
+                  fontSize: isMobile ? '0.85rem' : '1rem'
+                }}>
                   Anda akan menghapus playlist:<br />
                   <strong>"{deleteConfirm.playlistName}"</strong>
                 </p>
-                
-                <div style={{ 
-                  backgroundColor: '#fffaf0', 
-                  padding: '1rem',
+                <div style={{
+                  backgroundColor: '#fffaf0',
+                  padding: isMobile ? '0.75rem' : '1rem',
                   borderRadius: '8px',
                   border: '1px solid #fed7d7',
                   marginBottom: '1.5rem',
                   textAlign: 'left'
                 }}>
-                  <div style={{ fontWeight: '600', color: '#c53030', marginBottom: '0.5rem' }}>
+                  <div style={{ 
+                    fontWeight: '600', 
+                    color: '#c53030', 
+                    marginBottom: '0.5rem',
+                    fontSize: isMobile ? '0.85rem' : '0.9rem'
+                  }}>
                     ⚠️ Perhatian:
                   </div>
-                  <ul style={{ color: '#744210', fontSize: '0.9rem', margin: 0, paddingLeft: '1.2rem', lineHeight: '1.4' }}>
+                  <ul style={{ 
+                    color: '#744210', 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                    margin: 0, 
+                    paddingLeft: '1.2rem', 
+                    lineHeight: '1.4' 
+                  }}>
                     <li>Playlist akan dihapus permanen</li>
                     <li>{deleteConfirm.bookCount} buku akan dihapus dari playlist</li>
                     <li>Tindakan ini tidak dapat dibatalkan</li>
                   </ul>
                 </div>
-
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '1rem', 
+                  justifyContent: 'center',
+                  flexDirection: isMobile ? 'column' : 'row'
+                }}>
                   <button
                     onClick={() => setDeleteConfirm(null)}
                     style={{
-                      padding: '0.75rem 1.5rem',
+                      padding: isMobile ? '0.6rem 1.2rem' : '0.75rem 1.5rem',
                       backgroundColor: '#e2e8f0',
                       color: '#4a5568',
                       border: 'none',
@@ -684,10 +757,10 @@ const PlaylistsPage = () => {
                   >
                     Batalkan
                   </button>
-                  <button 
+                  <button
                     onClick={() => setDeleteConfirm(prev => ({ ...prev, step: 2 }))}
                     style={{
-                      padding: '0.75rem 1.5rem',
+                      padding: isMobile ? '0.6rem 1.2rem' : '0.75rem 1.5rem',
                       backgroundColor: '#f56565',
                       color: 'white',
                       border: 'none',
@@ -706,13 +779,28 @@ const PlaylistsPage = () => {
             {/* STEP 2: Verifikasi Nama Playlist */}
             {deleteConfirm.step === 2 && (
               <>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#2d3748' }}>
+                <div style={{ 
+                  fontSize: isMobile ? '2.5rem' : '3rem', 
+                  marginBottom: '1rem' 
+                }}>🔒</div>
+                <h3 style={{ 
+                  margin: '0 0 1rem 0', 
+                  color: '#2d3748',
+                  fontSize: isMobile ? '1.1rem' : '1.25rem'
+                }}>
                   Verifikasi Penghapusan
                 </h3>
-                <p style={{ color: '#718096', marginBottom: '1rem', lineHeight: '1.5' }}>
+                <p style={{ 
+                  color: '#718096', 
+                  marginBottom: '1rem', 
+                  lineHeight: '1.5',
+                  fontSize: isMobile ? '0.85rem' : '1rem'
+                }}>
                   Ketik <strong>manual</strong> nama playlist berikut:<br />
-                  <strong style={{ color: '#e53e3e', fontSize: '1.1rem' }}>
+                  <strong style={{ 
+                    color: '#e53e3e', 
+                    fontSize: isMobile ? '1rem' : '1.1rem' 
+                  }}>
                     "{deleteConfirm.playlistName}"
                   </strong>
                 </p>
@@ -724,7 +812,7 @@ const PlaylistsPage = () => {
                   borderRadius: '6px',
                   border: '1px solid #fed7d7',
                   marginBottom: '1rem',
-                  fontSize: '0.8rem',
+                  fontSize: isMobile ? '0.75rem' : '0.8rem',
                   color: '#744210'
                 }}>
                   ⚠️ <strong>Copy-paste tidak diperbolehkan.</strong> Harap ketik manual.
@@ -733,17 +821,16 @@ const PlaylistsPage = () => {
                 <input
                   type="text"
                   value={deleteConfirm.verificationText || ''}
-                  onChange={(e) => setDeleteConfirm(prev => ({ 
-                    ...prev, 
-                    verificationText: e.target.value 
+                  onChange={(e) => setDeleteConfirm(prev => ({
+                    ...prev,
+                    verificationText: e.target.value
                   }))}
                   onPaste={(e) => {
                     e.preventDefault();
-                    setDeleteConfirm(prev => ({ 
-                      ...prev, 
-                      pasteAttempted: true 
+                    setDeleteConfirm(prev => ({
+                      ...prev,
+                      pasteAttempted: true
                     }));
-                    
                     e.target.style.borderColor = '#f56565';
                     e.target.style.backgroundColor = '#fed7d7';
                     setTimeout(() => {
@@ -756,10 +843,10 @@ const PlaylistsPage = () => {
                   placeholder="Ketik manual nama playlist..."
                   style={{
                     width: '100%',
-                    padding: '0.75rem',
+                    padding: isMobile ? '0.6rem' : '0.75rem',
                     border: deleteConfirm.pasteAttempted ? '2px solid #f56565' : '1px solid #e2e8f0',
                     borderRadius: '6px',
-                    fontSize: '0.9rem',
+                    fontSize: isMobile ? '0.85rem' : '0.9rem',
                     marginBottom: '0.5rem',
                     outline: 'none',
                     backgroundColor: deleteConfirm.pasteAttempted ? '#fed7d7' : 'white',
@@ -770,7 +857,7 @@ const PlaylistsPage = () => {
                 {deleteConfirm.pasteAttempted && (
                   <div style={{
                     color: '#e53e3e',
-                    fontSize: '0.8rem',
+                    fontSize: isMobile ? '0.75rem' : '0.8rem',
                     marginBottom: '1rem',
                     display: 'flex',
                     alignItems: 'center',
@@ -781,7 +868,7 @@ const PlaylistsPage = () => {
                 )}
 
                 <div style={{
-                  fontSize: '0.7rem',
+                  fontSize: isMobile ? '0.65rem' : '0.7rem',
                   color: '#718096',
                   marginBottom: '1.5rem',
                   display: 'flex',
@@ -799,11 +886,16 @@ const PlaylistsPage = () => {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '1rem', 
+                  justifyContent: 'center',
+                  flexDirection: isMobile ? 'column' : 'row'
+                }}>
                   <button
                     onClick={() => setDeleteConfirm(prev => ({ ...prev, step: 1, verificationText: '', pasteAttempted: false }))}
                     style={{
-                      padding: '0.75rem 1.5rem',
+                      padding: isMobile ? '0.6rem 1.2rem' : '0.75rem 1.5rem',
                       backgroundColor: '#e2e8f0',
                       color: '#4a5568',
                       border: 'none',
@@ -815,11 +907,11 @@ const PlaylistsPage = () => {
                   >
                     Kembali
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDeletePlaylist(deleteConfirm)}
                     disabled={deleteConfirm.verificationText !== deleteConfirm.playlistName}
                     style={{
-                      padding: '0.75rem 1.5rem',
+                      padding: isMobile ? '0.6rem 1.2rem' : '0.75rem 1.5rem',
                       backgroundColor: deleteConfirm.verificationText === deleteConfirm.playlistName ? '#f56565' : '#cbd5e0',
                       color: 'white',
                       border: 'none',
@@ -838,6 +930,14 @@ const PlaylistsPage = () => {
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+      `}</style>
     </Layout>
   );
 };

@@ -182,7 +182,6 @@ const IntegratedModeSelection = ({ book, onClose, onShowPlaylistForm, onBookAdde
         <div
           onClick={() => {
             onShowPlaylistForm();
-            onClose();
           }}
           style={{
             padding: '1rem',

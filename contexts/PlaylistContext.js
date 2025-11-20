@@ -16,13 +16,33 @@ export const PlaylistProvider = ({ children }) => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [userId, setUserId] = useState(null); // 🆕 TAMBAH INI
 
-  // Load playlists
+  // 🆕 FUNCTION UNTUK DAPATKAN/GENERATE USER ID
+  const getOrCreateUserId = () => {
+    // Coba dapatkan dari localStorage
+    let storedUserId = localStorage.getItem('playlist_user_id');
+    
+    if (!storedUserId) {
+      // Generate new user ID jika tidak ada
+      storedUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('playlist_user_id', storedUserId);
+    }
+    
+    return storedUserId;
+  };
+
+  // Load playlists dan setup user
   const loadPlaylists = async () => {
     setLoading(true);
     setError(null);
     try {
       console.log('🔄 Loading playlists from Supabase...');
+      
+      // 🆕 SET USER ID SEBELUM LOAD
+      const currentUserId = getOrCreateUserId();
+      setUserId(currentUserId);
+
       const { data, error } = await supabase
         .from('community_playlists')
         .select('*')
@@ -43,21 +63,26 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
-  // Load playlists ketika component mount
-  useEffect(() => {
-    loadPlaylists();
-  }, []);
-
-  // Create new playlist
+  // Create new playlist - PERBAIKI VALIDASI
   const createPlaylist = async (playlistData) => {
     try {
+      // 🆕 GUNAKAN USER ID YANG SUDAH DISIAPKAN
+      const currentUserId = getOrCreateUserId();
+      
+      console.log('🎯 Creating playlist with data:', {
+        ...playlistData,
+        created_by: currentUserId
+      });
+
       const { data, error } = await supabase
         .from('community_playlists')
         .insert([{
           ...playlistData,
+          created_by: currentUserId, // 🆕 PASTIKAN ADA
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          ai_match_scores: {}
+          ai_match_scores: {},
+          is_public: true // 🆕 DEFAULT PUBLIC
         }])
         .select()
         .single();
@@ -66,12 +91,19 @@ export const PlaylistProvider = ({ children }) => {
 
       // Update local state
       setPlaylists(prev => [data, ...prev]);
+      
+      console.log('✅ Playlist created successfully:', data);
       return { success: true, data };
     } catch (error) {
-      console.error('Error creating playlist:', error);
+      console.error('❌ Error creating playlist:', error);
       return { success: false, error: error.message };
     }
   };
+
+  // Load playlists ketika component mount
+  useEffect(() => {
+    loadPlaylists();
+  }, []);
 
   // Add book to playlist
   const addToPlaylist = async (playlistId, book) => {
@@ -540,6 +572,7 @@ export const PlaylistProvider = ({ children }) => {
     playlists,
     loading,
     error,
+    userId,
 
     // Core Operations
     createPlaylist,
@@ -565,7 +598,14 @@ export const PlaylistProvider = ({ children }) => {
 
     // Utilities
     refreshPlaylists,
-    healthCheck
+    healthCheck,
+    
+    // 🆕 TAMBAH FUNCTION UNTUK REFRESH USER
+    refreshUserId: () => {
+      const newUserId = getOrCreateUserId();
+      setUserId(newUserId);
+      return newUserId;
+    }
   };
 
   return (

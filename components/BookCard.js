@@ -188,6 +188,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
             book={book}
             onClose={handlePlaylistFormClose}
             onCreated={handlePlaylistCreated}
+            isMobile={isMobile}
           />
         ) : showModeSelection ? (
           <IntegratedModeSelection

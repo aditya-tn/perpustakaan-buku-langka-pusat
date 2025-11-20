@@ -1,35 +1,92 @@
+// components/PlaylistModal/CreatePlaylistForm.js - COMPLETE FIXED VERSION
 import { useState } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
+import { useNotification } from '../../contexts/NotificationContext'; // 🆕 IMPORT
 
-const CreatePlaylistForm = ({ book, onClose, onCreated }) => {
+const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    creatorType: '🔰 Pencinta Buku',
+    customCreatorName: ''
   });
+
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { createPlaylist } = usePlaylist();
+  const [error, setError] = useState(null);
+  const { createPlaylist, refreshUserId } = usePlaylist();
+  const { addNotification } = useNotification();
+
+  // Opsi untuk jenis pembuat
+  const creatorOptions = [
+    { value: '🔰 Pencinta Buku', label: '🔰 Pencinta Buku' },
+    { value: '🏆 Kurator Handal', label: '🏆 Kurator Handal' },
+    { value: '🎓 Academic Researcher', label: '🎓 Academic Researcher' },
+    { value: '🏛️ History Explorer', label: '🏛️ History Explorer' },
+    { value: '👨‍⚖️ Pustakawan Koleksi Buku Langka', label: '👨‍⚖️ Pustakawan Koleksi Buku Langka' },
+    { value: 'custom', label: '⭐ Tulis nama sendiri (custom)' }
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.name.trim()) {
-      alert('Nama playlist wajib diisi');
+      setError('Nama playlist wajib diisi');
       return;
     }
 
     setLoading(true);
-    
+    setError(null);
+
     try {
-      const newPlaylist = createPlaylist(formData);
-      
-      if (newPlaylist && onCreated) {
-        onCreated(newPlaylist);
+      refreshUserId();
+
+      let creatorName = formData.creatorType;
+      if (formData.creatorType === 'custom' && formData.customCreatorName.trim()) {
+        creatorName = formData.customCreatorName.trim();
       }
-      
-      onClose();
+
+      const playlistData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        creator_name: creatorName
+      };
+
+      console.log('🔄 Submitting playlist creation...', playlistData);
+
+      const result = await createPlaylist(playlistData);
+
+      if (result.success) {
+        console.log('✅ Playlist created successfully');
+        
+        // 🆪 TAMPILKAN NOTIFIKASI SUKSES
+        addNotification({
+          type: 'success',
+          title: 'Playlist Berhasil Dibuat! 🎉',
+          message: `Playlist "${formData.name.trim()}" telah berhasil dibuat`,
+          icon: '✅',
+          duration: 4000
+        });
+
+        if (onCreated) {
+          onCreated(result.data);
+        }
+        onClose();
+      } else if (result.error) {
+        throw new Error(result.error);
+      }
     } catch (error) {
-      console.error('Error creating playlist:', error);
-      alert('Gagal membuat playlist');
+      console.error('❌ Error creating playlist:', error);
+      setError(`Gagal membuat playlist: ${error.message}`);
+      
+      // 🆪 TAMPILKAN NOTIFIKASI ERROR
+      addNotification({
+        type: 'error',
+        title: 'Gagal Membuat Playlist',
+        message: error.message,
+        icon: '❌',
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }
@@ -39,79 +96,125 @@ const CreatePlaylistForm = ({ book, onClose, onCreated }) => {
     onClose();
   };
 
+  const handleCreatorTypeChange = (e) => {
+    const value = e.target.value;
+    setFormData(prev => ({ 
+      ...prev, 
+      creatorType: value,
+      customCreatorName: value === 'custom' ? prev.customCreatorName : ''
+    }));
+    setShowCustomInput(value === 'custom');
+  };
+
   const styles = {
     container: {
       width: '100%',
       backgroundColor: 'white',
-      borderRadius: '8px'
+      borderRadius: '8px',
+      maxHeight: isMobile ? '85vh' : 'none',
+      overflowY: isMobile ? 'auto' : 'visible'
     },
     header: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: '1.5rem',
+      marginBottom: isMobile ? '1rem' : '1.5rem',
       borderBottom: '1px solid #e2e8f0',
-      paddingBottom: '1rem'
+      paddingBottom: isMobile ? '0.75rem' : '1rem',
+      position: isMobile ? 'sticky' : 'static',
+      top: 0,
+      backgroundColor: 'white',
+      zIndex: 10
     },
     closeButton: {
       background: 'none',
       border: 'none',
-      fontSize: '1.5rem',
+      fontSize: isMobile ? '1.25rem' : '1.5rem',
       cursor: 'pointer',
       color: '#718096',
       padding: '0',
-      width: '32px',
-      height: '32px',
+      width: isMobile ? '28px' : '32px',
+      height: isMobile ? '28px' : '32px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: '50%',
       backgroundColor: '#f7fafc',
-      transition: 'all 0.2s ease'
+      transition: 'all 0.2s ease',
+      flexShrink: 0
     },
     input: {
       width: '100%',
-      padding: '0.75rem',
+      padding: isMobile ? '0.6rem 0.75rem' : '0.75rem',
       border: '1px solid #e2e8f0',
       borderRadius: '6px',
-      fontSize: '0.9rem',
+      fontSize: isMobile ? '0.85rem' : '0.9rem',
       outline: 'none',
       transition: 'border-color 0.2s',
       backgroundColor: 'white',
       marginBottom: '0.25rem',
       boxSizing: 'border-box'
     },
-    textarea: {
+    select: {
       width: '100%',
-      padding: '0.75rem',
+      padding: isMobile ? '0.6rem 0.75rem' : '0.75rem',
       border: '1px solid #e2e8f0',
       borderRadius: '6px',
-      fontSize: '0.9rem',
+      fontSize: isMobile ? '0.85rem' : '0.9rem',
+      outline: 'none',
+      transition: 'border-color 0.2s',
+      backgroundColor: 'white',
+      marginBottom: '0.25rem',
+      boxSizing: 'border-box',
+      cursor: 'pointer'
+    },
+    textarea: {
+      width: '100%',
+      padding: isMobile ? '0.6rem 0.75rem' : '0.75rem',
+      border: '1px solid #e2e8f0',
+      borderRadius: '6px',
+      fontSize: isMobile ? '0.85rem' : '0.9rem',
       outline: 'none',
       resize: 'vertical',
       transition: 'border-color 0.2s',
       fontFamily: 'inherit',
       backgroundColor: 'white',
-      minHeight: '80px',
+      minHeight: isMobile ? '70px' : '80px',
       boxSizing: 'border-box'
     },
     infoBox: {
       backgroundColor: '#f0fff4',
-      padding: '0.75rem',
+      padding: isMobile ? '0.6rem' : '0.75rem',
       borderRadius: '6px',
-      marginBottom: '1.5rem',
+      marginBottom: isMobile ? '1rem' : '1.5rem',
       border: '1px solid #9ae6b4',
-      fontSize: '0.8rem',
+      fontSize: isMobile ? '0.75rem' : '0.8rem',
       color: '#22543d'
     },
     button: {
-      padding: '0.6rem 1.25rem',
+      padding: isMobile ? '0.5rem 1rem' : '0.6rem 1.25rem',
       border: 'none',
       borderRadius: '6px',
-      fontSize: '0.85rem',
+      fontSize: isMobile ? '0.8rem' : '0.85rem',
       fontWeight: '500',
       cursor: 'pointer',
-      transition: 'all 0.2s'
+      transition: 'all 0.2s',
+      flex: isMobile ? 1 : 'none'
+    },
+    formSection: {
+      marginBottom: isMobile ? '1rem' : '1.25rem'
+    },
+    label: {
+      display: 'block',
+      marginBottom: isMobile ? '0.4rem' : '0.5rem',
+      fontWeight: '600',
+      color: '#4a5568',
+      fontSize: isMobile ? '0.8rem' : '0.85rem'
+    },
+    characterCount: {
+      fontSize: isMobile ? '0.65rem' : '0.7rem',
+      color: '#718096',
+      textAlign: 'right'
     }
   };
 
@@ -119,54 +222,70 @@ const CreatePlaylistForm = ({ book, onClose, onCreated }) => {
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
-        <div style={{ flex: 1, paddingRight: '1rem' }}>
-          <h4 style={{ 
+        <div style={{ flex: 1, paddingRight: isMobile ? '0.5rem' : '1rem' }}>
+          <h4 style={{
             margin: '0 0 0.25rem 0',
             color: '#2d3748',
-            fontSize: '1rem',
+            fontSize: isMobile ? '0.95rem' : '1rem',
             fontWeight: '600',
             lineHeight: '1.3'
           }}>
             Buat Playlist Baru
           </h4>
-          <div style={{ fontSize: '0.75rem', color: '#718096' }}>
+          <div style={{
+            fontSize: isMobile ? '0.7rem' : '0.75rem',
+            color: '#718096',
+            lineHeight: '1.3'
+          }}>
             📚 Tambahkan buku ke playlist komunitas
           </div>
         </div>
-        
         <button
-          onClick={handleClose}
+          onClick={onClose}
           style={styles.closeButton}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#e2e8f0'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#f7fafc'}
         >
           ×
         </button>
       </div>
 
+      {/* 🆕 ERROR MESSAGE */}
+      {error && (
+        <div style={{
+          backgroundColor: '#fed7d7',
+          color: '#c53030',
+          padding: isMobile ? '0.75rem' : '1rem',
+          borderRadius: '6px',
+          marginBottom: '1rem',
+          border: '1px solid #feb2b2',
+          fontSize: isMobile ? '0.8rem' : '0.85rem'
+        }}>
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
       {/* Book Info */}
       {book && (
         <div style={{
           backgroundColor: '#f7fafc',
-          padding: '0.75rem',
+          padding: isMobile ? '0.6rem' : '0.75rem',
           borderRadius: '6px',
-          marginBottom: '1.5rem',
-          fontSize: '0.8rem',
+          marginBottom: isMobile ? '1rem' : '1.5rem',
+          fontSize: isMobile ? '0.75rem' : '0.8rem',
           border: '1px solid #e2e8f0'
         }}>
           <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>
             Menambahkan buku:
           </div>
-          <div style={{ marginBottom: '0.2rem' }}>
+          <div style={{ marginBottom: '0.2rem', lineHeight: '1.3' }}>
             <strong>Judul:</strong> {book.judul}
           </div>
           {book.pengarang && (
-            <div style={{ marginBottom: '0.2rem' }}>
+            <div style={{ marginBottom: '0.2rem', lineHeight: '1.3' }}>
               <strong>Pengarang:</strong> {book.pengarang}
             </div>
           )}
           {book.tahun_terbit && (
-            <div>
+            <div style={{ lineHeight: '1.3' }}>
               <strong>Tahun:</strong> {book.tahun_terbit}
             </div>
           )}
@@ -175,14 +294,8 @@ const CreatePlaylistForm = ({ book, onClose, onCreated }) => {
 
       <form onSubmit={handleSubmit}>
         {/* Nama Playlist */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '0.5rem',
-            fontWeight: '600',
-            color: '#4a5568',
-            fontSize: '0.85rem'
-          }}>
+        <div style={styles.formSection}>
+          <label style={styles.label}>
             Nama Playlist *
           </label>
           <input
@@ -197,27 +310,59 @@ const CreatePlaylistForm = ({ book, onClose, onCreated }) => {
             onFocus={(e) => e.target.style.borderColor = '#4299e1'}
             onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
             maxLength={100}
-            autoFocus
+            autoFocus={!isMobile}
           />
-          <div style={{
-            fontSize: '0.7rem',
-            color: '#718096',
-            textAlign: 'right'
-          }}>
+          <div style={styles.characterCount}>
             {formData.name.length}/100 karakter
           </div>
         </div>
 
+        {/* Nama Pembuat - DROPDOWN */}
+        <div style={styles.formSection}>
+          <label style={styles.label}>
+            Nama Pembuat
+          </label>
+          <select
+            value={formData.creatorType}
+            onChange={handleCreatorTypeChange}
+            style={styles.select}
+            onFocus={(e) => e.target.style.borderColor = '#4299e1'}
+            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+          >
+            {creatorOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          
+          {/* Custom Creator Name Input */}
+          {showCustomInput && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <input
+                type="text"
+                value={formData.customCreatorName}
+                onChange={(e) => setFormData(prev => ({ 
+                  ...prev, 
+                  customCreatorName: e.target.value 
+                }))}
+                placeholder="Tulis nama pembuat playlist..."
+                style={styles.input}
+                onFocus={(e) => e.target.style.borderColor = '#4299e1'}
+                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                maxLength={50}
+              />
+              <div style={styles.characterCount}>
+                {formData.customCreatorName.length}/50 karakter
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Deskripsi */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '0.5rem',
-            fontWeight: '600',
-            color: '#4a5568',
-            fontSize: '0.85rem'
-          }}>
-            Deskripsi (opsional)
+        <div style={styles.formSection}>
+          <label style={styles.label}>
+            Deskripsi Playlist (opsional)
           </label>
           <textarea
             value={formData.description}
@@ -231,11 +376,7 @@ const CreatePlaylistForm = ({ book, onClose, onCreated }) => {
             onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
             maxLength={500}
           />
-          <div style={{
-            fontSize: '0.7rem',
-            color: '#718096',
-            textAlign: 'right'
-          }}>
+          <div style={styles.characterCount}>
             {formData.description.length}/500 karakter
           </div>
         </div>
@@ -245,14 +386,15 @@ const CreatePlaylistForm = ({ book, onClose, onCreated }) => {
           <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>
             🌐 Playlist Komunitas
           </div>
-          Playlist ini akan terlihat oleh semua pengguna
+          Playlist ini akan terlihat oleh semua pengguna dan dapat dikurasi bersama
         </div>
 
         {/* Action Buttons */}
         <div style={{
           display: 'flex',
-          gap: '0.75rem',
-          justifyContent: 'flex-end'
+          gap: isMobile ? '0.5rem' : '0.75rem',
+          justifyContent: 'flex-end',
+          flexDirection: isMobile ? 'column' : 'row'
         }}>
           <button
             type="button"
