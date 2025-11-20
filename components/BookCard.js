@@ -36,6 +36,13 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
   // 🆕 STATE: Untuk simpan AI scores yang akan ditampilkan
   const [bookAIScores, setBookAIScores] = useState({});
 
+  // 🆕 FIX: Reset hover state ketika card tidak selected lagi
+  useEffect(() => {
+    if (!isSelected) {
+      setIsHovered(false);
+    }
+  }, [isSelected]); // 🆪 Trigger setiap kali isSelected berubah
+
   // 🆕 FIX: Ambil AI scores dari data playlist yang sudah ada - TANPA API CALLS!
   useEffect(() => {
     const scores = {};
@@ -222,15 +229,17 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
-        backgroundColor: 'white',
+        backgroundColor: isHovered ? 
+          '#f7fcf8' : // ✅ HIJAU SANGAT HALUS
+          'white',
         padding: isMobile ? '1.25rem' : '1.5rem',
         borderRadius: '12px',
         boxShadow: isHovered ?
-          '0 8px 25px rgba(0,0,0,0.15)' :
+          '0 8px 25px rgba(72, 187, 120, 0.05)' : // ✅ SHADOW HIJAU SANGAT TRANSPARAN
           isSelected ? '0 4px 12px rgba(66, 153, 225, 0.15)' : '0 2px 8px rgba(0,0,0,0.08)',
         border: isSelected ?
           '2px solid #4299e1' :
-          isHovered ? '2px solid #e2e8f0' : '1px solid #f0f0f0',
+          isHovered ? '2px solid #68d391' : '1px solid #f0f0f0', // ✅ BORDER HIJAU MEDIUM
         transition: 'all 0.3s ease',
         cursor: 'pointer',
         position: 'relative',
@@ -238,7 +247,7 @@ const BookCard = ({ book, isSelected, onCardClick, isMobile = false, showDescrip
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transform: isHovered ? 'translateY(-2px)' : 'translateY(0)'
+        transform: isHovered && !isSelected ? 'translateY(-2px)' : 'translateY(0)' // 🆪 HANYA ANGAT SAAT HOVER & TIDAK SELECTED
       }}
     >
       {/* Exact Title Match Indicator */}

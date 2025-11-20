@@ -594,35 +594,39 @@ const PlaylistDetail = () => {
                   }
                 </p>
               </div>
-            ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
-                gap: isMobile ? '1.5rem' : '2rem',
-                alignItems: 'stretch'
-              }}>
-                {filteredBooks.map((book, index) => (
-                  <BookCard
-                    key={book.id || index}
-                    book={book}
-                    isMobile={isMobile}
-                    isSelected={selectedBook?.id === book.id}
-                    showDescription={selectedBook?.id === book.id}
-                    onCardClick={handleCardClick}
-                    onPlaylistClick={handlePlaylistClickFromDetail}
-                    onRemoveBook={(bookId) => {
-                      const bookToDelete = filteredBooks.find(b => b.id === bookId);
-                      setDeleteBookConfirm({
-                        bookId,
-                        bookTitle: bookToDelete?.judul || 'Buku ini',
-                        playlistName: playlist.name,
-                        step: 1
-                      });
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))',
+                  gap: isMobile ? '1.5rem' : '2rem',
+                  alignItems: 'stretch'
+                }}>
+                  {filteredBooks.map((book, index) => (
+                    <div key={book.id || index} style={{
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <BookCard
+                        book={book}
+                        isMobile={isMobile}
+                        isSelected={selectedBook?.id === book.id}
+                        showDescription={selectedBook?.id === book.id}
+                        onCardClick={handleCardClick}
+                        onPlaylistClick={handlePlaylistClickFromDetail}
+                        onRemoveBook={(bookId) => {
+                          const bookToDelete = filteredBooks.find(b => b.id === bookId);
+                          setDeleteBookConfirm({
+                            bookId,
+                            bookTitle: bookToDelete?.judul || 'Buku ini',
+                            playlistName: playlist.name,
+                            step: 1
+                          });
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
         )}
 

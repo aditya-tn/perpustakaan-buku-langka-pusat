@@ -185,25 +185,35 @@ const PlaylistsPage = () => {
     };
 
     return (
-      <div
-        onClick={handleClick}
-        style={{
-          backgroundColor: 'white',
-          padding: isMobile ? '1.25rem' : '1.5rem',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          border: '1px solid #e2e8f0',
-          transition: 'all 0.3s ease',
-          cursor: 'pointer',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-        onMouseEnter={(e) => !isMobile && (e.currentTarget.style.transform = 'translateY(-2px)')}
-        onMouseLeave={(e) => !isMobile && (e.currentTarget.style.transform = 'translateY(0)')}
-      >
+<div
+  onClick={handleClick}
+  style={{
+    backgroundColor: 'white',
+    padding: isMobile ? '1.25rem' : '1.5rem',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0',
+    transition: 'all 0.3s ease',
+    cursor: 'pointer',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    position: 'relative',
+    overflow: 'hidden'
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.backgroundColor = '#f7fafc';
+    e.currentTarget.style.border = '2px solid #4299e1'; // ✅ BORDER TEBAL 2px
+    e.currentTarget.style.boxShadow = '0 4px 12px rgba(66, 153, 225, 0.15)';
+    e.currentTarget.style.transform = 'translateY(-2px)';
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.backgroundColor = 'white';
+    e.currentTarget.style.border = '1px solid #e2e8f0';
+    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+    e.currentTarget.style.transform = 'translateY(0)';
+  }}
+>
         {/* Delete Button - Show on hover for owner */}
         {isOwner && (
           <button
@@ -221,9 +231,9 @@ const PlaylistsPage = () => {
               position: 'absolute',
               top: isMobile ? '0.5rem' : '0.75rem',
               right: isMobile ? '0.5rem' : '0.75rem',
-              background: 'hsla(0, 0%, 100%, 1.00)',
-              color: 'white',
-              border: 'none',
+              background: 'transparent', // 🆪 UBAH JADI TRANSPARAN
+              color: '#f56565', // 🆪 WARNA TEXT MERAH
+              border: '1px solid rgba(255, 255, 255, 1)', // 🆪 BORDER MERAH
               borderRadius: '6px',
               padding: isMobile ? '0.3rem 0.5rem' : '0.4rem 0.6rem',
               fontSize: isMobile ? '0.6rem' : '0.7rem',
@@ -232,7 +242,16 @@ const PlaylistsPage = () => {
               zIndex: 10,
               display: 'flex',
               alignItems: 'center',
-              gap: '0.25rem'
+              gap: '0.25rem',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = '#f56565';
+              e.target.style.color = 'white';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'transparent';
+              e.target.style.color = '#f56565';
             }}
           >
             🗑️
@@ -526,7 +545,7 @@ const PlaylistsPage = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari playlist..."
                   style={{
-                    width: '100%',
+                    width: '80%',
                     padding: isMobile ? '0.6rem 0.8rem 0.6rem 2.2rem' : '0.75rem 1rem 0.75rem 2.5rem',
                     border: '1px solid #e2e8f0',
                     borderRadius: '8px',
@@ -644,17 +663,27 @@ const PlaylistsPage = () => {
               </button>
             )}
           </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(350px, 1fr))',
-            gap: isMobile ? '1.5rem' : '2rem'
-          }}>
-            {filteredPlaylists.map(playlist => (
-              <PlaylistCard key={playlist.id} playlist={playlist} />
-            ))}
-          </div>
-        )}
+) : (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))',
+    gap: isMobile ? '1.5rem' : '1.3rem',
+    gridAutoRows: 'minmax(200px, auto)', // 🆪 TENTUKAN TINGGI MINIMAL
+    alignContent: 'start' // 🆪 RAPIKAN ALIGNMENT
+  }}>
+    {filteredPlaylists.map(playlist => (
+      <div key={playlist.id} style={{
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <PlaylistCard 
+          playlist={playlist} 
+          isMobile={isMobile}
+        />
+      </div>
+    ))}
+  </div>
+)}
       </section>
 
       {/* Delete Confirmation Modal - MOBILE OPTIMIZED */}
