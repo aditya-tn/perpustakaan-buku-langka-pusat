@@ -9,7 +9,7 @@ import { searchService, analyticsService } from '../services/indexService';
 
 const PlaylistsPage = () => {
   const router = useRouter();
-  const { playlists, loading, userId, deletePlaylist, trackView, refreshPlaylists } = usePlaylist(); // 🆪 Pastikan ada refreshPlaylists
+  const { playlists, loading, userId, deletePlaylist, trackView, refreshPlaylists } = usePlaylist();
   const { addNotification } = useNotification();
 
   const [isMobile, setIsMobile] = useState(false);
@@ -20,9 +20,6 @@ const PlaylistsPage = () => {
   const [sortBy, setSortBy] = useState('recent');
   const [stats, setStats] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  
-  // 🆪 STATE UNTUK FORCE REFRESH
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // Detect mobile screen
   useEffect(() => {
@@ -32,7 +29,22 @@ const PlaylistsPage = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 🆕 FIXED: Local storage listener yang benar
+  // 🆕 SIMPLIFIED: Auto refresh ketika playlist dibuat
+  useEffect(() => {
+    const handlePlaylistCreated = async () => {
+      console.log('🎯 Playlist created event received - refreshing data');
+      try {
+        await refreshPlaylists();
+      } catch (error) {
+        console.error('❌ Auto-refresh failed:', error);
+      }
+    };
+
+    window.addEventListener('playlistCreated', handlePlaylistCreated);
+    return () => window.removeEventListener('playlistCreated', handlePlaylistCreated);
+  }, [refreshPlaylists]);
+
+  // 🆕 SIMPLIFIED: Local storage listener
   useEffect(() => {
     const checkForRefresh = async () => {
       const needsRefresh = localStorage.getItem('playlistRefreshNeeded');
@@ -43,7 +55,7 @@ const PlaylistsPage = () => {
         if (newPlaylistName) {
           addNotification({
             type: 'success',
-            title: 'Playlist Baru Ditambahkan! 🎉',
+            title: 'Playlist Diperbarui! 🔄',
             message: `"${newPlaylistName}" telah ditambahkan`,
             icon: '✅',
             duration: 3000
@@ -51,14 +63,10 @@ const PlaylistsPage = () => {
           localStorage.removeItem('newPlaylistName');
         }
         
-        // Clear the trigger
         localStorage.removeItem('playlistRefreshNeeded');
         
-        // 🆕 RELOAD DATA DARI DATABASE, bukan hanya re-render
         try {
           await refreshPlaylists();
-          setRefreshKey(prev => prev + 1);
-          console.log('✅ Data reloaded from database');
         } catch (error) {
           console.error('❌ Auto-refresh failed:', error);
         }
@@ -67,25 +75,9 @@ const PlaylistsPage = () => {
 
     const interval = setInterval(checkForRefresh, 1000);
     return () => clearInterval(interval);
-  }, [addNotification, refreshPlaylists]); // 🆕 TAMBAHKAN DEPENDENCY
+  }, [addNotification, refreshPlaylists]);
 
-  // 🆕 FIXED: Event listener untuk playlist created
-  useEffect(() => {
-    const handlePlaylistCreated = async () => {
-      console.log('🎯 Playlist created event received - refreshing data');
-      try {
-        await refreshPlaylists();
-        setRefreshKey(prev => prev + 1);
-      } catch (error) {
-        console.error('❌ Auto-refresh failed:', error);
-      }
-    };
-
-    window.addEventListener('playlistCreated', handlePlaylistCreated);
-    return () => window.removeEventListener('playlistCreated', handlePlaylistCreated);
-  }, [refreshPlaylists]); // 🆕 TAMBAHKAN DEPENDENCY
-
-  // Load platform stats - refresh ketika refreshKey berubah
+  // Load platform stats
   useEffect(() => {
     const loadStats = async () => {
       try {
@@ -96,9 +88,9 @@ const PlaylistsPage = () => {
       }
     };
     loadStats();
-  }, [refreshKey]);
+  }, []);
 
-  // Handle search - refresh ketika refreshKey berubah
+  // Handle search 
   useEffect(() => {
     const performSearch = async () => {
       if (!searchQuery.trim()) {
@@ -124,30 +116,6 @@ const PlaylistsPage = () => {
     const timeoutId = setTimeout(performSearch, 300);
     return () => clearTimeout(timeoutId);
   }, [searchQuery, refreshKey]);
-
-  // 🆕 FIXED: Manual refresh yang benar
-  const manualRefresh = async () => {
-    console.log('🔄 Manual refresh triggered - reloading from database');
-    try {
-      await refreshPlaylists(); // 🆕 INI YANG PERLU DIPANGGIL
-      setRefreshKey(prev => prev + 1);
-      addNotification({
-        type: 'success',
-        title: 'Data Diperbarui! ✅',
-        message: 'Playlist terbaru telah dimuat',
-        icon: '🔄',
-        duration: 2000
-      });
-    } catch (error) {
-      console.error('❌ Manual refresh failed:', error);
-      addNotification({
-        type: 'error',
-        title: 'Gagal Memperbarui',
-        message: 'Coba lagi beberapa saat',
-        icon: '❌'
-      });
-    }
-  };
 
   // Filter playlists based on view
   const getFilteredPlaylists = () => {
@@ -754,32 +722,8 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             alignItems: isMobile ? 'stretch' : 'center',
             gap: '1rem'
           }}>
-          {/* 🆪 DEBUG BUTTON */}
-          <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={manualRefresh}
-              style={{
-                padding: '0.4rem 0.8rem',
-                backgroundColor: '#4299e1',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                cursor: 'pointer'
-              }}
-            >
-              🔄 Manual Refresh
-            </button>
-            <div style={{
-              fontSize: '0.7rem',
-              color: '#718096',
-              padding: '0.4rem 0.8rem',
-              backgroundColor: '#f7fafc',
-              borderRadius: '4px'
-            }}>
-              Refresh Key: {refreshKey}
-            </div>
-          </div>
+            {/* 🆕 HAPUS DEBUG BUTTONS SECTION */}
+            
             {/* View Tabs - Mobile Scrollable */}
             <div style={{ 
               display: 'flex', 
@@ -877,243 +821,7 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             </div>
           </div>
 
-{/* Controls */}
-<div style={{
-  backgroundColor: 'white',
-  padding: isMobile ? '1rem' : '1.5rem',
-  borderRadius: '12px',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-  marginBottom: '1.5rem',
-  border: '1px solid #e2e8f0'
-}}>
-  <div style={{
-    display: 'flex',
-    flexDirection: isMobile ? 'column' : 'row',
-    justifyContent: 'space-between',
-    alignItems: isMobile ? 'stretch' : 'center',
-    gap: '1rem'
-  }}>
-    {/* ... View Tabs ... */}
-    {/* ... Search & Sort ... */}
-  </div>
-
-  {/* 🆕 TEMPATKAN ADMIN METADATA CONTROLS DI SINI */}
-  {userId && (
-    <div style={{/* ... Admin Metadata Controls ... */}}>
-      {/* ... content ... */}
-    </div>
-  )}
-
-  {/* Active Filters Info */}
-  <div style={{
-    marginTop: '1rem',
-    padding: '0.75rem',
-    backgroundColor: '#f0fff4',
-    border: '1px solid #9ae6b4',
-    borderRadius: '6px',
-    fontSize: isMobile ? '0.75rem' : '0.8rem',
-    color: '#22543d'
-  }}>
-    Menampilkan {filteredPlaylists.length} playlist
-    {searchQuery && ` untuk "${searchQuery}"`}
-    {view !== 'all' && ` • ${view === 'my' ? 'Playlists saya' : view === 'popular' ? 'Populer' : 'Trending'}`}
-    {isSearching && ' • 🔍 Mencari...'}
-  </div>
-</div>
-
-{/* 🆕 ADMIN METADATA CONTROLS */}
-{userId && (
-  <div style={{
-    marginTop: '1rem',
-    padding: '1rem',
-    backgroundColor: '#f0fff4',
-    border: '1px solid #9ae6b4',
-    borderRadius: '8px'
-  }}>
-    <div style={{
-      fontSize: isMobile ? '0.85rem' : '0.9rem',
-      fontWeight: '600',
-      color: '#22543d',
-      marginBottom: '0.5rem',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.5rem'
-    }}>
-      🤖 AI Metadata Enhancement
-    </div>
-    
-    <div style={{
-      display: 'flex',
-      gap: '0.75rem',
-      flexWrap: 'wrap'
-    }}>
-      {/* 🆕 OPSI BARU: Upgrade Basic ke AI Enhanced */}
-      <button
-        onClick={async () => {
-          try {
-            const response = await fetch('/api/playlists/generate-metadata', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ upgradeBasic: true })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-              addNotification({
-                type: 'success',
-                title: 'Upgrade Started 🚀',
-                message: `Upgrading ${result.data?.length || 0} basic playlists ke AI Enhanced`,
-                icon: '🤖',
-                duration: 5000
-              });
-              
-              setTimeout(() => window.location.reload(), 3000);
-            }
-          } catch (error) {
-            addNotification({
-              type: 'error',
-              title: 'Upgrade Failed',
-              message: error.message,
-              icon: '❌'
-            });
-          }
-        }}
-        style={{
-          padding: '0.5rem 1rem',
-          backgroundColor: '#805ad5',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: isMobile ? '0.75rem' : '0.8rem',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.3rem'
-        }}
-      >
-        🚀 Upgrade Basic ke AI
-      </button>
-
-      <button
-        onClick={async () => {
-          try {
-            const response = await fetch('/api/playlists/generate-metadata', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fillMissing: true })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-              addNotification({
-                type: 'success',
-                title: 'Generation Started ✅',
-                message: `Processing ${result.data?.length || 0} playlists`,
-                icon: '🤖',
-                duration: 5000
-              });
-              
-              setTimeout(() => window.location.reload(), 3000);
-            }
-          } catch (error) {
-            addNotification({
-              type: 'error',
-              title: 'Generation Failed',
-              message: error.message,
-              icon: '❌'
-            });
-          }
-        }}
-        style={{
-          padding: '0.5rem 1rem',
-          backgroundColor: '#48bb78',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: isMobile ? '0.75rem' : '0.8rem',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.3rem'
-        }}
-      >
-        ⚡ Generate Missing
-      </button>
-      
-      <button
-        onClick={async () => {
-          try {
-            const response = await fetch('/api/playlists/generate-metadata', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ generateAll: true })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-              addNotification({
-                type: 'success',
-                title: 'Regenerating All 🔄',
-                message: `Regenerating semua ${result.data?.length || 0} playlists`,
-                icon: '🔄',
-                duration: 5000
-              });
-              
-              setTimeout(() => window.location.reload(), 3000);
-            }
-          } catch (error) {
-            addNotification({
-              type: 'error',
-              title: 'Regeneration Failed',
-              message: error.message,
-              icon: '❌'
-            });
-          }
-        }}
-        style={{
-          padding: '0.5rem 1rem',
-          backgroundColor: '#ed8936',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: isMobile ? '0.75rem' : '0.8rem',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.3rem'
-        }}
-      >
-        🔄 Regenerate All
-      </button>
-    </div>
-    
-    <div style={{
-      fontSize: isMobile ? '0.7rem' : '0.75rem',
-      color: '#2d3748',
-      marginTop: '0.5rem',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.5rem',
-      flexWrap: 'wrap'
-    }}>
-      <span>
-        Status: 
-        <strong style={{ color: '#22543d', marginLeft: '0.3rem' }}>
-          {playlists.filter(p => p.metadata_generated_at && p.ai_metadata && !p.ai_metadata.is_fallback).length}
-        </strong> Enhanced • 
-        <strong style={{ color: '#744210', margin: '0 0.3rem' }}>
-          {playlists.filter(p => p.metadata_generated_at && p.ai_metadata && p.ai_metadata.is_fallback).length}
-        </strong> Basic • 
-        <strong style={{ color: '#c53030', marginLeft: '0.3rem' }}>
-          {playlists.filter(p => !p.metadata_generated_at).length}
-        </strong> No AI
-      </span>
-    </div>
-  </div>
-)}
+          {/* 🆕 HAPUS ADMIN METADATA CONTROLS SECTION */}
 
           {/* Active Filters Info */}
           <div style={{
@@ -1131,6 +839,8 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             {isSearching && ' • 🔍 Mencari...'}
           </div>
         </div>
+
+        {/* 🆕 HAPUS ADMIN METADATA CONTROLS SECTION DI LUAR */}
 
         {/* Playlists Grid */}
         {loading ? (
