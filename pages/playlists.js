@@ -1069,7 +1069,53 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             Memuat playlists...
           </div>
         ) : filteredPlaylists.length === 0 ? (
-          // ... no results message ...
+          // 🆪 PERBAIKI: TAMBAHKAN JSX YANG BENAR, JANGAN KOSONG
+          <div style={{
+            textAlign: 'center',
+            padding: isMobile ? '2rem 1rem' : '3rem',
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ 
+              fontSize: isMobile ? '2rem' : '3rem', 
+              marginBottom: '1rem' 
+            }}>📚</div>
+            <h3 style={{ 
+              color: '#4a5568', 
+              marginBottom: '0.5rem',
+              fontSize: isMobile ? '1.1rem' : '1.25rem'
+            }}>
+              {searchQuery ? 'Tidak ada hasil pencarian' : 'Belum ada playlist'}
+            </h3>
+            <p style={{ 
+              color: '#718096',
+              marginBottom: '1.5rem',
+              fontSize: isMobile ? '0.85rem' : '1rem'
+            }}>
+              {searchQuery
+                ? `Coba kata kunci lain atau buat playlist "${searchQuery}"`
+                : 'Jadilah yang pertama membuat playlist komunitas!'
+              }
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => window.location.href = '/'}
+                style={{
+                  padding: isMobile ? '0.6rem 1.2rem' : '0.75rem 1.5rem',
+                  backgroundColor: '#4299e1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  fontSize: isMobile ? '0.85rem' : '0.9rem'
+                }}
+              >
+                📚 Buat Playlist Pertama
+              </button>
+            )}
+          </div>
         ) : (
           <div style={{
             display: 'grid',
