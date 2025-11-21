@@ -1107,47 +1107,18 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
 
         {/* Playlists Grid */}
         {loading ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '3rem',
-            color: '#718096'
-          }}>
-            <div style={{ 
-              fontSize: isMobile ? '1.5rem' : '2rem', 
-              marginBottom: '1rem',
-              animation: 'pulse 1.5s infinite'
-            }}>⏳</div>
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#718096' }}>
+            <div style={{ fontSize: isMobile ? '1.5rem' : '2rem', marginBottom: '1rem', animation: 'pulse 1.5s infinite' }}>⏳</div>
             Memuat playlists...
           </div>
         ) : filteredPlaylists.length === 0 ? (
-          // 🆪 PERBAIKI: TAMBAHKAN JSX YANG BENAR, JANGAN KOSONG
-          <div style={{
-            textAlign: 'center',
-            padding: isMobile ? '2rem 1rem' : '3rem',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ 
-              fontSize: isMobile ? '2rem' : '3rem', 
-              marginBottom: '1rem' 
-            }}>📚</div>
-            <h3 style={{ 
-              color: '#4a5568', 
-              marginBottom: '0.5rem',
-              fontSize: isMobile ? '1.1rem' : '1.25rem'
-            }}>
+          <div style={{ textAlign: 'center', padding: isMobile ? '2rem 1rem' : '3rem', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+            <div style={{ fontSize: isMobile ? '2rem' : '3rem', marginBottom: '1rem' }}>📚</div>
+            <h3 style={{ color: '#4a5568', marginBottom: '0.5rem', fontSize: isMobile ? '1.1rem' : '1.25rem' }}>
               {searchQuery ? 'Tidak ada hasil pencarian' : 'Belum ada playlist'}
             </h3>
-            <p style={{ 
-              color: '#718096',
-              marginBottom: '1.5rem',
-              fontSize: isMobile ? '0.85rem' : '1rem'
-            }}>
-              {searchQuery
-                ? `Coba kata kunci lain atau buat playlist "${searchQuery}"`
-                : 'Jadilah yang pertama membuat playlist komunitas!'
-              }
+            <p style={{ color: '#718096', marginBottom: '1.5rem', fontSize: isMobile ? '0.85rem' : '1rem' }}>
+              {searchQuery ? `Coba kata kunci lain atau buat playlist "${searchQuery}"` : 'Jadilah yang pertama membuat playlist komunitas!'}
             </p>
             {!searchQuery && (
               <button
@@ -1176,14 +1147,8 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             alignContent: 'start'
           }}>
             {filteredPlaylists.map(playlist => (
-              <div key={playlist.id} style={{
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
-                <PlaylistCard 
-                  playlist={playlist} 
-                  isMobile={isMobile}
-                />
+              <div key={playlist.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                <PlaylistCard playlist={playlist} isMobile={isMobile} />
               </div>
             ))}
           </div>
