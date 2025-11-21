@@ -82,13 +82,20 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       if (result.success) {
         console.log('✅ Playlist created:', result.data.id);
         
-        // 🆪 SIMPLE APPROACH: Trigger refresh immediately
-        // Method 1: Local storage trigger (paling reliable)
+        // 🆪 MULTI-METHOD REFRESH TRIGGER
+        // Method 1: Local storage trigger
         localStorage.setItem('playlistRefreshNeeded', 'true');
         localStorage.setItem('newPlaylistName', result.data.name);
         
-        // Method 2: Custom event sebagai backup
-        window.dispatchEvent(new CustomEvent('playlistCreated'));
+        // Method 2: Custom event
+        window.dispatchEvent(new CustomEvent('playlistCreated', { 
+          detail: { playlistId: result.data.id } 
+        }));
+
+        // Method 3: Direct callback (jika available)
+        if (onCreated) {
+          onCreated(result.data);
+        }
 
         // 🆪 Show success notification
         addNotification({
@@ -99,20 +106,17 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
           duration: 4000
         });
 
-        // 🆪 Trigger AI in background (non-blocking)
+        // 🆪 Trigger AI in background
         setTimeout(async () => {
           const aiSuccess = await triggerAIMetadataGeneration(result.data.id, result.data.name);
           if (aiSuccess) {
             console.log(`🎉 AI enhancement completed for: ${result.data.name}`);
             // Trigger refresh again after AI
             localStorage.setItem('playlistRefreshNeeded', 'true');
+            window.dispatchEvent(new CustomEvent('playlistCreated'));
           }
         }, 1000);
 
-        if (onCreated) {
-          onCreated(result.data);
-        }
-        
         // 🆪 Close modal
         onClose();
         
@@ -506,6 +510,7 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
 };
 
 export default CreatePlaylistForm;
+
 
 
 
