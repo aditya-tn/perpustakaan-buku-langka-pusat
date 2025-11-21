@@ -727,6 +727,32 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             alignItems: isMobile ? 'stretch' : 'center',
             gap: '1rem'
           }}>
+          {/* 🆪 DEBUG BUTTON */}
+          <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={manualRefresh}
+              style={{
+                padding: '0.4rem 0.8rem',
+                backgroundColor: '#4299e1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '0.75rem',
+                cursor: 'pointer'
+              }}
+            >
+              🔄 Manual Refresh
+            </button>
+            <div style={{
+              fontSize: '0.7rem',
+              color: '#718096',
+              padding: '0.4rem 0.8rem',
+              backgroundColor: '#f7fafc',
+              borderRadius: '4px'
+            }}>
+              Refresh Key: {refreshKey}
+            </div>
+          </div>
             {/* View Tabs - Mobile Scrollable */}
             <div style={{ 
               display: 'flex', 
