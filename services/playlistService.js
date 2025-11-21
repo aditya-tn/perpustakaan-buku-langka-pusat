@@ -9,9 +9,11 @@ export const playlistService = {
   /**
    * Create new playlist di Supabase
    */
-  // services/playlistService.js - UPDATE createPlaylist
+  // services/playlistService.js - UPDATE createPlaylist dengan FIXED auto-generation
   createPlaylist: async (playlistData) => {
     try {
+      console.log('🎯 Creating new playlist with auto-metadata generation...');
+      
       const { data, error } = await supabase
         .from('community_playlists')
         .insert([{
@@ -21,25 +23,48 @@ export const playlistService = {
         }])
         .select()
         .single();
-
+  
       if (error) throw error;
-
-      console.log('✅ Playlist created in Supabase:', data.id);
-
-      // 🆪 FIX: Auto-generate metadata dengan error handling yang better
-      setTimeout(async () => {
+  
+      console.log('✅ Playlist created in Supabase:', data.id, data.name);
+  
+      // 🆪 FIX: Auto-generate metadata dengan approach yang lebih reliable
+      const generateMetadata = async () => {
         try {
-          console.log(`🔄 Auto-generating metadata for new playlist: ${data.name}`);
+          console.log(`🔄 Starting auto-metadata generation for: ${data.name}`);
+          
+          // Dynamic import untuk avoid circular dependencies
           const { playlistMetadataService } = await import('./playlistMetadataService.js');
-          await playlistMetadataService.generateAndStorePlaylistMetadata(data.id);
-          console.log(`✅ Auto-generated metadata for: ${data.name}`);
+          
+          if (!playlistMetadataService || typeof playlistMetadataService.generateAndStorePlaylistMetadata !== 'function') {
+            console.error('❌ playlistMetadataService not available for auto-generation');
+            return;
+          }
+  
+          // Generate metadata
+          const metadata = await playlistMetadataService.generateAndStorePlaylistMetadata(data.id);
+          console.log(`✅ Auto-generated AI metadata for: ${data.name}`);
+          
+          return metadata;
         } catch (metadataError) {
           console.error('❌ Auto-metadata generation failed:', metadataError.message);
           // Tidak throw error, karena ini background process
+          return null;
         }
-      }, 2000); // Delay 2 detik
-
+      };
+  
+      // 🆪 JALANKAN AUTO-GENERATION DI BACKGROUND
+      // Tidak perlu await, biarkan berjalan di background
+      generateMetadata().then(metadata => {
+        if (metadata) {
+          console.log(`🎉 Auto-generation completed for: ${data.name}`);
+        } else {
+          console.log(`⚠️ Auto-generation skipped/failed for: ${data.name}`);
+        }
+      });
+  
       return data;
+      
     } catch (error) {
       console.error('❌ Error in createPlaylist:', error);
       throw error;
