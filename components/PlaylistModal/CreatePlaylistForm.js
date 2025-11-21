@@ -200,6 +200,29 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
     onClose();
   };
 
+// Di CreatePlaylistForm.js - VERSI PALING SIMPLE
+const triggerPlaylistRefresh = () => {
+  console.log('🔄 Triggering playlist refresh event...');
+  
+  // Method 1: Custom Event (bisa ditangkap di parent component)
+  window.dispatchEvent(new CustomEvent('playlistCreated'));
+  
+  // Method 2: Local Storage trigger (bisa di-listener di mana saja)
+  localStorage.setItem('playlistRefreshTrigger', Date.now().toString());
+  
+  // Method 3: Simple timeout - parent component auto-refresh periodically
+  console.log('✅ Playlist refresh triggered');
+};
+
+// Di handleSubmit, setelah berhasil:
+if (result.success) {
+  console.log('✅ Playlist created successfully');
+  
+  // Trigger refresh
+  setTimeout(() => {
+    triggerPlaylistRefresh();
+  }, 1000);
+  
   const handleCreatorTypeChange = (e) => {
     const value = e.target.value;
     setFormData(prev => ({ 
@@ -567,4 +590,5 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
 };
 
 export default CreatePlaylistForm;
+
 
