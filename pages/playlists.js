@@ -222,19 +222,11 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
   const isOwner = playlist.created_by === userId;
   const [isGenerating, setIsGenerating] = useState(false);
   
-// Di dalam pages/playlists.js - UPDATE PlaylistCard component
-const PlaylistCard = ({ playlist, isMobile = false }) => {
-  const isOwner = playlist.created_by === userId;
-  const [isGenerating, setIsGenerating] = useState(false);
-  
-  // 🆕 CEK STATUS METADATA - HANYA TAMPILKAN BADGE JIKA BELUM AI ENHANCED
+  // 🆕 CEK STATUS METADATA
   const hasMetadata = playlist.metadata_generated_at && 
                      playlist.ai_metadata && 
                      Object.keys(playlist.ai_metadata).length > 0;
   const isAIFallback = hasMetadata && playlist.ai_metadata.is_fallback;
-  
-  // 🆕 HANYA TAMPILKAN BADGE JIKA: No AI atau Basic
-  const showStatusBadge = !hasMetadata || isAIFallback;
 
   const handleClick = async (e) => {
     e.preventDefault();
@@ -247,7 +239,7 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
     router.push(`/playlists/${playlist.id}`);
   };
 
-  // Update handleGenerateMetadata
+  // Di PlaylistCard component - UPDATE handleGenerateMetadata
   const handleGenerateMetadata = async (e) => {
     e.stopPropagation();
     setIsGenerating(true);
@@ -330,59 +322,63 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         e.currentTarget.style.transform = 'translateY(0)';
       }}
     >
-      {/* 🆕 STATUS BADGE - HANYA TAMPIL JIKA BELUM ENHANCED */}
-      {showStatusBadge && (
+      {/* 🆕 METADATA STATUS INDICATOR */}
+      <div style={{
+        position: 'absolute',
+        top: isMobile ? '0.5rem' : '0.75rem',
+        left: isMobile ? '0.5rem' : '0.75rem',
+        zIndex: 5,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.25rem'
+      }}>
         <div style={{
-          position: 'absolute',
-          top: isMobile ? '0.5rem' : '0.75rem',
-          left: isMobile ? '0.5rem' : '0.75rem',
-          zIndex: 5,
+          padding: '0.2rem 0.4rem',
+          borderRadius: '6px',
+          fontSize: isMobile ? '0.55rem' : '0.65rem',
+          fontWeight: '600',
+          backgroundColor: !hasMetadata ? '#fff5f5' : 
+                         isAIFallback ? '#fffaf0' : '#f0fff4',
+          color: !hasMetadata ? '#c53030' : 
+                 isAIFallback ? '#744210' : '#22543d',
+          border: `1px solid ${
+            !hasMetadata ? '#fed7d7' : 
+            isAIFallback ? '#faf089' : '#9ae6b4'
+          }`,
           display: 'flex',
           alignItems: 'center',
-          gap: '0.25rem'
+          gap: '0.2rem'
         }}>
-          <div style={{
-            padding: '0.2rem 0.4rem',
-            borderRadius: '6px',
-            fontSize: isMobile ? '0.55rem' : '0.65rem',
-            fontWeight: '600',
-            backgroundColor: !hasMetadata ? '#fff5f5' : '#fffaf0',
-            color: !hasMetadata ? '#c53030' : '#744210',
-            border: `1px solid ${!hasMetadata ? '#fed7d7' : '#faf089'}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.2rem'
-          }}>
-            {!hasMetadata && '❌ No AI'}
-            {isAIFallback && '📝 Basic'} 
-          </div>
-          
-          {/* GENERATE BUTTON (for admin/owner) */}
-          {isOwner && (
-            <button
-              onClick={handleGenerateMetadata}
-              disabled={isGenerating}
-              style={{
-                padding: '0.2rem 0.4rem',
-                backgroundColor: isGenerating ? '#cbd5e0' : '#4299e1',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: isMobile ? '0.55rem' : '0.65rem',
-                fontWeight: '600',
-                cursor: isGenerating ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.2rem',
-                opacity: isGenerating ? 0.6 : 1
-              }}
-            >
-              {isGenerating ? '⏳' : '⚡'}
-              {isGenerating ? 'Generating...' : 'AI'}
-            </button>
-          )}
+          {!hasMetadata && '❌ No AI'}
+          {hasMetadata && isAIFallback && '📝 Basic'} 
+          {hasMetadata && !isAIFallback && '🤖 Enhanced'}
         </div>
-      )}
+        
+        {/* 🆕 GENERATE BUTTON (for admin/owner) */}
+        {(!hasMetadata || isAIFallback) && isOwner && (
+          <button
+            onClick={handleGenerateMetadata}
+            disabled={isGenerating}
+            style={{
+              padding: '0.2rem 0.4rem',
+              backgroundColor: isGenerating ? '#cbd5e0' : '#4299e1',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: isMobile ? '0.55rem' : '0.65rem',
+              fontWeight: '600',
+              cursor: isGenerating ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.2rem',
+              opacity: isGenerating ? 0.6 : 1
+            }}
+          >
+            {isGenerating ? '⏳' : '⚡'}
+            {isGenerating ? 'Generating...' : 'AI'}
+          </button>
+        )}
+      </div>
 
       {/* Delete Button - Show on hover for owner */}
       {isOwner && (
@@ -433,8 +429,7 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         marginBottom: '1rem',
         position: 'relative',
         zIndex: 1,
-        // 🆕 SESUAIKAN MARGIN TOP BERDASARKAN ADA/TIDAK STATUS BADGE
-        marginTop: showStatusBadge ? (isMobile ? '1.5rem' : '1.8rem') : '0'
+        marginTop: (hasMetadata || isOwner) ? (isMobile ? '1.5rem' : '1.8rem') : '0'
       }}>
         <h3 style={{
           margin: '0 0 0.5rem 0',
@@ -466,7 +461,7 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         )}
       </div>
 
-      {/* 🆕 METADATA PREVIEW - TETAP DITAMPILKAN JIKA ADA */}
+      {/* 🆕 METADATA PREVIEW (jika ada) */}
       {hasMetadata && playlist.ai_metadata && (
         <div style={{
           marginBottom: '1rem',
