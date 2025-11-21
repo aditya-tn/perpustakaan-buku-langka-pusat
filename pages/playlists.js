@@ -1,4 +1,4 @@
-// pages/playlists.js - TAMBAHKAN EVENT LISTENER
+// pages/playlists.js - SIMPLE REFRESH LOGIC
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -9,7 +9,7 @@ import { searchService, analyticsService } from '../services/indexService';
 
 const PlaylistsPage = () => {
   const router = useRouter();
-  const { playlists, loading, userId, deletePlaylist, trackView } = usePlaylist();
+  const { playlists, loading, userId, deletePlaylist, trackView, refreshPlaylists } = usePlaylist(); // 🆪 Pastikan ada refreshPlaylists
   const { addNotification } = useNotification();
 
   const [isMobile, setIsMobile] = useState(false);
@@ -21,8 +21,8 @@ const PlaylistsPage = () => {
   const [stats, setStats] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   
-  // 🆪 STATE UNTUK FORCE RE-RENDER
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  // 🆪 STATE UNTUK FORCE REFRESH
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Detect mobile screen
   useEffect(() => {
@@ -32,32 +32,51 @@ const PlaylistsPage = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 🆪 EVENT LISTENER UNTUK REFRESH PLAYLISTS
+  // 🆪 SIMPLE REFRESH LOGIC: Check localStorage periodically
   useEffect(() => {
-    const handlePlaylistsRefresh = () => {
-      console.log('🎯 Received playlists refresh event, triggering re-render...');
-      setRefreshTrigger(prev => prev + 1);
-      
-      // Optional: Show loading indicator
-      addNotification({
-        type: 'info',
-        title: 'Memperbarui Playlists...',
-        message: 'Data playlist sedang diperbarui',
-        icon: '🔄',
-        duration: 2000
-      });
+    const checkForRefresh = () => {
+      const needsRefresh = localStorage.getItem('playlistRefreshNeeded');
+      if (needsRefresh === 'true') {
+        console.log('🔄 Refresh triggered via localStorage');
+        
+        const newPlaylistName = localStorage.getItem('newPlaylistName');
+        if (newPlaylistName) {
+          addNotification({
+            type: 'success',
+            title: 'Playlist Diperbarui! 🔄',
+            message: `"${newPlaylistName}" telah ditambahkan`,
+            icon: '✅',
+            duration: 3000
+          });
+          localStorage.removeItem('newPlaylistName');
+        }
+        
+        // Clear the trigger
+        localStorage.removeItem('playlistRefreshNeeded');
+        
+        // Force re-render
+        setRefreshKey(prev => prev + 1);
+        console.log('✅ Page re-rendered with new data');
+      }
     };
 
-    // Daftarkan event listener
-    window.addEventListener('playlistsShouldRefresh', handlePlaylistsRefresh);
-    
-    // Cleanup
-    return () => {
-      window.removeEventListener('playlistsShouldRefresh', handlePlaylistsRefresh);
-    };
+    // Check every 1 second
+    const interval = setInterval(checkForRefresh, 1000);
+    return () => clearInterval(interval);
   }, [addNotification]);
 
-  // Load platform stats - TAMBAH refreshTrigger KE DEPENDENCY
+  // 🆪 EVENT LISTENER sebagai backup
+  useEffect(() => {
+    const handlePlaylistCreated = () => {
+      console.log('🎯 Playlist created event received');
+      setRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('playlistCreated', handlePlaylistCreated);
+    return () => window.removeEventListener('playlistCreated', handlePlaylistCreated);
+  }, []);
+
+  // Load platform stats - refresh ketika refreshKey berubah
   useEffect(() => {
     const loadStats = async () => {
       try {
@@ -68,9 +87,9 @@ const PlaylistsPage = () => {
       }
     };
     loadStats();
-  }, [refreshTrigger]); // 🆪 RE-LOAD STATS KETIKA REFRESH
+  }, [refreshKey]);
 
-  // Handle search - TAMBAH refreshTrigger KE DEPENDENCY  
+  // Handle search - refresh ketika refreshKey berubah
   useEffect(() => {
     const performSearch = async () => {
       if (!searchQuery.trim()) {
@@ -95,7 +114,13 @@ const PlaylistsPage = () => {
 
     const timeoutId = setTimeout(performSearch, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, refreshTrigger]); // 🆪 RE-SEARCH KETIKA REFRESH
+  }, [searchQuery, refreshKey]);
+
+  // 🆪 MANUAL REFRESH FUNCTION
+  const manualRefresh = () => {
+    console.log('🔄 Manual refresh triggered');
+    setRefreshKey(prev => prev + 1);
+  };
 
   // Filter playlists based on view
   const getFilteredPlaylists = () => {
