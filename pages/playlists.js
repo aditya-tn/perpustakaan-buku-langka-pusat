@@ -1,4 +1,4 @@
-// pages/playlists.js - COMPLETE MOBILE OPTIMIZED VERSION
+// pages/playlists.js - TAMBAHKAN EVENT LISTENER
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -20,6 +20,9 @@ const PlaylistsPage = () => {
   const [sortBy, setSortBy] = useState('recent');
   const [stats, setStats] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  
+  // 🆪 STATE UNTUK FORCE RE-RENDER
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Detect mobile screen
   useEffect(() => {
@@ -29,7 +32,32 @@ const PlaylistsPage = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Load platform stats
+  // 🆪 EVENT LISTENER UNTUK REFRESH PLAYLISTS
+  useEffect(() => {
+    const handlePlaylistsRefresh = () => {
+      console.log('🎯 Received playlists refresh event, triggering re-render...');
+      setRefreshTrigger(prev => prev + 1);
+      
+      // Optional: Show loading indicator
+      addNotification({
+        type: 'info',
+        title: 'Memperbarui Playlists...',
+        message: 'Data playlist sedang diperbarui',
+        icon: '🔄',
+        duration: 2000
+      });
+    };
+
+    // Daftarkan event listener
+    window.addEventListener('playlistsShouldRefresh', handlePlaylistsRefresh);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('playlistsShouldRefresh', handlePlaylistsRefresh);
+    };
+  }, [addNotification]);
+
+  // Load platform stats - TAMBAH refreshTrigger KE DEPENDENCY
   useEffect(() => {
     const loadStats = async () => {
       try {
@@ -40,9 +68,9 @@ const PlaylistsPage = () => {
       }
     };
     loadStats();
-  }, []);
+  }, [refreshTrigger]); // 🆪 RE-LOAD STATS KETIKA REFRESH
 
-  // Handle search
+  // Handle search - TAMBAH refreshTrigger KE DEPENDENCY  
   useEffect(() => {
     const performSearch = async () => {
       if (!searchQuery.trim()) {
@@ -67,7 +95,7 @@ const PlaylistsPage = () => {
 
     const timeoutId = setTimeout(performSearch, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, refreshTrigger]); // 🆪 RE-SEARCH KETIKA REFRESH
 
   // Filter playlists based on view
   const getFilteredPlaylists = () => {
