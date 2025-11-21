@@ -222,6 +222,7 @@ if (result.success) {
   setTimeout(() => {
     triggerPlaylistRefresh();
   }, 1000);
+};
   
   const handleCreatorTypeChange = (e) => {
     const value = e.target.value;
@@ -590,5 +591,6 @@ if (result.success) {
 };
 
 export default CreatePlaylistForm;
+
 
 
