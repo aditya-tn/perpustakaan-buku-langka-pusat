@@ -188,35 +188,52 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🆕 OPTION: Generate untuk single playlist
-    if (playlistId) {
-      console.log(`🎯 Generating metadata for single playlist: ${playlistId}`);
-      
-      try {
-        // 🆪 PASTIKAN SERVICE TERLOAD
-        if (!playlistMetadataService) {
-          throw new Error('playlistMetadataService not available');
-        }
-
-        const metadata = await playlistMetadataService.generateAndStorePlaylistMetadata(playlistId);
-        
-        console.log(`✅ Successfully generated metadata for playlist: ${playlistId}`);
-        
-        return res.json({
-          success: true,
-          data: metadata,
-          message: 'Playlist metadata generated and saved to Supabase'
-        });
-
-      } catch (error) {
-        console.error(`❌ Single playlist generation failed for ${playlistId}:`, error);
-        return res.status(500).json({ 
-          success: false,
-          error: error.message,
-          details: 'Failed to generate playlist metadata'
-        });
-      }
+// pages/api/playlists/generate-metadata.js - TAMBAH di bagian single playlist
+if (playlistId) {
+  console.log(`🎯 Generating metadata for single playlist: ${playlistId}`);
+  
+  try {
+    // 🆪 PASTIKAN SERVICE TERLOAD
+    if (!playlistMetadataService) {
+      throw new Error('playlistMetadataService not available');
     }
+
+    // 🆪 CEK APAKAH PLAYLIST EXISTS
+    const { supabase } = await import('../../../lib/supabase');
+    const { data: playlist, error: fetchError } = await supabase
+      .from('community_playlists')
+      .select('id, name, metadata_generated_at')
+      .eq('id', playlistId)
+      .single();
+
+    if (fetchError) {
+      console.error('❌ Playlist not found:', fetchError);
+      throw new Error(`Playlist not found: ${fetchError.message}`);
+    }
+
+    console.log(`📝 Processing playlist: ${playlist.name}`);
+
+    // 🆪 GENERATE METADATA
+    const metadata = await playlistMetadataService.generateAndStorePlaylistMetadata(playlistId);
+    
+    console.log(`✅ Successfully generated metadata for: ${playlist.name}`);
+    
+    return res.json({
+      success: true,
+      data: metadata,
+      playlist: { id: playlist.id, name: playlist.name },
+      message: 'Playlist metadata generated and saved to Supabase'
+    });
+
+  } catch (error) {
+    console.error(`❌ Single playlist generation failed:`, error);
+    return res.status(500).json({ 
+      success: false,
+      error: error.message,
+      details: 'Failed to generate playlist metadata'
+    });
+  }
+}
 
     // Jika tidak ada parameter yang valid
     console.error('❌ No valid parameters provided');
@@ -234,4 +251,5 @@ export default async function handler(req, res) {
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
+
 }
