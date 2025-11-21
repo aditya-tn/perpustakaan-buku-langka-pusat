@@ -1,7 +1,7 @@
-// components/PlaylistModal/CreatePlaylistForm.js - COMPLETE FIXED VERSION
+// components/PlaylistModal/CreatePlaylistForm.js - WITH AUTO AI METADATA GENERATION
 import { useState } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
-import { useNotification } from '../../contexts/NotificationContext'; // 🆕 IMPORT
+import { useNotification } from '../../contexts/NotificationContext';
 
 const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
   const [formData, setFormData] = useState({
@@ -26,6 +26,37 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
     { value: '👨‍⚖️ Pustakawan Koleksi Buku Langka', label: '👨‍⚖️ Pustakawan Koleksi Buku Langka' },
     { value: 'custom', label: '⭐ Tulis nama sendiri (custom)' }
   ];
+
+  // 🆕 FUNCTION: Trigger AI metadata generation
+  const triggerAIMetadataGeneration = async (playlistId, playlistName) => {
+    try {
+      console.log(`🔄 Triggering AI metadata generation for new playlist: ${playlistName}`);
+      
+      const response = await fetch('/api/playlists/generate-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playlistId })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log(`✅ AI metadata generated for: ${playlistName}`);
+        return true;
+      } else {
+        console.warn(`⚠️ AI metadata generation warning: ${result.error}`);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ AI metadata generation failed:', error.message);
+      // Silent fail - tidak ganggu user experience
+      return false;
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,15 +88,57 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       const result = await createPlaylist(playlistData);
 
       if (result.success) {
-        console.log('✅ Playlist created successfully');
+        console.log('✅ Playlist created successfully:', result.data.id);
         
-        // 🆪 TAMPILKAN NOTIFIKASI SUKSES
+        // 🆪 TRIGGER AI METADATA GENERATION DI BACKGROUND
+        setTimeout(async () => {
+          try {
+            const aiSuccess = await triggerAIMetadataGeneration(result.data.id, result.data.name);
+            
+            if (aiSuccess) {
+              console.log(`🎉 Auto-AI enhancement completed for: ${result.data.name}`);
+              
+              // 🆪 TAMPILKAN NOTIFIKASI SUKSES DENGAN AI INFO
+              addNotification({
+                type: 'success',
+                title: 'Playlist + AI Enhanced! 🚀',
+                message: `"${result.data.name}" telah dibuat & ditingkatkan dengan AI`,
+                icon: '🤖',
+                duration: 5000
+              });
+            } else {
+              console.log(`ℹ️ Auto-AI enhancement skipped for: ${result.data.name}`);
+              
+              // Notifikasi standard tanpa AI info
+              addNotification({
+                type: 'success',
+                title: 'Playlist Berhasil Dibuat! ✅',
+                message: `"${result.data.name}" telah berhasil dibuat`,
+                icon: '📚',
+                duration: 4000
+              });
+            }
+          } catch (aiError) {
+            console.error('❌ Auto-AI enhancement failed:', aiError);
+            
+            // Fallback notification
+            addNotification({
+              type: 'success',
+              title: 'Playlist Berhasil Dibuat! ✅',
+              message: `"${result.data.name}" telah berhasil dibuat`,
+              icon: '📚',
+              duration: 4000
+            });
+          }
+        }, 500); // Delay 500ms untuk biar create playlist selesai dulu
+
+        // 🆪 NOTIFIKASI INSTANT - Playlist created
         addNotification({
-          type: 'success',
-          title: 'Playlist Berhasil Dibuat! 🎉',
-          message: `Playlist "${formData.name.trim()}" telah berhasil dibuat`,
-          icon: '✅',
-          duration: 4000
+          type: 'info',
+          title: 'Membuat Playlist... 📝',
+          message: `"${formData.name.trim()}" sedang diproses`,
+          icon: '⏳',
+          duration: 2000
         });
 
         if (onCreated) {
@@ -190,6 +263,16 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       border: '1px solid #9ae6b4',
       fontSize: isMobile ? '0.75rem' : '0.8rem',
       color: '#22543d'
+    },
+    // 🆪 AI INFO BOX BARU
+    aiInfoBox: {
+      backgroundColor: '#e6fffa',
+      padding: isMobile ? '0.6rem' : '0.75rem',
+      borderRadius: '6px',
+      marginBottom: isMobile ? '1rem' : '1.5rem',
+      border: '1px solid #81e6d9',
+      fontSize: isMobile ? '0.75rem' : '0.8rem',
+      color: '#234e52'
     },
     button: {
       padding: isMobile ? '0.5rem 1rem' : '0.6rem 1.25rem',
@@ -379,6 +462,15 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
           <div style={styles.characterCount}>
             {formData.description.length}/500 karakter
           </div>
+        </div>
+
+        {/* 🆪 AI ENHANCEMENT INFO BOX */}
+        <div style={styles.aiInfoBox}>
+          <div style={{ fontWeight: '600', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>🤖</span>
+            <span>AI Enhanced Playlist</span>
+          </div>
+          Playlist ini akan secara otomatis ditingkatkan dengan AI untuk matching buku yang lebih akurat
         </div>
 
         {/* Info Box */}
