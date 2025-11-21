@@ -27,7 +27,7 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
     { value: 'custom', label: '⭐ Tulis nama sendiri (custom)' }
   ];
 
-  // 🆕 SIMPLE FUNCTION: Trigger AI metadata generation
+  // 🆕 IMPROVED: Trigger AI metadata generation dengan notifikasi
   const triggerAIMetadataGeneration = async (playlistId, playlistName) => {
     try {
       console.log(`🔄 Triggering AI metadata for: ${playlistName}`);
@@ -41,11 +41,32 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       if (response.ok) {
         const result = await response.json();
         console.log(`✅ AI metadata generated for: ${playlistName}`);
+        
+        // 🆪 TAMPILKAN NOTIFIKASI AI SUCCESS
+        addNotification({
+          type: 'success',
+          title: 'AI Enhancement Selesai! 🤖',
+          message: `"${playlistName}" telah ditingkatkan dengan AI`,
+          icon: '🚀',
+          duration: 4000
+        });
+        
         return true;
+      } else {
+        throw new Error('AI generation failed');
       }
-      return false;
     } catch (error) {
       console.error('❌ AI metadata failed:', error.message);
+      
+      // 🆪 TAMPILKAN NOTIFIKASI AI ERROR
+      addNotification({
+        type: 'warning',
+        title: 'AI Enhancement Delay',
+        message: `"${playlistName}" akan ditingkatkan sebentar lagi`,
+        icon: '⏳',
+        duration: 3000
+      });
+      
       return false;
     }
   };
@@ -82,22 +103,12 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       if (result.success) {
         console.log('✅ Playlist created:', result.data.id);
         
-        // 🆪 MULTI-METHOD REFRESH TRIGGER
-        // Method 1: Local storage trigger
+        // 🆪 TRIGGER REFRESH
         localStorage.setItem('playlistRefreshNeeded', 'true');
         localStorage.setItem('newPlaylistName', result.data.name);
-        
-        // Method 2: Custom event
-        window.dispatchEvent(new CustomEvent('playlistCreated', { 
-          detail: { playlistId: result.data.id } 
-        }));
+        window.dispatchEvent(new CustomEvent('playlistCreated'));
 
-        // Method 3: Direct callback (jika available)
-        if (onCreated) {
-          onCreated(result.data);
-        }
-
-        // 🆪 Show success notification
+        // 🆪 NOTIFIKASI SUKSES BUAT PLAYLIST
         addNotification({
           type: 'success',
           title: 'Playlist Berhasil Dibuat! 🎉',
@@ -106,18 +117,21 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
           duration: 4000
         });
 
-        // 🆪 Trigger AI in background
+        // 🆪 TRIGGER AI DENGAN DELAY AGAR NOTIFIKASI PERTAMA TERLIHAT DULU
         setTimeout(async () => {
           const aiSuccess = await triggerAIMetadataGeneration(result.data.id, result.data.name);
           if (aiSuccess) {
             console.log(`🎉 AI enhancement completed for: ${result.data.name}`);
-            // Trigger refresh again after AI
+            // Trigger refresh lagi setelah AI selesai
             localStorage.setItem('playlistRefreshNeeded', 'true');
             window.dispatchEvent(new CustomEvent('playlistCreated'));
           }
-        }, 1000);
+        }, 2000); // 🆪 DELAY 2 DETIK AGAR NOTIFIKASI PERTAMA KELUAR DULU
 
-        // 🆪 Close modal
+        if (onCreated) {
+          onCreated(result.data);
+        }
+        
         onClose();
         
       } else if (result.error) {
@@ -510,6 +524,7 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
 };
 
 export default CreatePlaylistForm;
+
 
 
 
