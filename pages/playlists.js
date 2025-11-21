@@ -32,9 +32,9 @@ const PlaylistsPage = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 🆪 SIMPLE REFRESH LOGIC: Check localStorage periodically
+  // 🆕 FIXED: Local storage listener yang benar
   useEffect(() => {
-    const checkForRefresh = () => {
+    const checkForRefresh = async () => {
       const needsRefresh = localStorage.getItem('playlistRefreshNeeded');
       if (needsRefresh === 'true') {
         console.log('🔄 Refresh triggered via localStorage');
@@ -43,7 +43,7 @@ const PlaylistsPage = () => {
         if (newPlaylistName) {
           addNotification({
             type: 'success',
-            title: 'Playlist Diperbarui! 🔄',
+            title: 'Playlist Baru Ditambahkan! 🎉',
             message: `"${newPlaylistName}" telah ditambahkan`,
             icon: '✅',
             duration: 3000
@@ -54,27 +54,36 @@ const PlaylistsPage = () => {
         // Clear the trigger
         localStorage.removeItem('playlistRefreshNeeded');
         
-        // Force re-render
-        setRefreshKey(prev => prev + 1);
-        console.log('✅ Page re-rendered with new data');
+        // 🆕 RELOAD DATA DARI DATABASE, bukan hanya re-render
+        try {
+          await refreshPlaylists();
+          setRefreshKey(prev => prev + 1);
+          console.log('✅ Data reloaded from database');
+        } catch (error) {
+          console.error('❌ Auto-refresh failed:', error);
+        }
       }
     };
 
-    // Check every 1 second
     const interval = setInterval(checkForRefresh, 1000);
     return () => clearInterval(interval);
-  }, [addNotification]);
+  }, [addNotification, refreshPlaylists]); // 🆕 TAMBAHKAN DEPENDENCY
 
-  // 🆪 EVENT LISTENER sebagai backup
+  // 🆕 FIXED: Event listener untuk playlist created
   useEffect(() => {
-    const handlePlaylistCreated = () => {
-      console.log('🎯 Playlist created event received');
-      setRefreshKey(prev => prev + 1);
+    const handlePlaylistCreated = async () => {
+      console.log('🎯 Playlist created event received - refreshing data');
+      try {
+        await refreshPlaylists();
+        setRefreshKey(prev => prev + 1);
+      } catch (error) {
+        console.error('❌ Auto-refresh failed:', error);
+      }
     };
 
     window.addEventListener('playlistCreated', handlePlaylistCreated);
     return () => window.removeEventListener('playlistCreated', handlePlaylistCreated);
-  }, []);
+  }, [refreshPlaylists]); // 🆕 TAMBAHKAN DEPENDENCY
 
   // Load platform stats - refresh ketika refreshKey berubah
   useEffect(() => {
@@ -116,10 +125,28 @@ const PlaylistsPage = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, refreshKey]);
 
-  // 🆪 MANUAL REFRESH FUNCTION
-  const manualRefresh = () => {
-    console.log('🔄 Manual refresh triggered');
-    setRefreshKey(prev => prev + 1);
+  // 🆕 FIXED: Manual refresh yang benar
+  const manualRefresh = async () => {
+    console.log('🔄 Manual refresh triggered - reloading from database');
+    try {
+      await refreshPlaylists(); // 🆕 INI YANG PERLU DIPANGGIL
+      setRefreshKey(prev => prev + 1);
+      addNotification({
+        type: 'success',
+        title: 'Data Diperbarui! ✅',
+        message: 'Playlist terbaru telah dimuat',
+        icon: '🔄',
+        duration: 2000
+      });
+    } catch (error) {
+      console.error('❌ Manual refresh failed:', error);
+      addNotification({
+        type: 'error',
+        title: 'Gagal Memperbarui',
+        message: 'Coba lagi beberapa saat',
+        icon: '❌'
+      });
+    }
   };
 
   // Filter playlists based on view
