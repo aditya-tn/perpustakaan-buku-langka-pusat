@@ -1,4 +1,4 @@
-// components/PlaylistModal/CreatePlaylistForm.js - WITH AUTO REFRESH
+// components/PlaylistModal/CreatePlaylistForm.js - WITHOUT PAGE REFRESH
 import { useState } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -14,7 +14,7 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { createPlaylist, refreshUserId } = usePlaylist();
+  const { createPlaylist, refreshUserId, refreshPlaylists } = usePlaylist(); // 🆪 TAMBAH refreshPlaylists
   const { addNotification } = useNotification();
 
   // Opsi untuk jenis pembuat
@@ -56,15 +56,6 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       // Silent fail - tidak ganggu user experience
       return false;
     }
-  };
-
-  // 🆕 FUNCTION: Refresh halaman dengan delay
-  const refreshPageWithDelay = (delay = 1500) => {
-    console.log(`🔄 Scheduling page refresh in ${delay}ms...`);
-    setTimeout(() => {
-      console.log('🔄 Refreshing page now...');
-      window.location.reload();
-    }, delay);
   };
 
   const handleSubmit = async (e) => {
@@ -113,8 +104,15 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
                 title: 'Playlist + AI Enhanced! 🚀',
                 message: `"${result.data.name}" telah dibuat & ditingkatkan dengan AI`,
                 icon: '🤖',
-                duration: 4000
+                duration: 5000
               });
+
+              // 🆪 REFRESH PLAYLISTS DATA SETELAH AI SELESAI
+              setTimeout(() => {
+                refreshPlaylists();
+                console.log('🔄 Playlists data refreshed after AI enhancement');
+              }, 1000);
+              
             } else {
               console.log(`ℹ️ Auto-AI enhancement skipped for: ${result.data.name}`);
               
@@ -124,8 +122,14 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
                 title: 'Playlist Berhasil Dibuat! ✅',
                 message: `"${result.data.name}" telah berhasil dibuat`,
                 icon: '📚',
-                duration: 3000
+                duration: 4000
               });
+
+              // 🆪 REFRESH PLAYLISTS DATA MESKI AI GAGAL
+              setTimeout(() => {
+                refreshPlaylists();
+                console.log('🔄 Playlists data refreshed (AI skipped)');
+              }, 1000);
             }
           } catch (aiError) {
             console.error('❌ Auto-AI enhancement failed:', aiError);
@@ -136,12 +140,15 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
               title: 'Playlist Berhasil Dibuat! ✅',
               message: `"${result.data.name}" telah berhasil dibuat`,
               icon: '📚',
-              duration: 3000
+              duration: 4000
             });
-          }
 
-          // 🆪 REFRESH HALAMAN SETELAH AI PROCESS SELESAI
-          refreshPageWithDelay(2000); // Refresh 2 detik setelah AI process
+            // 🆪 REFRESH PLAYLISTS DATA MESKI ADA ERROR
+            setTimeout(() => {
+              refreshPlaylists();
+              console.log('🔄 Playlists data refreshed (AI failed)');
+            }, 1000);
+          }
         }, 500); // Delay 500ms untuk biar create playlist selesai dulu
 
         // 🆪 NOTIFIKASI INSTANT - Playlist created
@@ -153,14 +160,20 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
           duration: 2000
         });
 
+        // 🆪 REFRESH PLAYLISTS DATA SEKARANG (tanpa AI)
+        setTimeout(() => {
+          refreshPlaylists();
+          console.log('🔄 Playlists data refreshed immediately');
+        }, 300);
+
         if (onCreated) {
           onCreated(result.data);
         }
         
-        // 🆪 TUTUP MODAL SETELAH BERHASIL (tunggu sebentar biar user lihat notifikasi)
+        // 🆪 TUTUP MODAL SETELAH BERHASIL
         setTimeout(() => {
           onClose();
-        }, 1000);
+        }, 800);
         
       } else if (result.error) {
         throw new Error(result.error);
@@ -181,6 +194,7 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       setLoading(false);
     }
   };
+
 
   const handleClose = () => {
     onClose();
@@ -553,3 +567,4 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
 };
 
 export default CreatePlaylistForm;
+
