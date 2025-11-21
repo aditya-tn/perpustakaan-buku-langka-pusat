@@ -542,15 +542,29 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
+  // 🆕 FIXED: Refresh playlists dari database
   const refreshPlaylists = async () => {
     try {
-      console.log('🔄 Manually refreshing playlists...');
+      console.log('🔄 Refreshing playlists from database...');
       setLoading(true);
-      const data = await playlistService.getPlaylists({ limit: 100 });
+      
+      const currentUserId = getOrCreateUserId();
+      setUserId(currentUserId);
+
+      const { data, error } = await supabase
+        .from('community_playlists')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      console.log(`✅ Playlists refreshed: ${data?.length || 0} playlists`);
       setPlaylists(data || []);
-      console.log('✅ Playlists refreshed:', data?.length || 0, 'items');
+      return data || [];
     } catch (error) {
       console.error('❌ Failed to refresh playlists:', error);
+      setError(error.message);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -624,5 +638,6 @@ export const PlaylistProvider = ({ children }) => {
     </PlaylistContext.Provider>
   );
 };
+
 
 
