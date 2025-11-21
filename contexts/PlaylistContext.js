@@ -14,9 +14,9 @@ export const usePlaylist = () => {
 
 export const PlaylistProvider = ({ children }) => {
   const [playlists, setPlaylists] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null); // 🆕 TAMBAH INI
+  const [userId, setUserId] = useState(null);
 
   // 🆕 FUNCTION UNTUK DAPATKAN/GENERATE USER ID
   const getOrCreateUserId = () => {
@@ -542,8 +542,18 @@ export const PlaylistProvider = ({ children }) => {
     }
   };
 
-  const refreshPlaylists = () => {
-    loadPlaylists();
+  const refreshPlaylists = async () => {
+    try {
+      console.log('🔄 Manually refreshing playlists...');
+      setLoading(true);
+      const data = await playlistService.getPlaylists({ limit: 100 });
+      setPlaylists(data || []);
+      console.log('✅ Playlists refreshed:', data?.length || 0, 'items');
+    } catch (error) {
+      console.error('❌ Failed to refresh playlists:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const healthCheck = async () => {
@@ -614,4 +624,5 @@ export const PlaylistProvider = ({ children }) => {
     </PlaylistContext.Provider>
   );
 };
+
 
