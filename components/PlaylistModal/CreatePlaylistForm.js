@@ -1,4 +1,4 @@
-// components/PlaylistModal/CreatePlaylistForm.js - WITHOUT PAGE REFRESH
+// components/PlaylistModal/CreatePlaylistForm.js - WITH CUSTOM EVENT
 import { useState } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -14,7 +14,7 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { createPlaylist, refreshUserId, refreshPlaylists } = usePlaylist(); // 🆪 TAMBAH refreshPlaylists
+  const { createPlaylist, refreshUserId } = usePlaylist();
   const { addNotification } = useNotification();
 
   // Opsi untuk jenis pembuat
@@ -27,10 +27,17 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
     { value: 'custom', label: '⭐ Tulis nama sendiri (custom)' }
   ];
 
+  // 🆕 FUNCTION: Trigger playlist refresh via custom event
+  const triggerPlaylistRefresh = () => {
+    console.log('🔄 Triggering playlist refresh event...');
+    // Kirim custom event yang bisa didengarkan oleh component lain
+    window.dispatchEvent(new CustomEvent('playlistsShouldRefresh'));
+  };
+
   // 🆕 FUNCTION: Trigger AI metadata generation
   const triggerAIMetadataGeneration = async (playlistId, playlistName) => {
     try {
-      console.log(`🔄 Triggering AI metadata generation for new playlist: ${playlistName}`);
+      console.log(`🔄 Triggering AI metadata generation for: ${playlistName}`);
       
       const response = await fetch('/api/playlists/generate-metadata', {
         method: 'POST',
@@ -53,7 +60,6 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       }
     } catch (error) {
       console.error('❌ AI metadata generation failed:', error.message);
-      // Silent fail - tidak ganggu user experience
       return false;
     }
   };
@@ -90,6 +96,12 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       if (result.success) {
         console.log('✅ Playlist created successfully:', result.data.id);
         
+        // 🆪 TRIGGER REFRESH SEGERA (tanpa tunggu AI)
+        setTimeout(() => {
+          triggerPlaylistRefresh();
+          console.log('🔄 Playlist refresh triggered immediately');
+        }, 300);
+
         // 🆪 TRIGGER AI METADATA GENERATION DI BACKGROUND
         setTimeout(async () => {
           try {
@@ -98,7 +110,6 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
             if (aiSuccess) {
               console.log(`🎉 Auto-AI enhancement completed for: ${result.data.name}`);
               
-              // 🆪 TAMPILKAN NOTIFIKASI SUKSES DENGAN AI INFO
               addNotification({
                 type: 'success',
                 title: 'Playlist + AI Enhanced! 🚀',
@@ -107,16 +118,15 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
                 duration: 5000
               });
 
-              // 🆪 REFRESH PLAYLISTS DATA SETELAH AI SELESAI
+              // 🆪 TRIGGER REFRESH LAGI SETELAH AI SELESAI
               setTimeout(() => {
-                refreshPlaylists();
-                console.log('🔄 Playlists data refreshed after AI enhancement');
-              }, 1000);
+                triggerPlaylistRefresh();
+                console.log('🔄 Playlist refresh triggered after AI enhancement');
+              }, 500);
               
             } else {
               console.log(`ℹ️ Auto-AI enhancement skipped for: ${result.data.name}`);
               
-              // Notifikasi standard tanpa AI info
               addNotification({
                 type: 'success',
                 title: 'Playlist Berhasil Dibuat! ✅',
@@ -124,17 +134,10 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
                 icon: '📚',
                 duration: 4000
               });
-
-              // 🆪 REFRESH PLAYLISTS DATA MESKI AI GAGAL
-              setTimeout(() => {
-                refreshPlaylists();
-                console.log('🔄 Playlists data refreshed (AI skipped)');
-              }, 1000);
             }
           } catch (aiError) {
             console.error('❌ Auto-AI enhancement failed:', aiError);
             
-            // Fallback notification
             addNotification({
               type: 'success',
               title: 'Playlist Berhasil Dibuat! ✅',
@@ -142,16 +145,10 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
               icon: '📚',
               duration: 4000
             });
-
-            // 🆪 REFRESH PLAYLISTS DATA MESKI ADA ERROR
-            setTimeout(() => {
-              refreshPlaylists();
-              console.log('🔄 Playlists data refreshed (AI failed)');
-            }, 1000);
           }
-        }, 500); // Delay 500ms untuk biar create playlist selesai dulu
+        }, 500);
 
-        // 🆪 NOTIFIKASI INSTANT - Playlist created
+        // 🆪 NOTIFIKASI INSTANT
         addNotification({
           type: 'info',
           title: 'Membuat Playlist... 📝',
@@ -160,17 +157,11 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
           duration: 2000
         });
 
-        // 🆪 REFRESH PLAYLISTS DATA SEKARANG (tanpa AI)
-        setTimeout(() => {
-          refreshPlaylists();
-          console.log('🔄 Playlists data refreshed immediately');
-        }, 300);
-
         if (onCreated) {
           onCreated(result.data);
         }
         
-        // 🆪 TUTUP MODAL SETELAH BERHASIL
+        // 🆪 TUTUP MODAL
         setTimeout(() => {
           onClose();
         }, 800);
@@ -182,7 +173,6 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
       console.error('❌ Error creating playlist:', error);
       setError(`Gagal membuat playlist: ${error.message}`);
       
-      // 🆪 TAMPILKAN NOTIFIKASI ERROR
       addNotification({
         type: 'error',
         title: 'Gagal Membuat Playlist',
@@ -195,35 +185,10 @@ const CreatePlaylistForm = ({ book, onClose, onCreated, isMobile = false }) => {
     }
   };
 
-
   const handleClose = () => {
     onClose();
   };
 
-// Di CreatePlaylistForm.js - VERSI PALING SIMPLE
-const triggerPlaylistRefresh = () => {
-  console.log('🔄 Triggering playlist refresh event...');
-  
-  // Method 1: Custom Event (bisa ditangkap di parent component)
-  window.dispatchEvent(new CustomEvent('playlistCreated'));
-  
-  // Method 2: Local Storage trigger (bisa di-listener di mana saja)
-  localStorage.setItem('playlistRefreshTrigger', Date.now().toString());
-  
-  // Method 3: Simple timeout - parent component auto-refresh periodically
-  console.log('✅ Playlist refresh triggered');
-};
-
-// Di handleSubmit, setelah berhasil:
-if (result.success) {
-  console.log('✅ Playlist created successfully');
-  
-  // Trigger refresh
-  setTimeout(() => {
-    triggerPlaylistRefresh();
-  }, 1000);
-};
-  
   const handleCreatorTypeChange = (e) => {
     const value = e.target.value;
     setFormData(prev => ({ 
@@ -591,6 +556,7 @@ if (result.success) {
 };
 
 export default CreatePlaylistForm;
+
 
 
 
