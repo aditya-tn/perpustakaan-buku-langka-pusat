@@ -1,4 +1,4 @@
-// pages/playlists.js - TAMBAHKAN EVENT LISTENER
+// pages/playlists.js - COMPLETE MOBILE OPTIMIZED VERSION
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -20,9 +20,6 @@ const PlaylistsPage = () => {
   const [sortBy, setSortBy] = useState('recent');
   const [stats, setStats] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  
-  // 🆪 STATE UNTUK FORCE RE-RENDER
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Detect mobile screen
   useEffect(() => {
@@ -32,32 +29,7 @@ const PlaylistsPage = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 🆪 EVENT LISTENER UNTUK REFRESH PLAYLISTS
-  useEffect(() => {
-    const handlePlaylistsRefresh = () => {
-      console.log('🎯 Received playlists refresh event, triggering re-render...');
-      setRefreshTrigger(prev => prev + 1);
-      
-      // Optional: Show loading indicator
-      addNotification({
-        type: 'info',
-        title: 'Memperbarui Playlists...',
-        message: 'Data playlist sedang diperbarui',
-        icon: '🔄',
-        duration: 2000
-      });
-    };
-
-    // Daftarkan event listener
-    window.addEventListener('playlistsShouldRefresh', handlePlaylistsRefresh);
-    
-    // Cleanup
-    return () => {
-      window.removeEventListener('playlistsShouldRefresh', handlePlaylistsRefresh);
-    };
-  }, [addNotification]);
-
-  // Load platform stats - TAMBAH refreshTrigger KE DEPENDENCY
+  // Load platform stats
   useEffect(() => {
     const loadStats = async () => {
       try {
@@ -68,9 +40,9 @@ const PlaylistsPage = () => {
       }
     };
     loadStats();
-  }, [refreshTrigger]); // 🆪 RE-LOAD STATS KETIKA REFRESH
+  }, []);
 
-  // Handle search - TAMBAH refreshTrigger KE DEPENDENCY  
+  // Handle search
   useEffect(() => {
     const performSearch = async () => {
       if (!searchQuery.trim()) {
@@ -95,7 +67,7 @@ const PlaylistsPage = () => {
 
     const timeoutId = setTimeout(performSearch, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, refreshTrigger]); // 🆪 RE-SEARCH KETIKA REFRESH
+  }, [searchQuery]);
 
   // Filter playlists based on view
   const getFilteredPlaylists = () => {
@@ -606,14 +578,14 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
   );
 };
 
- return (
+  return (
     <Layout isMobile={isMobile}>
       <Head>
         <title>Playlists Komunitas - Perpustakaan Buku Langka</title>
         <meta name="description" content="Jelajahi playlist buku yang dikurasi komunitas" />
       </Head>
 
-      {/* Hero Section */}
+      {/* Hero Section - MOBILE OPTIMIZED */}
       <section style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
@@ -680,13 +652,13 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         </div>
       </section>
 
-      {/* Main Content */}
+      {/* Main Content - MOBILE OPTIMIZED */}
       <section style={{
         maxWidth: '1400px',
         margin: isMobile ? '1rem auto' : '2rem auto',
         padding: isMobile ? '0 1rem' : '0 2rem'
       }}>
-        {/* Controls */}
+        {/* Controls - Mobile Optimized */}
         <div style={{
           backgroundColor: 'white',
           padding: isMobile ? '1rem' : '1.5rem',
@@ -1054,7 +1026,7 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
           </div>
         </div>
 
-        {/* Playlists Grid */}
+        {/* Playlists Grid - Mobile Single Column */}
         {loading ? (
           <div style={{
             textAlign: 'center',
@@ -1069,30 +1041,74 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             Memuat playlists...
           </div>
         ) : filteredPlaylists.length === 0 ? (
-          // ... no results message ...
-        ) : (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))',
-            gap: isMobile ? '1.5rem' : '1.3rem',
-            gridAutoRows: 'minmax(200px, auto)',
-            alignContent: 'start'
+            textAlign: 'center',
+            padding: isMobile ? '2rem 1rem' : '3rem',
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
           }}>
-            {filteredPlaylists.map(playlist => (
-              <div key={playlist.id} style={{
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
-                <PlaylistCard 
-                  playlist={playlist} 
-                  isMobile={isMobile}
-                />
-              </div>
-            ))}
+            <div style={{ 
+              fontSize: isMobile ? '2rem' : '3rem', 
+              marginBottom: '1rem' 
+            }}>📚</div>
+            <h3 style={{ 
+              color: '#4a5568', 
+              marginBottom: '0.5rem',
+              fontSize: isMobile ? '1.1rem' : '1.25rem'
+            }}>
+              {searchQuery ? 'Tidak ada hasil pencarian' : 'Belum ada playlist'}
+            </h3>
+            <p style={{ 
+              color: '#718096',
+              marginBottom: '1.5rem',
+              fontSize: isMobile ? '0.85rem' : '1rem'
+            }}>
+              {searchQuery
+                ? `Coba kata kunci lain atau buat playlist "${searchQuery}"`
+                : 'Jadilah yang pertama membuat playlist komunitas!'
+              }
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => window.location.href = '/'}
+                style={{
+                  padding: isMobile ? '0.6rem 1.2rem' : '0.75rem 1.5rem',
+                  backgroundColor: '#4299e1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  fontSize: isMobile ? '0.85rem' : '0.9rem'
+                }}
+              >
+                📚 Buat Playlist Pertama
+              </button>
+            )}
           </div>
-        )}
+) : (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))',
+    gap: isMobile ? '1.5rem' : '1.3rem',
+    gridAutoRows: 'minmax(200px, auto)', // 🆪 TENTUKAN TINGGI MINIMAL
+    alignContent: 'start' // 🆪 RAPIKAN ALIGNMENT
+  }}>
+    {filteredPlaylists.map(playlist => (
+      <div key={playlist.id} style={{
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <PlaylistCard 
+          playlist={playlist} 
+          isMobile={isMobile}
+        />
+      </div>
+    ))}
+  </div>
+)}
       </section>
-
 
       {/* Delete Confirmation Modal - MOBILE OPTIMIZED */}
       {deleteConfirm && (
