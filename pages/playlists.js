@@ -115,7 +115,7 @@ const PlaylistsPage = () => {
 
     const timeoutId = setTimeout(performSearch, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, refreshKey]);
+  }, [searchQuery]);
 
   // Filter playlists based on view
   const getFilteredPlaylists = () => {
