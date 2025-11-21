@@ -222,14 +222,19 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
   const isOwner = playlist.created_by === userId;
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // 🆕 CEK STATUS METADATA - HANYA TAMPILKAN JIKA BELUM AI ENHANCED
+// Di dalam pages/playlists.js - UPDATE PlaylistCard component
+const PlaylistCard = ({ playlist, isMobile = false }) => {
+  const isOwner = playlist.created_by === userId;
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  // 🆕 CEK STATUS METADATA - HANYA TAMPILKAN BADGE JIKA BELUM AI ENHANCED
   const hasMetadata = playlist.metadata_generated_at && 
                      playlist.ai_metadata && 
                      Object.keys(playlist.ai_metadata).length > 0;
   const isAIFallback = hasMetadata && playlist.ai_metadata.is_fallback;
-
-  // 🆕 HANYA TAMPILKAN STATUS JIKA: No AI atau Basic
-  const showStatusIndicator = !hasMetadata || isAIFallback;
+  
+  // 🆕 HANYA TAMPILKAN BADGE JIKA: No AI atau Basic
+  const showStatusBadge = !hasMetadata || isAIFallback;
 
   const handleClick = async (e) => {
     e.preventDefault();
@@ -325,8 +330,8 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         e.currentTarget.style.transform = 'translateY(0)';
       }}
     >
-      {/* 🆕 METADATA STATUS INDICATOR - HANYA TAMPIL JIKA BELUM ENHANCED */}
-      {showStatusIndicator && (
+      {/* 🆕 STATUS BADGE - HANYA TAMPIL JIKA BELUM ENHANCED */}
+      {showStatusBadge && (
         <div style={{
           position: 'absolute',
           top: isMobile ? '0.5rem' : '0.75rem',
@@ -352,7 +357,7 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             {isAIFallback && '📝 Basic'} 
           </div>
           
-          {/* 🆕 GENERATE BUTTON (for admin/owner) */}
+          {/* GENERATE BUTTON (for admin/owner) */}
           {isOwner && (
             <button
               onClick={handleGenerateMetadata}
@@ -428,8 +433,8 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         marginBottom: '1rem',
         position: 'relative',
         zIndex: 1,
-        // 🆕 SESUAIKAN MARGIN TOP BERDASARKAN ADA/TIDAK STATUS INDICATOR
-        marginTop: showStatusIndicator ? (isMobile ? '1.5rem' : '1.8rem') : '0'
+        // 🆕 SESUAIKAN MARGIN TOP BERDASARKAN ADA/TIDAK STATUS BADGE
+        marginTop: showStatusBadge ? (isMobile ? '1.5rem' : '1.8rem') : '0'
       }}>
         <h3 style={{
           margin: '0 0 0.5rem 0',
@@ -461,8 +466,71 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         )}
       </div>
 
-      {/* 🆕 HAPUS METADATA PREVIEW SECTION - SUDAH TIDAK DIPERLUKAN */}
-      {/* {hasMetadata && playlist.ai_metadata && ( ... )} */}
+      {/* 🆕 METADATA PREVIEW - TETAP DITAMPILKAN JIKA ADA */}
+      {hasMetadata && playlist.ai_metadata && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '0.5rem',
+          backgroundColor: isAIFallback ? '#fffaf0' : '#f0fff4',
+          border: `1px solid ${isAIFallback ? '#faf089' : '#9ae6b4'}`,
+          borderRadius: '6px',
+          fontSize: isMobile ? '0.7rem' : '0.75rem'
+        }}>
+          <div style={{ 
+            fontWeight: '600', 
+            color: isAIFallback ? '#744210' : '#22543d', 
+            marginBottom: '0.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem'
+          }}>
+            {isAIFallback ? '📝 Basic Rules' : '🤖 AI Enhanced'}
+          </div>
+          
+          <div style={{ 
+            color: '#2d3748',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.3rem',
+            lineHeight: '1.3'
+          }}>
+            {playlist.ai_metadata.key_themes?.slice(0, 3).map((theme, index) => (
+              <span key={index} style={{
+                backgroundColor: isAIFallback ? '#faf089' : '#c6f6d5',
+                color: isAIFallback ? '#744210' : '#22543d',
+                padding: '0.1rem 0.3rem',
+                borderRadius: '4px',
+                fontSize: '0.65rem'
+              }}>
+                {theme}
+              </span>
+            ))}
+            
+            {playlist.ai_metadata.historical_names?.slice(0, 2).map((name, index) => (
+              <span key={index} style={{
+                backgroundColor: '#bee3f8',
+                color: '#2a4365',
+                padding: '0.1rem 0.3rem',
+                borderRadius: '4px',
+                fontSize: '0.65rem'
+              }}>
+                🏛️ {name}
+              </span>
+            ))}
+          </div>
+          
+          {playlist.ai_metadata.accuracy_reasoning && (
+            <div style={{ 
+              color: isAIFallback ? '#744210' : '#4a5568', 
+              fontSize: '0.65rem',
+              marginTop: '0.3rem',
+              fontStyle: 'italic'
+            }}>
+              {playlist.ai_metadata.accuracy_reasoning}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{
@@ -562,7 +630,6 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
     </div>
   );
 };
-
 
   return (
     <Layout isMobile={isMobile}>
