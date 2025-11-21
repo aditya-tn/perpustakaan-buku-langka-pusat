@@ -613,7 +613,7 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         <meta name="description" content="Jelajahi playlist buku yang dikurasi komunitas" />
       </Head>
 
-      {/* Hero Section - MOBILE OPTIMIZED */}
+      {/* Hero Section */}
       <section style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
@@ -680,13 +680,13 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
         </div>
       </section>
 
-      {/* Main Content - MOBILE OPTIMIZED */}
+      {/* Main Content */}
       <section style={{
         maxWidth: '1400px',
         margin: isMobile ? '1rem auto' : '2rem auto',
         padding: isMobile ? '0 1rem' : '0 2rem'
       }}>
-        {/* Controls - Mobile Optimized */}
+        {/* Controls */}
         <div style={{
           backgroundColor: 'white',
           padding: isMobile ? '1rem' : '1.5rem',
@@ -1054,7 +1054,7 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
           </div>
         </div>
 
-        {/* Playlists Grid - Mobile Single Column */}
+        {/* Playlists Grid */}
         {loading ? (
           <div style={{
             textAlign: 'center',
@@ -1069,73 +1069,28 @@ const PlaylistCard = ({ playlist, isMobile = false }) => {
             Memuat playlists...
           </div>
         ) : filteredPlaylists.length === 0 ? (
+          // ... no results message ...
+        ) : (
           <div style={{
-            textAlign: 'center',
-            padding: isMobile ? '2rem 1rem' : '3rem',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))',
+            gap: isMobile ? '1.5rem' : '1.3rem',
+            gridAutoRows: 'minmax(200px, auto)',
+            alignContent: 'start'
           }}>
-            <div style={{ 
-              fontSize: isMobile ? '2rem' : '3rem', 
-              marginBottom: '1rem' 
-            }}>📚</div>
-            <h3 style={{ 
-              color: '#4a5568', 
-              marginBottom: '0.5rem',
-              fontSize: isMobile ? '1.1rem' : '1.25rem'
-            }}>
-              {searchQuery ? 'Tidak ada hasil pencarian' : 'Belum ada playlist'}
-            </h3>
-            <p style={{ 
-              color: '#718096',
-              marginBottom: '1.5rem',
-              fontSize: isMobile ? '0.85rem' : '1rem'
-            }}>
-              {searchQuery
-                ? `Coba kata kunci lain atau buat playlist "${searchQuery}"`
-                : 'Jadilah yang pertama membuat playlist komunitas!'
-              }
-            </p>
-            {!searchQuery && (
-              <button
-                onClick={() => window.location.href = '/'}
-                style={{
-                  padding: isMobile ? '0.6rem 1.2rem' : '0.75rem 1.5rem',
-                  backgroundColor: '#4299e1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  fontSize: isMobile ? '0.85rem' : '0.9rem'
-                }}
-              >
-                📚 Buat Playlist Pertama
-              </button>
-            )}
+            {filteredPlaylists.map(playlist => (
+              <div key={playlist.id} style={{
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <PlaylistCard 
+                  playlist={playlist} 
+                  isMobile={isMobile}
+                />
+              </div>
+            ))}
           </div>
-) : (
-  <div style={{
-    display: 'grid',
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))',
-    gap: isMobile ? '1.5rem' : '1.3rem',
-    gridAutoRows: 'minmax(200px, auto)', // 🆪 TENTUKAN TINGGI MINIMAL
-    alignContent: 'start' // 🆪 RAPIKAN ALIGNMENT
-  }}>
-    {filteredPlaylists.map(playlist => (
-      <div key={playlist.id} style={{
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
-        <PlaylistCard 
-          playlist={playlist} 
-          isMobile={isMobile}
-        />
-      </div>
-    ))}
-  </div>
-)}
+        )}
       </section>
 
       {/* Delete Confirmation Modal - MOBILE OPTIMIZED */}
