@@ -9,6 +9,7 @@ export const playlistService = {
   /**
    * Create new playlist di Supabase
    */
+  // services/playlistService.js - UPDATE createPlaylist
   createPlaylist: async (playlistData) => {
     try {
       const { data, error } = await supabase
@@ -21,12 +22,23 @@ export const playlistService = {
         .select()
         .single();
 
-      if (error) {
-        console.error('❌ Supabase create error:', error);
-        throw new Error(`Gagal membuat playlist: ${error.message}`);
-      }
+      if (error) throw error;
 
       console.log('✅ Playlist created in Supabase:', data.id);
+
+      // 🆪 FIX: Auto-generate metadata dengan error handling yang better
+      setTimeout(async () => {
+        try {
+          console.log(`🔄 Auto-generating metadata for new playlist: ${data.name}`);
+          const { playlistMetadataService } = await import('./playlistMetadataService.js');
+          await playlistMetadataService.generateAndStorePlaylistMetadata(data.id);
+          console.log(`✅ Auto-generated metadata for: ${data.name}`);
+        } catch (metadataError) {
+          console.error('❌ Auto-metadata generation failed:', metadataError.message);
+          // Tidak throw error, karena ini background process
+        }
+      }, 2000); // Delay 2 detik
+
       return data;
     } catch (error) {
       console.error('❌ Error in createPlaylist:', error);

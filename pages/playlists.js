@@ -169,192 +169,377 @@ const PlaylistsPage = () => {
     </div>
   );
 
-  // Playlist Card Component - MOBILE OPTIMIZED
-  const PlaylistCard = ({ playlist, isMobile = false }) => {
-    const isOwner = playlist.created_by === userId;
+// Playlist Card Component - MOBILE OPTIMIZED (DENGAN METADATA INDICATOR)
+const PlaylistCard = ({ playlist, isMobile = false }) => {
+  const isOwner = playlist.created_by === userId;
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  // 🆕 CEK STATUS METADATA
+  const hasMetadata = playlist.metadata_generated_at && 
+                     playlist.ai_metadata && 
+                     Object.keys(playlist.ai_metadata).length > 0;
+  const isAIFallback = hasMetadata && playlist.ai_metadata.is_fallback;
 
-    const handleClick = async (e) => {
-      e.preventDefault();
-      try {
-        await trackView(playlist.id);
-        console.log('✅ Tracked view for playlist:', playlist.id);
-      } catch (error) {
-        console.error('❌ Tracking failed:', error);
+  const handleClick = async (e) => {
+    e.preventDefault();
+    try {
+      await trackView(playlist.id);
+      console.log('✅ Tracked view for playlist:', playlist.id);
+    } catch (error) {
+      console.error('❌ Tracking failed:', error);
+    }
+    router.push(`/playlists/${playlist.id}`);
+  };
+
+  // Di PlaylistCard component - UPDATE handleGenerateMetadata
+  const handleGenerateMetadata = async (e) => {
+    e.stopPropagation();
+    setIsGenerating(true);
+    
+    console.log(`🎯 Generating AI metadata for playlist: ${playlist.id} - ${playlist.name}`);
+    
+    try {
+      const response = await fetch('/api/playlists/generate-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playlistId: playlist.id })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      router.push(`/playlists/${playlist.id}`);
-    };
+      
+      const result = await response.json();
+      
+      console.log('📦 API Response:', result);
+      
+      if (result.success) {
+        addNotification({
+          type: 'success',
+          title: 'Metadata Generated ✅',
+          message: `AI metadata berhasil dibuat untuk "${playlist.name}"`,
+          icon: '🤖',
+          duration: 3000
+        });
+        
+        // Refresh page untuk update data
+        setTimeout(() => {
+          console.log('🔄 Refreshing page...');
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error(result.error || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('❌ Metadata generation failed:', error);
+      addNotification({
+        type: 'error',
+        title: 'Gagal Generate Metadata',
+        message: error.message || 'Terjadi kesalahan saat generate metadata',
+        icon: '❌',
+        duration: 5000
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
-    return (
-<div
-  onClick={handleClick}
-  style={{
-    backgroundColor: 'white',
-    padding: isMobile ? '1.25rem' : '1.5rem',
-    borderRadius: '12px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    border: '1px solid #e2e8f0',
-    transition: 'all 0.3s ease',
-    cursor: 'pointer',
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    overflow: 'hidden'
-  }}
-  onMouseEnter={(e) => {
-    e.currentTarget.style.backgroundColor = '#f7fafc';
-    e.currentTarget.style.border = '2px solid #4299e1'; // ✅ BORDER TEBAL 2px
-    e.currentTarget.style.boxShadow = '0 4px 12px rgba(66, 153, 225, 0.15)';
-    e.currentTarget.style.transform = 'translateY(-2px)';
-  }}
-  onMouseLeave={(e) => {
-    e.currentTarget.style.backgroundColor = 'white';
-    e.currentTarget.style.border = '1px solid #e2e8f0';
-    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-    e.currentTarget.style.transform = 'translateY(0)';
-  }}
->
-        {/* Delete Button - Show on hover for owner */}
-        {isOwner && (
+  return (
+    <div
+      onClick={handleClick}
+      style={{
+        backgroundColor: 'white',
+        padding: isMobile ? '1.25rem' : '1.5rem',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        border: '1px solid #e2e8f0',
+        transition: 'all 0.3s ease',
+        cursor: 'pointer',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = '#f7fafc';
+        e.currentTarget.style.border = '2px solid #4299e1';
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(66, 153, 225, 0.15)';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = 'white';
+        e.currentTarget.style.border = '1px solid #e2e8f0';
+        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      {/* 🆕 METADATA STATUS INDICATOR */}
+      <div style={{
+        position: 'absolute',
+        top: isMobile ? '0.5rem' : '0.75rem',
+        left: isMobile ? '0.5rem' : '0.75rem',
+        zIndex: 5,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.25rem'
+      }}>
+        <div style={{
+          padding: '0.2rem 0.4rem',
+          borderRadius: '6px',
+          fontSize: isMobile ? '0.55rem' : '0.65rem',
+          fontWeight: '600',
+          backgroundColor: !hasMetadata ? '#fff5f5' : 
+                         isAIFallback ? '#fffaf0' : '#f0fff4',
+          color: !hasMetadata ? '#c53030' : 
+                 isAIFallback ? '#744210' : '#22543d',
+          border: `1px solid ${
+            !hasMetadata ? '#fed7d7' : 
+            isAIFallback ? '#faf089' : '#9ae6b4'
+          }`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.2rem'
+        }}>
+          {!hasMetadata && '❌ No AI'}
+          {hasMetadata && isAIFallback && '📝 Basic'} 
+          {hasMetadata && !isAIFallback && '🤖 Enhanced'}
+        </div>
+        
+        {/* 🆕 GENERATE BUTTON (for admin/owner) */}
+        {(!hasMetadata || isAIFallback) && isOwner && (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteConfirm({
-                playlistId: playlist.id,
-                playlistName: playlist.name,
-                bookCount: playlist.books?.length || 0,
-                step: 1,
-                verificationText: ''
-              });
-            }}
+            onClick={handleGenerateMetadata}
+            disabled={isGenerating}
             style={{
-              position: 'absolute',
-              top: isMobile ? '0.5rem' : '0.75rem',
-              right: isMobile ? '0.5rem' : '0.75rem',
-              background: 'transparent', // 🆪 UBAH JADI TRANSPARAN
-              color: '#f56565', // 🆪 WARNA TEXT MERAH
-              border: '1px solid rgba(255, 255, 255, 1)', // 🆪 BORDER MERAH
+              padding: '0.2rem 0.4rem',
+              backgroundColor: isGenerating ? '#cbd5e0' : '#4299e1',
+              color: 'white',
+              border: 'none',
               borderRadius: '6px',
-              padding: isMobile ? '0.3rem 0.5rem' : '0.4rem 0.6rem',
-              fontSize: isMobile ? '0.6rem' : '0.7rem',
+              fontSize: isMobile ? '0.55rem' : '0.65rem',
               fontWeight: '600',
-              cursor: 'pointer',
-              zIndex: 10,
+              cursor: isGenerating ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.25rem',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#f56565';
-              e.target.style.color = 'white';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'transparent';
-              e.target.style.color = '#f56565';
+              gap: '0.2rem',
+              opacity: isGenerating ? 0.6 : 1
             }}
           >
-            🗑️
+            {isGenerating ? '⏳' : '⚡'}
+            {isGenerating ? 'Generating...' : 'AI'}
           </button>
         )}
+      </div>
 
-        {/* Header */}
-        <div style={{
-          marginBottom: '1rem',
-          position: 'relative',
-          zIndex: 1
-        }}>
-          <h3 style={{
-            margin: '0 0 0.5rem 0',
-            fontSize: isMobile ? '1rem' : '1.1rem',
+      {/* Delete Button - Show on hover for owner */}
+      {isOwner && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteConfirm({
+              playlistId: playlist.id,
+              playlistName: playlist.name,
+              bookCount: playlist.books?.length || 0,
+              step: 1,
+              verificationText: ''
+            });
+          }}
+          style={{
+            position: 'absolute',
+            top: isMobile ? '0.5rem' : '0.75rem',
+            right: isMobile ? '0.5rem' : '0.75rem',
+            background: 'transparent',
+            color: '#f56565',
+            border: '1px solid rgba(255, 255, 255, 1)',
+            borderRadius: '6px',
+            padding: isMobile ? '0.3rem 0.5rem' : '0.4rem 0.6rem',
+            fontSize: isMobile ? '0.6rem' : '0.7rem',
             fontWeight: '600',
-            color: '#2d3748',
-            lineHeight: '1.4',
+            cursor: 'pointer',
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.background = '#f56565';
+            e.target.style.color = 'white';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = 'transparent';
+            e.target.style.color = '#f56565';
+          }}
+        >
+          🗑️
+        </button>
+      )}
+
+      {/* Header */}
+      <div style={{
+        marginBottom: '1rem',
+        position: 'relative',
+        zIndex: 1,
+        marginTop: (hasMetadata || isOwner) ? (isMobile ? '1.5rem' : '1.8rem') : '0'
+      }}>
+        <h3 style={{
+          margin: '0 0 0.5rem 0',
+          fontSize: isMobile ? '1rem' : '1.1rem',
+          fontWeight: '600',
+          color: '#2d3748',
+          lineHeight: '1.4',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          paddingRight: isOwner ? (isMobile ? '1.5rem' : '2rem') : '0'
+        }}>
+          {playlist.name}
+        </h3>
+        {playlist.description && (
+          <p style={{
+            margin: 0,
+            fontSize: isMobile ? '0.8rem' : '0.85rem',
+            color: '#718096',
+            lineHeight: '1.5',
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            paddingRight: isOwner ? (isMobile ? '1.5rem' : '2rem') : '0'
+            overflow: 'hidden'
           }}>
-            {playlist.name}
-          </h3>
-          {playlist.description && (
-            <p style={{
-              margin: 0,
-              fontSize: isMobile ? '0.8rem' : '0.85rem',
-              color: '#718096',
-              lineHeight: '1.5',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
+            {playlist.description}
+          </p>
+        )}
+      </div>
+
+      {/* 🆕 METADATA PREVIEW (jika ada) */}
+      {hasMetadata && playlist.ai_metadata && (
+        <div style={{
+          marginBottom: '1rem',
+          padding: '0.5rem',
+          backgroundColor: isAIFallback ? '#fffaf0' : '#f0fff4',
+          border: `1px solid ${isAIFallback ? '#faf089' : '#9ae6b4'}`,
+          borderRadius: '6px',
+          fontSize: isMobile ? '0.7rem' : '0.75rem'
+        }}>
+          <div style={{ 
+            fontWeight: '600', 
+            color: isAIFallback ? '#744210' : '#22543d', 
+            marginBottom: '0.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem'
+          }}>
+            {isAIFallback ? '📝 Basic Rules' : '🤖 AI Enhanced'}
+          </div>
+          
+          <div style={{ 
+            color: '#2d3748',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.3rem',
+            lineHeight: '1.3'
+          }}>
+            {playlist.ai_metadata.key_themes?.slice(0, 3).map((theme, index) => (
+              <span key={index} style={{
+                backgroundColor: isAIFallback ? '#faf089' : '#c6f6d5',
+                color: isAIFallback ? '#744210' : '#22543d',
+                padding: '0.1rem 0.3rem',
+                borderRadius: '4px',
+                fontSize: '0.65rem'
+              }}>
+                {theme}
+              </span>
+            ))}
+            
+            {playlist.ai_metadata.historical_names?.slice(0, 2).map((name, index) => (
+              <span key={index} style={{
+                backgroundColor: '#bee3f8',
+                color: '#2a4365',
+                padding: '0.1rem 0.3rem',
+                borderRadius: '4px',
+                fontSize: '0.65rem'
+              }}>
+                🏛️ {name}
+              </span>
+            ))}
+          </div>
+          
+          {playlist.ai_metadata.accuracy_reasoning && (
+            <div style={{ 
+              color: isAIFallback ? '#744210' : '#4a5568', 
+              fontSize: '0.65rem',
+              marginTop: '0.3rem',
+              fontStyle: 'italic'
             }}>
-              {playlist.description}
-            </p>
+              {playlist.ai_metadata.accuracy_reasoning}
+            </div>
           )}
         </div>
+      )}
 
-        {/* Stats */}
-        <div style={{
-          display: 'flex',
-          gap: isMobile ? '0.75rem' : '1rem',
-          marginBottom: '1rem',
-          fontSize: isMobile ? '0.7rem' : '0.75rem',
-          color: '#718096'
-        }}>
-          <span>📚 {playlist.books?.length || 0} buku</span>
-          <span>❤️ {playlist.like_count || 0}</span>
-          <span>👁️ {playlist.view_count || 0}</span>
-        </div>
+      {/* Stats */}
+      <div style={{
+        display: 'flex',
+        gap: isMobile ? '0.75rem' : '1rem',
+        marginBottom: '1rem',
+        fontSize: isMobile ? '0.7rem' : '0.75rem',
+        color: '#718096'
+      }}>
+        <span>📚 {playlist.books?.length || 0} buku</span>
+        <span>❤️ {playlist.like_count || 0}</span>
+        <span>👁️ {playlist.view_count || 0}</span>
+      </div>
 
-        {/* Book preview */}
-        {playlist.books && playlist.books.length > 0 && (
-          <div style={{ marginTop: 'auto' }}>
-            <div style={{
-              fontSize: isMobile ? '0.75rem' : '0.8rem',
-              fontWeight: '600',
-              color: '#4a5568',
-              marginBottom: '0.5rem'
-            }}>
-              Beberapa buku:
-            </div>
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.25rem'
-            }}>
-              {playlist.books.slice(0, 3).map((book, index) => (
-                <div key={index} style={{
-                  fontSize: isMobile ? '0.7rem' : '0.75rem',
-                  color: '#718096',
-                  padding: '0.25rem 0.5rem',
-                  backgroundColor: '#f7fafc',
-                  borderRadius: '4px',
-                  border: '1px solid #e2e8f0',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 1,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
-                }}>
-                  {book.judul}
-                  {book.pengarang && ` - ${book.pengarang}`}
-                </div>
-              ))}
-              {playlist.books.length > 3 && (
-                <div style={{
-                  fontSize: isMobile ? '0.65rem' : '0.7rem',
-                  color: '#4299e1',
-                  textAlign: 'center',
-                  fontStyle: 'italic'
-                }}>
-                  +{playlist.books.length - 3} buku lainnya
-                </div>
-              )}
-            </div>
+      {/* Book preview */}
+      {playlist.books && playlist.books.length > 0 && (
+        <div style={{ marginTop: 'auto' }}>
+          <div style={{
+            fontSize: isMobile ? '0.75rem' : '0.8rem',
+            fontWeight: '600',
+            color: '#4a5568',
+            marginBottom: '0.5rem'
+          }}>
+            Beberapa buku:
           </div>
-        )}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.25rem'
+          }}>
+            {playlist.books.slice(0, 3).map((book, index) => (
+              <div key={index} style={{
+                fontSize: isMobile ? '0.7rem' : '0.75rem',
+                color: '#718096',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: '#f7fafc',
+                borderRadius: '4px',
+                border: '1px solid #e2e8f0',
+                display: '-webkit-box',
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}>
+                {book.judul}
+                {book.pengarang && ` - ${book.pengarang}`}
+              </div>
+            ))}
+            {playlist.books.length > 3 && (
+              <div style={{
+                fontSize: isMobile ? '0.65rem' : '0.7rem',
+                color: '#4299e1',
+                textAlign: 'center',
+                fontStyle: 'italic'
+              }}>
+                +{playlist.books.length - 3} buku lainnya
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-      {/* Footer - UPDATE dengan creator info */}
+      {/* Footer */}
       <div style={{
         marginTop: '1rem',
         paddingTop: '1rem',
@@ -369,7 +554,7 @@ const PlaylistsPage = () => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <span>
-            Dibuat oleh         {  /* 🆕 TAMPILKAN CREATOR NAME */}
+            Dibuat oleh
             {playlist.creator_name && (
               <span style={{
                 backgroundColor: '#edf2f7',
@@ -377,11 +562,12 @@ const PlaylistsPage = () => {
                 borderRadius: '12px',
                 fontSize: isMobile ? '0.7rem' : '0.75rem',
                 color: '#4a5568',
-                border: '1px solid #cbd5e0'
+                border: '1px solid #cbd5e0',
+                marginLeft: '0.3rem'
               }}>
                 {playlist.creator_name}
               </span>
-        )}
+            )}
           </span>
         </div>
         <span>
@@ -584,6 +770,244 @@ const PlaylistsPage = () => {
               </select>
             </div>
           </div>
+
+{/* Controls */}
+<div style={{
+  backgroundColor: 'white',
+  padding: isMobile ? '1rem' : '1.5rem',
+  borderRadius: '12px',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  marginBottom: '1.5rem',
+  border: '1px solid #e2e8f0'
+}}>
+  <div style={{
+    display: 'flex',
+    flexDirection: isMobile ? 'column' : 'row',
+    justifyContent: 'space-between',
+    alignItems: isMobile ? 'stretch' : 'center',
+    gap: '1rem'
+  }}>
+    {/* ... View Tabs ... */}
+    {/* ... Search & Sort ... */}
+  </div>
+
+  {/* 🆕 TEMPATKAN ADMIN METADATA CONTROLS DI SINI */}
+  {userId && (
+    <div style={{/* ... Admin Metadata Controls ... */}}>
+      {/* ... content ... */}
+    </div>
+  )}
+
+  {/* Active Filters Info */}
+  <div style={{
+    marginTop: '1rem',
+    padding: '0.75rem',
+    backgroundColor: '#f0fff4',
+    border: '1px solid #9ae6b4',
+    borderRadius: '6px',
+    fontSize: isMobile ? '0.75rem' : '0.8rem',
+    color: '#22543d'
+  }}>
+    Menampilkan {filteredPlaylists.length} playlist
+    {searchQuery && ` untuk "${searchQuery}"`}
+    {view !== 'all' && ` • ${view === 'my' ? 'Playlists saya' : view === 'popular' ? 'Populer' : 'Trending'}`}
+    {isSearching && ' • 🔍 Mencari...'}
+  </div>
+</div>
+
+{/* 🆕 ADMIN METADATA CONTROLS */}
+{userId && (
+  <div style={{
+    marginTop: '1rem',
+    padding: '1rem',
+    backgroundColor: '#f0fff4',
+    border: '1px solid #9ae6b4',
+    borderRadius: '8px'
+  }}>
+    <div style={{
+      fontSize: isMobile ? '0.85rem' : '0.9rem',
+      fontWeight: '600',
+      color: '#22543d',
+      marginBottom: '0.5rem',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem'
+    }}>
+      🤖 AI Metadata Enhancement
+    </div>
+    
+    <div style={{
+      display: 'flex',
+      gap: '0.75rem',
+      flexWrap: 'wrap'
+    }}>
+      {/* 🆕 OPSI BARU: Upgrade Basic ke AI Enhanced */}
+      <button
+        onClick={async () => {
+          try {
+            const response = await fetch('/api/playlists/generate-metadata', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ upgradeBasic: true })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              addNotification({
+                type: 'success',
+                title: 'Upgrade Started 🚀',
+                message: `Upgrading ${result.data?.length || 0} basic playlists ke AI Enhanced`,
+                icon: '🤖',
+                duration: 5000
+              });
+              
+              setTimeout(() => window.location.reload(), 3000);
+            }
+          } catch (error) {
+            addNotification({
+              type: 'error',
+              title: 'Upgrade Failed',
+              message: error.message,
+              icon: '❌'
+            });
+          }
+        }}
+        style={{
+          padding: '0.5rem 1rem',
+          backgroundColor: '#805ad5',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: isMobile ? '0.75rem' : '0.8rem',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.3rem'
+        }}
+      >
+        🚀 Upgrade Basic ke AI
+      </button>
+
+      <button
+        onClick={async () => {
+          try {
+            const response = await fetch('/api/playlists/generate-metadata', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fillMissing: true })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              addNotification({
+                type: 'success',
+                title: 'Generation Started ✅',
+                message: `Processing ${result.data?.length || 0} playlists`,
+                icon: '🤖',
+                duration: 5000
+              });
+              
+              setTimeout(() => window.location.reload(), 3000);
+            }
+          } catch (error) {
+            addNotification({
+              type: 'error',
+              title: 'Generation Failed',
+              message: error.message,
+              icon: '❌'
+            });
+          }
+        }}
+        style={{
+          padding: '0.5rem 1rem',
+          backgroundColor: '#48bb78',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: isMobile ? '0.75rem' : '0.8rem',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.3rem'
+        }}
+      >
+        ⚡ Generate Missing
+      </button>
+      
+      <button
+        onClick={async () => {
+          try {
+            const response = await fetch('/api/playlists/generate-metadata', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ generateAll: true })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              addNotification({
+                type: 'success',
+                title: 'Regenerating All 🔄',
+                message: `Regenerating semua ${result.data?.length || 0} playlists`,
+                icon: '🔄',
+                duration: 5000
+              });
+              
+              setTimeout(() => window.location.reload(), 3000);
+            }
+          } catch (error) {
+            addNotification({
+              type: 'error',
+              title: 'Regeneration Failed',
+              message: error.message,
+              icon: '❌'
+            });
+          }
+        }}
+        style={{
+          padding: '0.5rem 1rem',
+          backgroundColor: '#ed8936',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: isMobile ? '0.75rem' : '0.8rem',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.3rem'
+        }}
+      >
+        🔄 Regenerate All
+      </button>
+    </div>
+    
+    <div style={{
+      fontSize: isMobile ? '0.7rem' : '0.75rem',
+      color: '#2d3748',
+      marginTop: '0.5rem',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      flexWrap: 'wrap'
+    }}>
+      <span>
+        Status: 
+        <strong style={{ color: '#22543d', marginLeft: '0.3rem' }}>
+          {playlists.filter(p => p.metadata_generated_at && p.ai_metadata && !p.ai_metadata.is_fallback).length}
+        </strong> Enhanced • 
+        <strong style={{ color: '#744210', margin: '0 0.3rem' }}>
+          {playlists.filter(p => p.metadata_generated_at && p.ai_metadata && p.ai_metadata.is_fallback).length}
+        </strong> Basic • 
+        <strong style={{ color: '#c53030', marginLeft: '0.3rem' }}>
+          {playlists.filter(p => !p.metadata_generated_at).length}
+        </strong> No AI
+      </span>
+    </div>
+  </div>
+)}
 
           {/* Active Filters Info */}
           <div style={{
