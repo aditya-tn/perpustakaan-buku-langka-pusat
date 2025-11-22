@@ -138,43 +138,49 @@ export const aiMatchingService = {
     return topPlaylists;
   },
 
-  // 🆕 REPLACED: Enhanced Metadata Matching
+// 🆕 IMPROVED: Enhanced Metadata Matching dengan comprehensive error handling
 calculateEnhancedMetadataMatch(book, playlist) {
-  console.log(`🔍 ULTRA ENHANCED Matching: "${book.judul}" vs "${playlist.name}"`);
-  
-  const bookTitle = book.judul.toLowerCase();
-  const bookDesc = (book.deskripsi_buku || '').toLowerCase();
-  const playlistName = playlist.name.toLowerCase();
-  const playlistDesc = (playlist.description || '').toLowerCase();
-  
-  let score = 0;
+  try {
+    console.log(`🔍 ULTRA ENHANCED Matching: "${book.judul}" vs "${playlist.name}"`);
+    
+    const bookTitle = book.judul.toLowerCase();
+    const bookDesc = (book.deskripsi_buku || '').toLowerCase();
+    const playlistName = playlist.name.toLowerCase();
+    const playlistDesc = (playlist.description || '').toLowerCase();
+    
+    let score = 0;
 
-  // 1. 🎯 CRITICAL KEYWORD MATCHING (30%) - PALING PENTING
-  const criticalScore = this.calculateCriticalKeywordMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-  score += criticalScore * 0.3;
-  console.log(`🔥 Critical Keyword Score: ${criticalScore} → Total: ${score}`);
+    // 1. 🎯 CRITICAL KEYWORD MATCHING (30%) - PALING PENTING
+    const criticalScore = this.calculateCriticalKeywordMatch(bookTitle, bookDesc, playlistName, playlistDesc);
+    score += criticalScore * 0.3;
+    console.log(`🔥 Critical Keyword Score: ${criticalScore} → Total: ${score}`);
 
-  // 2. 🎯 AI METADATA MATCHING (30%) - SANGAT PENTING
-  const aiMetadataScore = this.calculateEnhancedAIMetadataMatch(book, playlist);
-  score += aiMetadataScore * 0.3;
-  console.log(`🤖 AI Metadata Score: ${aiMetadataScore} → Total: ${score}`);
+    // 2. 🎯 AI METADATA MATCHING (30%) - SANGAT PENTING
+    const aiMetadataScore = this.calculateEnhancedAIMetadataMatch(book, playlist);
+    score += aiMetadataScore * 0.3;
+    console.log(`🤖 AI Metadata Score: ${aiMetadataScore} → Total: ${score}`);
 
-  // 3. 🎯 CONTENT THEME MATCHING (25%) - PENTING
-  const themeScore = this.calculateUltraThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-  score += themeScore * 0.25;
-  console.log(`🎭 Ultra Theme Score: ${themeScore} → Total: ${score}`);
+    // 3. 🎯 CONTENT THEME MATCHING (25%) - PENTING
+    const themeScore = this.calculateUltraThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc);
+    score += themeScore * 0.25;
+    console.log(`🎭 Ultra Theme Score: ${themeScore} → Total: ${score}`);
 
-  // 4. 🎯 SMART TEXT MATCHING (15%) - TAMBAHAN
-  const textMatchScore = this.calculateUltraTextMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-  score += textMatchScore * 0.15;
-  console.log(`📖 Ultra Text Match: ${textMatchScore} → Total: ${score}`);
+    // 4. 🎯 SMART TEXT MATCHING (15%) - TAMBAHAN
+    const textMatchScore = this.calculateUltraTextMatch(bookTitle, bookDesc, playlistName, playlistDesc);
+    score += textMatchScore * 0.15;
+    console.log(`📖 Ultra Text Match: ${textMatchScore} → Total: ${score}`);
 
-  const finalScore = Math.min(100, Math.round(score));
-  console.log(`✅ FINAL ULTRA SCORE: ${finalScore} for "${playlist.name}"`);
-  
-  return finalScore;
+    const finalScore = Math.min(100, Math.round(score));
+    console.log(`✅ FINAL ULTRA SCORE: ${finalScore} for "${playlist.name}"`);
+    
+    return finalScore;
+  } catch (error) {
+    console.error(`❌ Error in calculateEnhancedMetadataMatch for "${playlist.name}":`, error);
+    // Return safe fallback score
+    return 30;
+  }
 },
-
+  
 // 🆕 METHOD: Critical Keyword Matching - DETECT KEYWORDS PENTING
 calculateCriticalKeywordMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
   console.log(`\n🔥 ANALYZING CRITICAL KEYWORDS:`);
@@ -1089,4 +1095,5 @@ Hanya JSON.
 
 
 export default aiMatchingService;
+
 
