@@ -94,27 +94,47 @@ export const aiMatchingService = {
   // ===========================================================================
   // 🆕 UPDATED METADATA MATCHING METHODS
   // ===========================================================================
-  async selectTopPlaylistsByPureMetadata(book, playlists, maxCount = 3) {
-    console.log('🔍 Selecting top playlists by PURE METADATA...');
-    
-    const scoredPlaylists = [];
+async selectTopPlaylistsByPureMetadata(book, playlists, maxCount = 3) {
+  console.log('🔍 Selecting top playlists by PURE METADATA...');
+  console.log(`📊 Total playlists to process: ${playlists.length}`);
+  
+  const scoredPlaylists = [];
 
-    for (const playlist of playlists) {
+  for (let i = 0; i < playlists.length; i++) {
+    const playlist = playlists[i];
+    
+    // 🆕 ADD SAFETY CHECK
+    if (!playlist || !playlist.id) {
+      console.log(`⚠️ Skipping invalid playlist at index ${i}`);
+      continue;
+    }
+    
+    console.log(`\n🔄 Processing ${i + 1}/${playlists.length}: "${playlist.name}"`);
+    
+    try {
       const score = this.calculatePureMetadataMatch(book, playlist);
       scoredPlaylists.push({ playlist, score });
+      console.log(`✅ Processed: "${playlist.name}" - Score: ${score}`);
+    } catch (error) {
+      console.error(`❌ Error processing "${playlist.name}":`, error.message);
+      // Continue dengan playlist berikutnya
+      scoredPlaylists.push({ playlist, score: 0 });
     }
+  }
 
-    // Sort dan ambil top N
-    const sorted = scoredPlaylists.sort((a, b) => b.score - a.score);
-    const topPlaylists = sorted.slice(0, maxCount);
+  console.log(`✅ Completed processing ${scoredPlaylists.length}/${playlists.length} playlists`);
 
-    console.log('📊 Pure metadata scores:');
-    topPlaylists.forEach(item => {
-      console.log(` ${item.playlist.name}: ${item.score}`);
-    });
+  // Sort dan ambil top N
+  const sorted = scoredPlaylists.sort((a, b) => b.score - a.score);
+  const topPlaylists = sorted.slice(0, maxCount);
 
-    return topPlaylists;
-  },
+  console.log('📊 Top playlists after sorting:');
+  topPlaylists.forEach((item, index) => {
+    console.log(`   ${index + 1}. "${item.playlist.name}": ${item.score}`);
+  });
+
+  return topPlaylists;
+},
 
 calculatePureMetadataMatch(book, playlist) {
   const bookTitle = book.judul.toLowerCase();
@@ -642,5 +662,6 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
 
