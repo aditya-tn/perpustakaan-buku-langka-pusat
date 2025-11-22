@@ -173,40 +173,41 @@ calculateEnhancedMetadataMatch(book, playlist) {
   return finalScore;
 },
 
-// 🆕 METHOD: Semantic Theme Matching
+// 🆕 IMPROVED SEMANTIC THEME MATCHING dengan better error handling
 calculateSemanticThemeMatch(book, playlist) {
-  console.log(`\n🎯 ANALYZING SEMANTIC THEMES:`);
-  
-  const bookThemes = this.extractSemanticThemes(book);
-  const playlistThemes = this.extractSemanticThemesFromPlaylist(playlist);
-  
-  console.log(`📘 Book Themes: [${bookThemes.join(', ')}]`);
-  console.log(`📗 Playlist Themes: [${playlistThemes.join(', ')}]`);
-  
-  let score = 0;
-  
-  // Calculate theme overlap
-  const overlappingThemes = bookThemes.filter(theme => 
-    playlistThemes.includes(theme)
-  );
-  
-  if (overlappingThemes.length > 0) {
-    score = overlappingThemes.length * 20;
-    console.log(`✅ THEME OVERLAP: [${overlappingThemes.join(', ')}] → +${score}`);
+  try {
+    console.log(`\n🎯 ANALYZING SEMANTIC THEMES:`);
+    
+    const bookThemes = this.extractSemanticThemes(book);
+    const playlistThemes = this.extractSemanticThemesFromPlaylist(playlist);
+    
+    console.log(`📘 Book Themes: [${bookThemes.join(', ')}]`);
+    console.log(`📗 Playlist Themes: [${playlistThemes.join(', ')}]`);
+    
+    let score = 0;
+    
+    // Calculate theme overlap
+    const overlappingThemes = bookThemes.filter(theme => 
+      playlistThemes.includes(theme)
+    );
+    
+    if (overlappingThemes.length > 0) {
+      score = overlappingThemes.length * 25;
+      console.log(`✅ THEME OVERLAP: [${overlappingThemes.join(', ')}] → +${score}`);
+    }
+    
+    // Bonus untuk pendidikan theme (karena buku tentang onderwijs)
+    if (bookThemes.includes('pendidikan') && playlistThemes.includes('sejarah')) {
+      score += 20;
+      console.log(`📚 PENDIDIKAN-SEJARAH BONUS: +20`);
+    }
+    
+    return Math.min(80, score);
+    
+  } catch (error) {
+    console.error(`❌ Error in calculateSemanticThemeMatch:`, error);
+    return 0; // Safe fallback
   }
-  
-  // Bonus for strong theme matches
-  const strongThemes = ['sejarah', 'kolonial', 'budaya', 'politik', 'sosial'];
-  const strongMatches = overlappingThemes.filter(theme => 
-    strongThemes.includes(theme)
-  ).length;
-  
-  if (strongMatches > 0) {
-    score += strongMatches * 15;
-    console.log(`💪 STRONG THEME MATCHES: ${strongMatches} → +${strongMatches * 15}`);
-  }
-  
-  return Math.min(80, score);
 },
 
 // 🆕 METHOD: Extract Semantic Themes dari Buku
@@ -214,18 +215,15 @@ extractSemanticThemes(book) {
   const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
   const themes = [];
   
-  // Dynamic theme detection berdasarkan konten
   const themePatterns = {
-    'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman', 'era', 'abad', 'tahun'],
-    'kolonial': ['kolonial', 'belanda', 'dutch', 'penjajahan', 'hindia belanda', 'voc', 'colonial'],
-    'politik': ['politik', 'pemerintahan', 'negara', 'kekuasaan', 'government', 'administration'],
-    'sosial': ['sosial', 'masyarakat', 'community', 'masyarakatakat', 'struktur sosial'],
-    'budaya': ['budaya', 'cultural', 'tradisi', 'adat', 'kesenian', 'kebudayaan'],
-    'ekonomi': ['ekonomi', 'economic', 'perdagangan', 'commerce', 'industri'],
-    'militer': ['militer', 'tentara', 'perang', 'pertempuran', 'military'],
-    'geografi': ['geografi', 'wilayah', 'daerah', 'region', 'geographic'],
-    'antropologi': ['antropologi', 'antropology', 'suku', 'etnis', 'ethnic'],
-    'hukum': ['hukum', 'law', 'peraturan', 'legal', 'undang-undang']
+    'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman', 'tijd', 'geschiedenis'],
+    'pendidikan': ['onderwijs', 'pendidikan', 'education', 'school', 'sekolah', 'pelajaran'],
+    'kolonial': ['kolonial', 'belanda', 'dutch', 'nederlands', 'colonial', 'hindia'],
+    'budaya': ['budaya', 'cultural', 'tradisi', 'adat', 'custom', 'gebruik'],
+    'sosial': ['sosial', 'masyarakat', 'community', 'maatschappij', 'samenleving'],
+    'politik': ['politik', 'pemerintahan', 'government', 'bestuur', 'beleid'],
+    'etnografi': ['etnografi', 'etnology', 'volk', 'volken', 'suku', 'etnis'],
+    'geografi': ['geografi', 'wilayah', 'daerah', 'region', 'streek', 'land']
   };
   
   for (const [theme, keywords] of Object.entries(themePatterns)) {
@@ -234,11 +232,12 @@ extractSemanticThemes(book) {
     }
   }
   
-  // Fallback: jika tidak ada tema terdeteksi, coba infer dari judul
+  // Fallback: infer from title jika tidak ada tema terdeteksi
   if (themes.length === 0) {
     themes.push(...this.inferThemesFromTitle(book.judul));
   }
   
+  console.log(`   🎯 Extracted themes: [${themes.join(', ')}]`);
   return themes.length > 0 ? themes : ['umum'];
 },
 
@@ -249,14 +248,13 @@ extractSemanticThemesFromPlaylist(playlist) {
   
   const themePatterns = {
     'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman'],
-    'kolonial': ['kolonial', 'belanda', 'penjajahan'],
+    'budaya': ['budaya', 'cultural', 'tradisi', 'adat'],
     'politik': ['politik', 'pemerintahan', 'negara'],
     'sosial': ['sosial', 'masyarakat', 'community'],
-    'budaya': ['budaya', 'cultural', 'tradisi', 'adat'],
-    'ekonomi': ['ekonomi', 'economic', 'perdagangan'],
     'militer': ['militer', 'tentara', 'perang', 'military'],
     'geografi': ['geografi', 'wilayah', 'daerah'],
-    'biografi': ['biografi', 'tokoh', 'pahlawan']
+    'biografi': ['biografi', 'tokoh', 'pahlawan'],
+    'kolonial': ['kolonial', 'belanda', 'penjajahan']
   };
   
   for (const [theme, keywords] of Object.entries(themePatterns)) {
@@ -267,40 +265,95 @@ extractSemanticThemesFromPlaylist(playlist) {
   
   return themes.length > 0 ? themes : ['umum'];
 },
-
-// 🆕 COMPREHENSIVE HISTORICAL TO MODERN MAPPING
+  
+// 🆕 IMPROVED ERROR HANDLING di calculateGeographicMatch
 calculateGeographicMatch(book, playlist) {
-  console.log(`\n🗺️ ANALYZING GEOGRAPHIC MATCH:`);
-  
-  const bookLocations = this.extractGeographicLocations(book);
-  const playlistLocations = this.extractGeographicLocationsFromPlaylist(playlist);
-  
-  console.log(`📘 Book Locations: [${bookLocations.join(', ')}]`);
-  console.log(`📗 Playlist Locations: [${playlistLocations.join(', ')}]`);
-  
-  let score = 0;
-  
-  // 1. Exact location matches
-  const exactMatches = bookLocations.filter(location =>
-    playlistLocations.includes(location)
-  );
-  
-  if (exactMatches.length > 0) {
-    score = exactMatches.length * 25;
-    console.log(`📍 EXACT LOCATION MATCHES: [${exactMatches.join(', ')}] → +${score}`);
+  try {
+    console.log(`\n🗺️ ANALYZING GEOGRAPHIC MATCH:`);
+    
+    const bookLocations = this.extractGeographicLocations(book);
+    const playlistLocations = this.extractGeographicLocationsFromPlaylist(playlist);
+    
+    console.log(`📘 Book Locations: [${bookLocations.join(', ')}]`);
+    console.log(`📗 Playlist Locations: [${playlistLocations.join(', ')}]`);
+    
+    let score = 0;
+
+    // 🎯 1. EXACT REGIONAL MATCHES - PALING PENTING
+    const exactMatches = bookLocations.filter(location =>
+      playlistLocations.includes(location)
+    );
+    
+    if (exactMatches.length > 0) {
+      score = exactMatches.length * 40;
+      console.log(`🎯 CRITICAL EXACT MATCHES: [${exactMatches.join(', ')}] → +${score}`);
+      
+      // Bonus untuk exact regional matches
+      const regionalKeywords = ['sumatra barat', 'aceh', 'jawa barat'];
+      const regionalExactMatches = exactMatches.filter(match => 
+        regionalKeywords.some(keyword => match.includes(keyword))
+      );
+      
+      if (regionalExactMatches.length > 0) {
+        score += 25;
+        console.log(`🏆 REGIONAL EXACT MATCH BONUS: +25`);
+      }
+    }
+    
+    // 🗺️ 2. HISTORICAL TO MODERN MAPPING
+    const historicalMatches = this.calculateHistoricalToModernMapping(bookLocations, playlistLocations);
+    score += historicalMatches;
+    
+    // 🏞️ 3. REGIONAL HIERARCHY
+    const regionalMatches = this.calculateRegionalHierarchy(bookLocations, playlistLocations);
+    score += regionalMatches;
+    
+    return Math.min(100, score);
+    
+  } catch (error) {
+    console.error(`❌ Error in calculateGeographicMatch:`, error);
+    return 0; // Safe fallback
   }
-  
-  // 2. Historical to modern mapping
-  const historicalMatches = this.calculateHistoricalToModernMapping(bookLocations, playlistLocations);
-  score += historicalMatches;
-  
-  // 3. Regional hierarchy matches
-  const regionalMatches = this.calculateRegionalHierarchy(bookLocations, playlistLocations);
-  score += regionalMatches;
-  
-  return Math.min(80, score);
 },
 
+// 🆕 ADD MISSING METHOD: Extract Geographic Locations from Playlist
+extractGeographicLocationsFromPlaylist(playlist) {
+  const text = `${playlist.name} ${playlist.description || ''}`.toLowerCase();
+  const locations = [];
+  
+  const locationPatterns = {
+    'indonesia': ['indonesia', 'nusantara'],
+    'sumatra': ['sumatra', 'sumatera'],
+    'jawa': ['jawa'],
+    'bali': ['bali'],
+    'sulawesi': ['sulawesi'],
+    'kalimantan': ['kalimantan'],
+    'papua': ['papua'],
+    'sumatra barat': ['sumatra barat', 'sumatera barat', 'west sumatra'],
+    'aceh': ['aceh'],
+    'sumatra utara': ['sumatra utara', 'north sumatra'],
+    'sumatra selatan': ['sumatra selatan', 'south sumatra'],
+    'riau': ['riau'],
+    'jambi': ['jambi'],
+    'bengkulu': ['bengkulu'],
+    'lampung': ['lampung'],
+    'jawa barat': ['jawa barat', 'west java'],
+    'jawa tengah': ['jawa tengah', 'central java'],
+    'jawa timur': ['jawa timur', 'east java'],
+    'malaysia': ['malaysia'],
+    'singapore': ['singapore', 'singapura'],
+    'belanda': ['belanda', 'netherlands']
+  };
+  
+  for (const [location, patterns] of Object.entries(locationPatterns)) {
+    if (patterns.some(pattern => text.includes(pattern))) {
+      locations.push(location);
+    }
+  }
+  
+  return locations;
+},
+  
 // 🆕 ENHANCED HISTORICAL MAPPING dengan Residensi
 calculateHistoricalToModernMapping(bookLocations, playlistLocations) {
   let score = 0;
@@ -678,29 +731,30 @@ calculateContextualMatch(book, playlist) {
   return Math.min(25, score);
 },
 
-// 🆕 METHOD: Infer Themes from Title (fallback)
+// 🆕 IMPROVED THEME INFERENCE FROM TITLE
 inferThemesFromTitle(title) {
   const titleLower = title.toLowerCase();
   const inferredThemes = [];
   
-  if (titleLower.includes('sejarah') || titleLower.includes('history')) {
-    inferredThemes.push('sejarah');
+  // Dutch language patterns
+  if (titleLower.includes('onderwijs') || titleLower.includes('opvoeding')) {
+    inferredThemes.push('pendidikan');
   }
   
-  if (titleLower.includes('politik') || titleLower.includes('political')) {
-    inferredThemes.push('politik');
-  }
-  
-  if (titleLower.includes('sosial') || titleLower.includes('social')) {
+  if (titleLower.includes('inlandsch') || titleLower.includes('binnenlands')) {
     inferredThemes.push('sosial');
   }
   
-  if (titleLower.includes('budaya') || titleLower.includes('culture')) {
-    inferredThemes.push('budaya');
+  if (titleLower.includes('volk') || titleLower.includes('stam')) {
+    inferredThemes.push('etnografi');
   }
   
-  if (titleLower.includes('ekonomi') || titleLower.includes('economy')) {
-    inferredThemes.push('ekonomi');
+  if (titleLower.includes('bovenlanden') || titleLower.includes('benedenlanden')) {
+    inferredThemes.push('geografi');
+  }
+  
+  if (titleLower.includes('geschiedenis') || titleLower.includes('historie')) {
+    inferredThemes.push('sejarah');
   }
   
   return inferredThemes;
@@ -1268,6 +1322,7 @@ Hanya JSON.
 
 
 export default aiMatchingService;
+
 
 
 
