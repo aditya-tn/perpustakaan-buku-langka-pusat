@@ -382,33 +382,63 @@ Hanya kembalikan JSON array.
     `.trim();
   },
 
-  parseFinalAIResponse(aiResponse, topPlaylists) {
-    try {
-      const cleanResponse = aiResponse.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(cleanResponse);
-
-      return parsed.map((item, index) => {
-        const playlist = topPlaylists[index]?.playlist || topPlaylists[0]?.playlist;
-        
-        return {
-          playlistId: playlist.id,
-          playlistName: playlist.name,
-          matchScore: this.validateScore(item.matchScore),
-          confidence: 0.9,
-          reasoning: item.reason || 'Kecocokan berdasarkan analisis AI',
-          thematicAnalysis: item.thematicAnalysis || 'Analisis tematik oleh AI',
-          improvementSuggestions: [],
-          isFallback: false,
-          aiAnalyzed: true
-        };
-      }).filter(Boolean);
-
-    } catch (error) {
-      console.error('❌ Failed to parse AI final analysis:', error);
-      throw new Error('AI analysis parsing failed');
+parseFinalAIResponse(aiResponse, topPlaylists) {
+  try {
+    console.log('🔄 Parsing AI final response...');
+    
+    if (!aiResponse || aiResponse.length < 10) {
+      throw new Error('AI response too short');
     }
-  },
 
+    let cleanResponse = aiResponse.replace(/```json|```/g, '').trim();
+    
+    // Cari JSON array
+    const jsonMatch = cleanResponse.match(/\[\s*{[\s\S]*?}\s*\]/);
+    if (jsonMatch) {
+      cleanResponse = jsonMatch[0];
+    }
+
+    console.log('🧹 Cleaned response:', cleanResponse.substring(0, 200) + '...');
+
+    const parsed = JSON.parse(cleanResponse);
+
+    if (!Array.isArray(parsed)) {
+      throw new Error('AI response is not an array');
+    }
+
+    return parsed.map((item, index) => {
+      const playlist = topPlaylists[index]?.playlist || topPlaylists[0]?.playlist;
+      
+      if (!playlist) {
+        console.warn('⚠️ No playlist found for index:', index);
+        return null;
+      }
+
+      return {
+        playlistId: playlist.id,
+        playlistName: playlist.name,
+        matchScore: this.validateScore(item.matchScore),
+        confidence: 0.9,
+        reasoning: item.reason || 'Kecocokan berdasarkan analisis AI',
+        thematicAnalysis: item.thematicAnalysis || 'Analisis tematik oleh AI',
+        improvementSuggestions: [],
+        isFallback: false,
+        aiAnalyzed: true
+      };
+    }).filter(Boolean);
+
+  } catch (error) {
+    console.error('❌ Failed to parse AI final analysis:', error.message);
+    console.log('📝 Raw AI response:', aiResponse?.substring(0, 300));
+    
+    // Return metadata fallback instead of throwing
+    return this.getMetadataBasedResults(
+      { judul: 'Unknown' }, // dummy book
+      topPlaylists
+    );
+  }
+},
+  
   // ===========================================================================
   // FALLBACK AND UTILITY METHODS
   // ===========================================================================
@@ -612,4 +642,5 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
