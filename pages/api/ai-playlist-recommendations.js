@@ -1,5 +1,4 @@
-// pages/api/ai-playlist-recommendations.js - ADD EMERGENCY FALLBACK
-
+// pages/api/ai-playlist-recommendations.js - PASTIKAN FILE INI ADA
 import { aiMatchingService } from '../../services/aiMatchingService';
 import { playlistService } from '../../services/playlistService';
 
@@ -11,25 +10,27 @@ export default async function handler(req, res) {
   try {
     const { bookId, playlistIds } = req.body;
 
+    console.log('🚨 API CALLED: ai-playlist-recommendations');
+    console.log('📦 Request data:', { bookId, playlistCount: playlistIds?.length });
+
     if (!bookId || !playlistIds || !Array.isArray(playlistIds)) {
       return res.status(400).json({
         error: 'bookId and playlistIds array are required'
       });
     }
 
-    console.log('🤖 AI Recommendations Request:', {
-      bookId,
-      playlistCount: playlistIds.length
-    });
-
-    // STEP 1: Dapatkan data buku yang aktual
+    // STEP 1: Dapatkan data buku
     let bookData = await getBookData(bookId);
     if (!bookData) {
+      console.log('❌ Book not found:', bookId);
       return res.status(404).json({ error: 'Book not found' });
     }
 
+    console.log('✅ Book found:', bookData.judul);
+
     // STEP 2: Ensure AI description
     bookData = await ensureAIDescription(bookData);
+    console.log('✅ Book description ready');
 
     // STEP 3: Dapatkan SEMUA data playlist
     const playlists = [];
@@ -44,29 +45,28 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log('📚 Data loaded for recommendations:', {
-      bookTitle: bookData.judul,
-      hasAIDescription: !!bookData.deskripsi_buku,
-      playlistsCount: playlists.length
-    });
+    console.log('✅ Playlists loaded:', playlists.length);
+    console.log('📋 Playlist names:', playlists.map(p => p.name));
 
+    // STEP 4: Panggai AI Matching Service
+    console.log('🎯 Calling aiMatchingService.getPlaylistRecommendations...');
     let recommendations;
     
     try {
-      // 🆕 TRY AI ANALYSIS DENGAN WRAPPER
       recommendations = await aiMatchingService.getPlaylistRecommendations({
         book: bookData,
         playlists: playlists
       });
+      console.log('✅ AI recommendations received:', recommendations?.length);
     } catch (aiError) {
-      console.error('❌ AI analysis completely failed, using emergency fallback:', aiError);
+      console.error('❌ AI analysis failed:', aiError);
       
-      // 🆕 EMERGENCY FALLBACK - rule based saja
+      // Emergency fallback
       const availablePlaylists = playlists.slice(0, 3);
       recommendations = availablePlaylists.map((playlist, index) => ({
         playlistId: playlist.id,
         playlistName: playlist.name,
-        matchScore: 60 + (index * 10), // 60, 70, 80
+        matchScore: 60 + (index * 10),
         confidence: 0.4,
         reasoning: 'Analisis darurat - sistem AI sedang mengalami masalah',
         improvementSuggestions: ['Coba lagi nanti atau gunakan mode expert'],
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('❌ AI Recommendations API Error:', error);
+    console.error('💥 API Error:', error);
     res.status(500).json({
       error: 'Failed to generate recommendations',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -95,7 +95,7 @@ export default async function handler(req, res) {
   }
 }
 
-// REUSE FUNCTIONS DARI ai-match-analysis.js
+// REUSE FUNCTIONS
 async function ensureAIDescription(book) {
   const hasAIDescription = book.deskripsi_buku && 
                           book.deskripsi_source === 'ai-enhanced';
@@ -144,9 +144,13 @@ async function getBookData(bookId) {
       .eq('id', bookId)
       .single();
 
-    if (error) return null;
+    if (error) {
+      console.error('❌ Supabase error:', error);
+      return null;
+    }
     return book;
   } catch (error) {
+    console.error('❌ Error in getBookData:', error);
     return null;
   }
 }
