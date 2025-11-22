@@ -33,7 +33,6 @@ export const aiMatchingService = {
       return this.getFallbackAnalysis(book, playlist);
     }
   },
-  };
 
   // 🆕 IMPROVED: Playlist recommendations dengan alur yang benar
   async getPlaylistRecommendations({ book, playlists = [] }) {
@@ -1156,7 +1155,8 @@ Hanya JSON.
       bookId: book.id,
       isFallback: true
     };
-  },
+  }
+  };
 
   calculateKeywordMatch(book, playlist) {
     const bookText = `${book.judul} ${book.pengarang} ${book.deskripsi_fisik || ''}`.toLowerCase();
@@ -1284,4 +1284,3 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
-
