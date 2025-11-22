@@ -138,197 +138,128 @@ export const aiMatchingService = {
     return topPlaylists;
   },
 
-// 🆕 IMPROVED: Enhanced Metadata Matching dengan comprehensive error handling
+// 🆕 ENHANCED SEMANTIC MATCHING SYSTEM
 calculateEnhancedMetadataMatch(book, playlist) {
-  try {
-    console.log(`🔍 ULTRA ENHANCED Matching: "${book.judul}" vs "${playlist.name}"`);
-    
-    const bookTitle = book.judul.toLowerCase();
-    const bookDesc = (book.deskripsi_buku || '').toLowerCase();
-    const playlistName = playlist.name.toLowerCase();
-    const playlistDesc = (playlist.description || '').toLowerCase();
-    
-    let score = 0;
+  console.log(`🔍 SEMANTIC Matching: "${book.judul}" vs "${playlist.name}"`);
+  
+  const bookText = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
+  const playlistText = `${playlist.name} ${playlist.description || ''}`.toLowerCase();
+  
+  let score = 0;
 
-    // 1. 🎯 CRITICAL KEYWORD MATCHING (30%) - PALING PENTING
-    const criticalScore = this.calculateCriticalKeywordMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-    score += criticalScore * 0.3;
-    console.log(`🔥 Critical Keyword Score: ${criticalScore} → Total: ${score}`);
+  // 1. 🎯 SEMANTIC THEME MATCHING (40%) - PALING PENTING
+  const semanticScore = this.calculateSemanticThemeMatch(book, playlist);
+  score += semanticScore * 0.4;
+  console.log(`🎯 Semantic Theme Score: ${semanticScore} → Total: ${score}`);
 
-    // 2. 🎯 AI METADATA MATCHING (30%) - SANGAT PENTING
-    const aiMetadataScore = this.calculateEnhancedAIMetadataMatch(book, playlist);
-    score += aiMetadataScore * 0.3;
-    console.log(`🤖 AI Metadata Score: ${aiMetadataScore} → Total: ${score}`);
+  // 2. 🎯 GEOGRAPHIC MATCHING (30%) - SANGAT PENTING
+  const geographicScore = this.calculateGeographicMatch(book, playlist);
+  score += geographicScore * 0.3;
+  console.log(`🗺️ Geographic Score: ${geographicScore} → Total: ${score}`);
 
-    // 3. 🎯 CONTENT THEME MATCHING (25%) - PENTING
-    const themeScore = this.calculateUltraThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-    score += themeScore * 0.25;
-    console.log(`🎭 Ultra Theme Score: ${themeScore} → Total: ${score}`);
+  // 3. 🎯 AI METADATA MATCHING (20%) - LEVERAGE AI METADATA
+  const aiMetadataScore = this.calculateAIMetadataSemanticMatch(book, playlist);
+  score += aiMetadataScore * 0.2;
+  console.log(`🤖 AI Metadata Score: ${aiMetadataScore} → Total: ${score}`);
 
-    // 4. 🎯 SMART TEXT MATCHING (15%) - TAMBAHAN
-    const textMatchScore = this.calculateUltraTextMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-    score += textMatchScore * 0.15;
-    console.log(`📖 Ultra Text Match: ${textMatchScore} → Total: ${score}`);
+  // 4. 🎯 CONTEXTUAL MATCHING (10%) - TAMBAHAN
+  const contextualScore = this.calculateContextualMatch(book, playlist);
+  score += contextualScore * 0.1;
+  console.log(`📚 Contextual Score: ${contextualScore} → Total: ${score}`);
 
-    const finalScore = Math.min(100, Math.round(score));
-    console.log(`✅ FINAL ULTRA SCORE: ${finalScore} for "${playlist.name}"`);
-    
-    return finalScore;
-  } catch (error) {
-    console.error(`❌ Error in calculateEnhancedMetadataMatch for "${playlist.name}":`, error);
-    // Return safe fallback score
-    return 30;
-  }
+  const finalScore = Math.min(100, Math.round(score));
+  console.log(`✅ FINAL SEMANTIC SCORE: ${finalScore} for "${playlist.name}"`);
+  
+  return finalScore;
 },
+
+// 🆕 METHOD: Semantic Theme Matching
+calculateSemanticThemeMatch(book, playlist) {
+  console.log(`\n🎯 ANALYZING SEMANTIC THEMES:`);
   
-// 🆕 METHOD: Critical Keyword Matching - DETECT KEYWORDS PENTING
-calculateCriticalKeywordMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
-  console.log(`\n🔥 ANALYZING CRITICAL KEYWORDS:`);
+  const bookThemes = this.extractSemanticThemes(book);
+  const playlistThemes = this.extractSemanticThemesFromPlaylist(playlist);
   
-  const bookText = `${bookTitle} ${bookDesc}`;
-  const playlistText = `${playlistName} ${playlistDesc}`;
+  console.log(`📘 Book Themes: [${bookThemes.join(', ')}]`);
+  console.log(`📗 Playlist Themes: [${playlistThemes.join(', ')}]`);
   
   let score = 0;
   
-  // 🎯 CRITICAL KEYWORDS dengan bobot tinggi
-  const criticalKeywords = {
-    // Kolonial & Sejarah Indonesia
-    'hindia belanda': 40,
-    'kolonial': 35,
-    'penjajahan': 30,
-    'belanda': 25,
-    'sejarah indonesia': 40,
-    'nusantara': 20,
-    'indonesia': 15,
-    
-    // Periode & Era
-    'runtuhnya': 25,
-    'dekolonisasi': 30,
-    'disintegrasi': 25,
-    'kemerdekaan': 20,
-    
-    // Topik Utama
-    'politik': 20,
-    'sosial': 15,
-    'ekonomi': 15,
-    'militer': 20,
-    'pemerintahan': 18,
-    
-    // Regional (jika ada)
-    'jawa': 15,
-    'sumatra': 15,
-    'sulawesi': 15,
-    'kalimantan': 15,
-    'bali': 15,
-    'aceh': 15
-  };
+  // Calculate theme overlap
+  const overlappingThemes = bookThemes.filter(theme => 
+    playlistThemes.includes(theme)
+  );
   
-  for (const [keyword, weight] of Object.entries(criticalKeywords)) {
-    const bookHasKeyword = bookText.includes(keyword);
-    const playlistHasKeyword = playlistText.includes(keyword);
-    
-    if (bookHasKeyword && playlistHasKeyword) {
-      score += weight;
-      console.log(`💥 CRITICAL MATCH: "${keyword}" → +${weight}`);
-    } else if (bookHasKeyword) {
-      console.log(`⚠️ Book has "${keyword}" but playlist doesn't`);
-    } else if (playlistHasKeyword) {
-      console.log(`ℹ️ Playlist has "${keyword}" but book doesn't`);
-    }
+  if (overlappingThemes.length > 0) {
+    score = overlappingThemes.length * 20;
+    console.log(`✅ THEME OVERLAP: [${overlappingThemes.join(', ')}] → +${score}`);
   }
   
-  // Bonus untuk exact title match
-  if (playlistText.includes(bookTitle.toLowerCase())) {
-    score += 30;
-    console.log(`🏆 EXACT TITLE MATCH BONUS: +30`);
-  }
+  // Bonus for strong theme matches
+  const strongThemes = ['sejarah', 'kolonial', 'budaya', 'politik', 'sosial'];
+  const strongMatches = overlappingThemes.filter(theme => 
+    strongThemes.includes(theme)
+  ).length;
   
-  return Math.min(100, score);
-},
-
-// 🆕 METHOD: Enhanced AI Metadata Matching
-calculateEnhancedAIMetadataMatch(book, playlist) {
-  console.log(`\n🤖 ENHANCED AI METADATA ANALYSIS:`);
-  
-  let score = 0;
-  
-  if (playlist.ai_metadata) {
-    console.log(`📋 AI Metadata available for: "${playlist.name}"`);
-    const metadata = playlist.ai_metadata;
-    
-    // Extract ULTRA book themes
-    const bookThemes = this.extractUltraBookThemes(book);
-    const bookKeywords = this.extractEnhancedBookKeywords(book);
-    
-    console.log(`🏷️ ULTRA Book Themes: [${bookThemes.join(', ')}]`);
-    console.log(`🔑 Enhanced Book Keywords: [${bookKeywords.join(', ')}]`);
-    console.log(`🎯 Playlist AI Themes: [${metadata.key_themes?.join(', ') || 'none'}]`);
-    
-    // 🎯 THEME MATCHING dengan bobot lebih tinggi
-    if (metadata.key_themes && metadata.key_themes.length > 0) {
-      const themeMatches = bookThemes.filter(theme => 
-        metadata.key_themes.includes(theme)
-      ).length;
-      
-      if (themeMatches > 0) {
-        score += themeMatches * 20; // Increased from 15
-        console.log(`✅ ENHANCED AI THEME MATCHES: ${themeMatches} → +${themeMatches * 20}`);
-      }
-      
-      // Bonus untuk multiple strong matches
-      if (themeMatches >= 2) {
-        score += 15;
-        console.log(`🌟 MULTIPLE THEME BONUS: +15`);
-      }
-    }
-    
-    // 🎯 HISTORICAL CONTEXT dengan matching lebih baik
-    if (metadata.historical_context) {
-      const contextMatch = this.evaluateEnhancedHistoricalContext(book, metadata.historical_context);
-      score += contextMatch;
-      console.log(`🏛️ ENHANCED Historical Context: +${contextMatch}`);
-    }
-    
-    // 🎯 CONTENT TYPE matching improved
-    if (metadata.content_type && book.kategori) {
-      const typeMatch = this.evaluateEnhancedContentTypeMatch(book.kategori, metadata.content_type);
-      score += typeMatch;
-      console.log(`📚 ENHANCED Content Type: +${typeMatch}`);
-    }
-    
-    // 🎯 BONUS untuk established playlists dengan AI metadata
-    if (playlist.books && playlist.books.length > 3 && !metadata.is_fallback) {
-      score += 10;
-      console.log(`⭐ ESTABLISHED AI PLAYLIST BONUS: +10`);
-    }
-    
-  } else {
-    console.log(`⚠️ No AI metadata, using enhanced basic matching`);
-    score = this.calculateEnhancedBasicMatch(book, playlist);
+  if (strongMatches > 0) {
+    score += strongMatches * 15;
+    console.log(`💪 STRONG THEME MATCHES: ${strongMatches} → +${strongMatches * 15}`);
   }
   
   return Math.min(80, score);
 },
 
-// 🆕 METHOD: Extract ULTRA Book Themes
-extractUltraBookThemes(book) {
-  const text = `${book.judul} ${book.deskripsi_buku || ''} ${book.kategori || ''}`.toLowerCase();
+// 🆕 METHOD: Extract Semantic Themes dari Buku
+extractSemanticThemes(book) {
+  const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
   const themes = [];
   
-  const ultraThemeKeywords = {
-    'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman', 'era', 'period', 'tahun', 'abad', 'runtuhnya'],
-    'kolonial': ['kolonial', 'belanda', 'dutch', 'penjajahan', 'colonial', 'voc', 'hindia belanda', 'hindia'],
-    'revolusi': ['revolusi', 'kemerdekaan', 'perang', 'pertempuran', 'rebellion', 'independence', 'dekolonisasi'],
-    'politik': ['politik', 'pemerintah', 'negara', 'kekuasaan', 'policy', 'government', 'administration', 'disintegrasi'],
-    'militer': ['militer', 'tentara', 'perang', 'pertempuran', 'military', 'army', 'navy', 'air force', 'konflik'],
-    'sosial': ['sosial', 'masyarakat', 'community', 'social', 'cultural', 'budaya', 'faktor'],
-    'ekonomi': ['ekonomi', 'economic', 'trade', 'commerce', 'industry', 'business', 'finance', 'faktor'],
-    'budaya': ['budaya', 'cultural', 'tradition', 'custom', 'adat', 'kesenian', 'art'],
-    'biografi': ['biografi', 'tokoh', 'pahlawan', 'presiden', 'pemimpin', 'onghokham'],
-    'indonesia': ['indonesia', 'nusantara', 'nasional', 'bangsa', 'nation']
+  // Dynamic theme detection berdasarkan konten
+  const themePatterns = {
+    'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman', 'era', 'abad', 'tahun'],
+    'kolonial': ['kolonial', 'belanda', 'dutch', 'penjajahan', 'hindia belanda', 'voc', 'colonial'],
+    'politik': ['politik', 'pemerintahan', 'negara', 'kekuasaan', 'government', 'administration'],
+    'sosial': ['sosial', 'masyarakat', 'community', 'masyarakatakat', 'struktur sosial'],
+    'budaya': ['budaya', 'cultural', 'tradisi', 'adat', 'kesenian', 'kebudayaan'],
+    'ekonomi': ['ekonomi', 'economic', 'perdagangan', 'commerce', 'industri'],
+    'militer': ['militer', 'tentara', 'perang', 'pertempuran', 'military'],
+    'geografi': ['geografi', 'wilayah', 'daerah', 'region', 'geographic'],
+    'antropologi': ['antropologi', 'antropology', 'suku', 'etnis', 'ethnic'],
+    'hukum': ['hukum', 'law', 'peraturan', 'legal', 'undang-undang']
   };
   
-  for (const [theme, keywords] of Object.entries(ultraThemeKeywords)) {
+  for (const [theme, keywords] of Object.entries(themePatterns)) {
+    if (keywords.some(keyword => text.includes(keyword))) {
+      themes.push(theme);
+    }
+  }
+  
+  // Fallback: jika tidak ada tema terdeteksi, coba infer dari judul
+  if (themes.length === 0) {
+    themes.push(...this.inferThemesFromTitle(book.judul));
+  }
+  
+  return themes.length > 0 ? themes : ['umum'];
+},
+
+// 🆕 METHOD: Extract Semantic Themes dari Playlist
+extractSemanticThemesFromPlaylist(playlist) {
+  const text = `${playlist.name} ${playlist.description || ''}`.toLowerCase();
+  const themes = [];
+  
+  const themePatterns = {
+    'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman'],
+    'kolonial': ['kolonial', 'belanda', 'penjajahan'],
+    'politik': ['politik', 'pemerintahan', 'negara'],
+    'sosial': ['sosial', 'masyarakat', 'community'],
+    'budaya': ['budaya', 'cultural', 'tradisi', 'adat'],
+    'ekonomi': ['ekonomi', 'economic', 'perdagangan'],
+    'militer': ['militer', 'tentara', 'perang', 'military'],
+    'geografi': ['geografi', 'wilayah', 'daerah'],
+    'biografi': ['biografi', 'tokoh', 'pahlawan']
+  };
+  
+  for (const [theme, keywords] of Object.entries(themePatterns)) {
     if (keywords.some(keyword => text.includes(keyword))) {
       themes.push(theme);
     }
@@ -337,202 +268,389 @@ extractUltraBookThemes(book) {
   return themes.length > 0 ? themes : ['umum'];
 },
 
-// 🆕 ADD MISSING METHOD: isCommonWord
-isCommonWord(word) {
-  const commonWords = [
-    'yang', 'dengan', 'dalam', 'untuk', 'pada', 'oleh', 'dari', 'sebagai', 
-    'adalah', 'ini', 'itu', 'dan', 'atau', 'oleh', 'seorang', 'karya', 'dari',
-    'di', 'ke', 'pada', 'untuk', 'dengan', 'oleh', 'sebagai', 'ada', 'tidak',
-    'akan', 'telah', 'dapat', 'bisa', 'harus', 'perlu', 'bukan', 'saja',
-    'juga', 'bahwa', 'namun', 'tetapi', 'karena', 'jika', 'apabila', 'sehingga',
-    'agar', 'supaya', 'meskipun', 'walaupun', 'sementara', 'ketika', 'setelah',
-    'sebelum', 'selama', 'hingga', 'sampai', 'melalui', 'terhadap', 'mengenai',
-    'tentang', 'antara', 'dalam', 'atas', 'bawah', 'depan', 'belakang', 'samping',
-    'dalam', 'luar', 'atas', 'bawah', 'kanan', 'kiri', 'sini', 'situ', 'sana',
-    'ini', 'itu', 'sini', 'situ', 'sana', 'kami', 'kita', 'anda', 'dia', 'mereka',
-    'saya', 'aku', 'kamu', 'engkau', 'beliau', 'para', 'pun', 'lah', 'kah', 'tah',
-    'pun', 'nya', 'ku', 'mu', 'nya', 'lah', 'kah', 'tah', 'pun'
-  ];
-  return commonWords.includes(word.toLowerCase());
-},
+// 🆕 COMPREHENSIVE HISTORICAL TO MODERN MAPPING
+calculateGeographicMatch(book, playlist) {
+  console.log(`\n🗺️ ANALYZING GEOGRAPHIC MATCH:`);
   
-// 🆕 IMPROVED METHOD: Enhanced Book Keywords dengan error handling
-extractEnhancedBookKeywords(book) {
-  try {
-    const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
-    
-    // Remove common words and get meaningful keywords
-    const words = this.tokenizeText(text).slice(0, 15); // Take more keywords
-    
-    // Return unique keywords
-    return [...new Set(words)];
-  } catch (error) {
-    console.error('❌ Error in extractEnhancedBookKeywords:', error);
-    return [];
-  }
-},
-
-// 🆕 METHOD: Ultra Theme Matching
-calculateUltraThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
-  const bookText = `${bookTitle} ${bookDesc}`;
-  const playlistText = `${playlistName} ${playlistDesc}`;
+  const bookLocations = this.extractGeographicLocations(book);
+  const playlistLocations = this.extractGeographicLocationsFromPlaylist(playlist);
+  
+  console.log(`📘 Book Locations: [${bookLocations.join(', ')}]`);
+  console.log(`📗 Playlist Locations: [${playlistLocations.join(', ')}]`);
   
   let score = 0;
   
-  // 🎯 ULTRA THEME CATEGORIES dengan bobot lebih tinggi
-  const ultraThemes = {
-    'sejarah indonesia': { 
-      keywords: ['sejarah indonesia', 'historis indonesia', 'nusantara', 'masa lalu indonesia'], 
-      weight: 35 
-    },
-    'kolonialisme': { 
-      keywords: ['kolonial', 'belanda', 'penjajahan', 'hindia belanda', 'colonial', 'voc'], 
-      weight: 40 
-    },
-    'revolusi kemerdekaan': { 
-      keywords: ['revolusi', 'kemerdekaan', 'dekolonisasi', 'disintegrasi', 'runtuhnya'], 
-      weight: 30 
-    },
-    'politik': { 
-      keywords: ['politik', 'pemerintahan', 'negara', 'kekuasaan', 'government'], 
-      weight: 25 
-    },
-    'militer': { 
-      keywords: ['militer', 'tentara', 'perang', 'pertempuran', 'military'], 
-      weight: 20 
-    },
-    'sosial budaya': { 
-      keywords: ['sosial', 'masyarakat', 'budaya', 'cultural', 'community'], 
-      weight: 15 
-    }
+  // 1. Exact location matches
+  const exactMatches = bookLocations.filter(location =>
+    playlistLocations.includes(location)
+  );
+  
+  if (exactMatches.length > 0) {
+    score = exactMatches.length * 25;
+    console.log(`📍 EXACT LOCATION MATCHES: [${exactMatches.join(', ')}] → +${score}`);
+  }
+  
+  // 2. Historical to modern mapping
+  const historicalMatches = this.calculateHistoricalToModernMapping(bookLocations, playlistLocations);
+  score += historicalMatches;
+  
+  // 3. Regional hierarchy matches
+  const regionalMatches = this.calculateRegionalHierarchy(bookLocations, playlistLocations);
+  score += regionalMatches;
+  
+  return Math.min(80, score);
+},
+
+// 🆕 COMPREHENSIVE HISTORICAL TO MODERN MAPPING
+calculateHistoricalToModernMapping(bookLocations, playlistLocations) {
+  let score = 0;
+  
+  // 🏛️ COMPREHENSIVE MAPPING: Hindia Belanda → Indonesia Modern
+  const historicalMappings = {
+    // 🇮🇩 INDONESIA MODERN (Root Level)
+    'hindia belanda': ['indonesia', 'sumatra', 'jawa', 'bali', 'sulawesi', 'kalimantan', 'papua', 'maluku', 'nusa tenggara'],
+    'dutch east indies': ['indonesia', 'sumatra', 'jawa', 'bali', 'sulawesi', 'kalimantan', 'papua'],
+    'netherlands east indies': ['indonesia', 'sumatra', 'jawa', 'bali', 'sulawesi', 'kalimantan', 'papua'],
+    
+    // 🏝️ SUMATRA REGION
+    'sumatra\'s westkust': ['sumatra barat', 'sumatra', 'indonesia'],
+    'sumatra\'s oostkust': ['sumatra utara', 'riau', 'sumatra', 'indonesia'],
+    'sumatra\'s zuidkust': ['lampung', 'bengkulu', 'sumatra', 'indonesia'],
+    'pantai barat sumatra': ['sumatra barat', 'aceh', 'sumatra', 'indonesia'],
+    'pantai timur sumatra': ['sumatra utara', 'riau', 'sumatra', 'indonesia'],
+    
+    // 🗾 JAVA REGION  
+    'java': ['jawa', 'indonesia'],
+    'west java': ['jawa barat', 'jawa', 'indonesia'],
+    'midden java': ['jawa tengah', 'jawa', 'indonesia'],
+    'oost java': ['jawa timur', 'jawa', 'indonesia'],
+    
+    // 🏙️ JAVA CITIES (Historical → Modern)
+    'batavia': ['jakarta', 'jawa barat', 'jawa', 'indonesia'],
+    'buitenzorg': ['bogor', 'jawa barat', 'jawa', 'indonesia'],
+    'bandoeng': ['bandung', 'jawa barat', 'jawa', 'indonesia'],
+    'soerabaja': ['surabaya', 'jawa timur', 'jawa', 'indonesia'],
+    'semarang': ['semarang', 'jawa tengah', 'jawa', 'indonesia'],
+    'yogyakarta': ['yogyakarta', 'jawa tengah', 'jawa', 'indonesia'],
+    'solo': ['surakarta', 'jawa tengah', 'jawa', 'indonesia'],
+    
+    // 🏔️ SUMATRA CITIES & REGIONS
+    'padang': ['padang', 'sumatra barat', 'sumatra', 'indonesia'],
+    'bukittinggi': ['bukittinggi', 'sumatra barat', 'sumatra', 'indonesia'],
+    'payakumbuh': ['payakumbuh', 'sumatra barat', 'sumatra', 'indonesia'],
+    'medan': ['medan', 'sumatra utara', 'sumatra', 'indonesia'],
+    'pematang siantar': ['pematang siantar', 'sumatra utara', 'sumatra', 'indonesia'],
+    'palembang': ['palembang', 'sumatra selatan', 'sumatra', 'indonesia'],
+    'jambi': ['jambi', 'sumatra', 'indonesia'],
+    'bengkulu': ['bengkulu', 'sumatra', 'indonesia'],
+    'lampung': ['lampung', 'sumatra', 'indonesia'],
+    
+    // 🛶 ACEH REGION
+    'aceh': ['aceh', 'sumatra', 'indonesia'],
+    'atjeh': ['aceh', 'sumatra', 'indonesia'],
+    'kutaraja': ['banda aceh', 'aceh', 'sumatra', 'indonesia'],
+    
+    // 🏝️ BORNEO/KALIMANTAN
+    'borneo': ['kalimantan', 'indonesia'],
+    'west borneo': ['kalimantan barat', 'kalimantan', 'indonesia'],
+    'south borneo': ['kalimantan selatan', 'kalimantan', 'indonesia'],
+    'east borneo': ['kalimantan timur', 'kalimantan', 'indonesia'],
+    'pontianak': ['pontianak', 'kalimantan barat', 'kalimantan', 'indonesia'],
+    'banjarmasin': ['banjarmasin', 'kalimantan selatan', 'kalimantan', 'indonesia'],
+    'balikpapan': ['balikpapan', 'kalimantan timur', 'kalimantan', 'indonesia'],
+    
+    // 🏝️ SULAWESI/CELEBES
+    'celebes': ['sulawesi', 'indonesia'],
+    'sulawesi': ['sulawesi', 'indonesia'],
+    'makassar': ['makassar', 'sulawesi selatan', 'sulawesi', 'indonesia'],
+    'manado': ['manado', 'sulawesi utara', 'sulawesi', 'indonesia'],
+    
+    // 🏝️ BALI & NUSA TENGGARA
+    'bali': ['bali', 'indonesia'],
+    'lombok': ['lombok', 'nusa tenggara barat', 'indonesia'],
+    'sumbawa': ['sumbawa', 'nusa tenggara barat', 'indonesia'],
+    'flores': ['flores', 'nusa tenggara timur', 'indonesia'],
+    'timor': ['timor', 'nusa tenggara timur', 'indonesia'],
+    
+    // 🏝️ MALUKU & PAPUA
+    'molukken': ['maluku', 'indonesia'],
+    'ambon': ['ambon', 'maluku', 'indonesia'],
+    'ternate': ['ternate', 'maluku utara', 'maluku', 'indonesia'],
+    'tidore': ['tidore', 'maluku utara', 'maluku', 'indonesia'],
+    'nieuw guinea': ['papua', 'indonesia'],
+    'west papua': ['papua barat', 'papua', 'indonesia'],
+    
+    // 🌏 CULTURAL & ETHNIC REGIONS
+    'minangkabau': ['sumatra barat', 'sumatra', 'indonesia'],
+    'minang': ['sumatra barat', 'sumatra', 'indonesia'],
+    'batak': ['sumatra utara', 'sumatra', 'indonesia'],
+    'malay': ['sumatra', 'kalimantan', 'indonesia', 'malaysia'],
+    'javanese': ['jawa', 'indonesia'],
+    'sundanese': ['jawa barat', 'jawa', 'indonesia'],
+    'balinese': ['bali', 'indonesia'],
+    'bugis': ['sulawesi selatan', 'sulawesi', 'indonesia'],
+    'makassar': ['sulawesi selatan', 'sulawesi', 'indonesia'],
+    
+    // 🌍 INTERNATIONAL CONNECTIONS
+    'malaya': ['malaysia'],
+    'british malaya': ['malaysia'],
+    'straits settlements': ['malaysia', 'singapore'],
+    'singapore': ['singapore'],
+    'negri sembilan': ['malaysia', 'sumatra barat'], // Cultural connection
+    'negeri sembilan': ['malaysia', 'sumatra barat']
   };
   
-  for (const [theme, config] of Object.entries(ultraThemes)) {
-    const bookHasTheme = config.keywords.some(keyword => bookText.includes(keyword));
-    const playlistHasTheme = config.keywords.some(keyword => playlistText.includes(keyword));
-    
-    if (bookHasTheme && playlistHasTheme) {
-      score += config.weight;
-      console.log(`🎯 ULTRA THEME "${theme}" MATCH: +${config.weight}`);
-    } else if (bookHasTheme) {
-      console.log(`📘 Book has "${theme}" theme`);
-    } else if (playlistHasTheme) {
-      console.log(`📗 Playlist has "${theme}" theme`);
+  for (const bookLocation of bookLocations) {
+    const modernRegions = historicalMappings[bookLocation];
+    if (modernRegions) {
+      const matches = modernRegions.filter(region =>
+        playlistLocations.includes(region)
+      );
+      
+      if (matches.length > 0) {
+        score += matches.length * 20;
+        console.log(`🏛️ HISTORICAL MAPPING: "${bookLocation}" → [${matches.join(', ')}] → +${matches.length * 20}`);
+      }
     }
   }
   
-  return Math.min(100, score);
+  return score;
 },
 
-// 🆕 IMPROVED METHOD: Ultra Text Matching dengan error handling
-calculateUltraTextMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
-  try {
-    const bookWords = this.tokenizeText(bookTitle);
-    const playlistWords = this.tokenizeText(playlistName);
+// 🆕 REGIONAL HIERARCHY MATCHING
+calculateRegionalHierarchy(bookLocations, playlistLocations) {
+  let score = 0;
+  
+  // Regional hierarchy: Province → Island → Country
+  const regionalHierarchy = {
+    // Sumatra Hierarchy
+    'aceh': ['sumatra', 'indonesia'],
+    'sumatra utara': ['sumatra', 'indonesia'],
+    'sumatra barat': ['sumatra', 'indonesia'],
+    'riau': ['sumatra', 'indonesia'],
+    'jambi': ['sumatra', 'indonesia'],
+    'sumatra selatan': ['sumatra', 'indonesia'],
+    'bengkulu': ['sumatra', 'indonesia'],
+    'lampung': ['sumatra', 'indonesia'],
     
-    let score = 0;
+    // Java Hierarchy
+    'jakarta': ['jawa', 'indonesia'],
+    'jawa barat': ['jawa', 'indonesia'],
+    'jawa tengah': ['jawa', 'indonesia'],
+    'yogyakarta': ['jawa', 'indonesia'],
+    'jawa timur': ['jawa', 'indonesia'],
+    'banten': ['jawa', 'indonesia'],
     
-    console.log(`\n📖 ULTRA TEXT MATCHING:`);
-    console.log(`Book words: [${bookWords.join(', ')}]`);
-    console.log(`Playlist words: [${playlistWords.join(', ')}]`);
+    // Kalimantan Hierarchy
+    'kalimantan barat': ['kalimantan', 'indonesia'],
+    'kalimantan tengah': ['kalimantan', 'indonesia'],
+    'kalimantan selatan': ['kalimantan', 'indonesia'],
+    'kalimantan timur': ['kalimantan', 'indonesia'],
+    'kalimantan utara': ['kalimantan', 'indonesia'],
     
-    // Exact word matches dengan bobot tinggi
-    bookWords.forEach(bWord => {
-      playlistWords.forEach(pWord => {
-        if (bWord === pWord && bWord.length > 3) {
-          score += 12; // Increased from 8
-          console.log(`💫 EXACT MATCH: "${bWord}" → +12`);
-        } else if ((bWord.includes(pWord) || pWord.includes(bWord)) && bWord.length > 3 && pWord.length > 3) {
-          score += 6; // Increased from 4
-          console.log(`✨ PARTIAL MATCH: "${bWord}" ↔ "${pWord}" → +6`);
-        }
-      });
-    });
+    // Sulawesi Hierarchy
+    'sulawesi utara': ['sulawesi', 'indonesia'],
+    'sulawesi tengah': ['sulawesi', 'indonesia'],
+    'sulawesi selatan': ['sulawesi', 'indonesia'],
+    'sulawesi tenggara': ['sulawesi', 'indonesia'],
+    'gorontalo': ['sulawesi', 'indonesia'],
     
-    // Bonus untuk judul yang sangat relevan
-    const relevanceBonus = this.calculateTitleRelevanceBonus(bookTitle, playlistName);
-    score += relevanceBonus;
-    
-    return Math.min(50, score);
-  } catch (error) {
-    console.error('❌ Error in calculateUltraTextMatch:', error);
-    return 0;
-  }
-},
-
-// 🆕 IMPROVED METHOD: Tokenize Text dengan error handling
-tokenizeText(text) {
-  try {
-    if (!text || typeof text !== 'string') {
-      return [];
+    // Other Islands
+    'bali': ['indonesia'],
+    'nusa tenggara barat': ['indonesia'],
+    'nusa tenggara timur': ['indonesia'],
+    'maluku': ['indonesia'],
+    'maluku utara': ['indonesia'],
+    'papua': ['indonesia'],
+    'papua barat': ['indonesia']
+  };
+  
+  // Check if book locations are in the hierarchy of playlist locations
+  for (const bookLocation of bookLocations) {
+    const hierarchy = regionalHierarchy[bookLocation];
+    if (hierarchy) {
+      const hierarchyMatches = hierarchy.filter(region =>
+        playlistLocations.includes(region)
+      );
+      
+      if (hierarchyMatches.length > 0) {
+        score += hierarchyMatches.length * 15;
+        console.log(`🏞️ REGIONAL HIERARCHY: "${bookLocation}" ∈ [${hierarchyMatches.join(', ')}] → +${hierarchyMatches.length * 15}`);
+      }
     }
+  }
+  
+  // Also check reverse: if playlist locations are in hierarchy of book locations
+  for (const playlistLocation of playlistLocations) {
+    const hierarchy = regionalHierarchy[playlistLocation];
+    if (hierarchy) {
+      const hierarchyMatches = hierarchy.filter(region =>
+        bookLocations.includes(region)
+      );
+      
+      if (hierarchyMatches.length > 0) {
+        score += hierarchyMatches.length * 15;
+        console.log(`🏞️ REVERSE HIERARCHY: "${playlistLocation}" ∈ [${hierarchyMatches.join(', ')}] → +${hierarchyMatches.length * 15}`);
+      }
+    }
+  }
+  
+  return score;
+},
+
+// 🆕 ENHANCED GEOGRAPHIC LOCATION EXTRACTION
+extractGeographicLocations(book) {
+  const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
+  const locations = [];
+  
+  // COMPREHENSIVE LOCATION PATTERNS - Historical + Modern
+  const locationPatterns = {
+    // 🇮🇩 INDONESIA MODERN
+    'indonesia': ['indonesia', 'nusantara'],
+    'sumatra': ['sumatra', 'sumatera'],
+    'jawa': ['jawa', 'java'],
+    'bali': ['bali'],
+    'sulawesi': ['sulawesi', 'celebes'],
+    'kalimantan': ['kalimantan', 'borneo'],
+    'papua': ['papua', 'nieuw guinea', 'west papua'],
+    'maluku': ['maluku', 'molukken'],
+    'nusa tenggara': ['nusa tenggara'],
     
-    return text
-      .toLowerCase()
-      .split(/[\s.,;:!?()]+/)
-      .filter(word => word && word.length > 2) // Include shorter words now
-      .filter(word => !this.isCommonWord(word));
-  } catch (error) {
-    console.error('❌ Error in tokenizeText:', error);
-    return [];
+    // 🏝️ SUMATRA PROVINCES
+    'aceh': ['aceh', 'atjeh'],
+    'sumatra utara': ['sumatra utara', 'north sumatra'],
+    'sumatra barat': ['sumatra barat', 'west sumatra', 'minangkabau', 'minang'],
+    'riau': ['riau'],
+    'jambi': ['jambi'],
+    'sumatra selatan': ['sumatra selatan', 'south sumatra'],
+    'bengkulu': ['bengkulu'],
+    'lampung': ['lampung'],
+    
+    // 🗾 JAVA PROVINCES
+    'jakarta': ['jakarta', 'batavia'],
+    'jawa barat': ['jawa barat', 'west java', 'bogor', 'buitenzorg', 'bandung', 'bandoeng'],
+    'jawa tengah': ['jawa tengah', 'central java', 'semarang', 'yogyakarta', 'solo', 'surakarta'],
+    'jawa timur': ['jawa timur', 'east java', 'surabaya', 'soerabaja'],
+    'banten': ['banten'],
+    
+    // 🏝️ KALIMANTAN PROVINCES
+    'kalimantan barat': ['kalimantan barat', 'west borneo', 'pontianak'],
+    'kalimantan tengah': ['kalimantan tengah', 'central borneo'],
+    'kalimantan selatan': ['kalimantan selatan', 'south borneo', 'banjarmasin'],
+    'kalimantan timur': ['kalimantan timur', 'east borneo', 'balikpapan'],
+    
+    // 🏝️ SULAWESI PROVINCES
+    'sulawesi utara': ['sulawesi utara', 'north celebes', 'manado'],
+    'sulawesi tengah': ['sulawesi tengah', 'central celebes'],
+    'sulawesi selatan': ['sulawesi selatan', 'south celebes', 'makassar'],
+    
+    // 🏛️ HISTORICAL DUTCH TERMS
+    'hindia belanda': ['hindia belanda', 'dutch east indies', 'netherlands east indies'],
+    'batavia': ['batavia'],
+    'buitenzorg': ['buitenzorg'],
+    'bandoeng': ['bandoeng'],
+    'soerabaja': ['soerabaja'],
+    
+    // 🌏 INTERNATIONAL
+    'malaysia': ['malaysia', 'malaya', 'british malaya'],
+    'singapore': ['singapore', 'singapura'],
+    'belanda': ['belanda', 'netherlands', 'holland', 'dutch']
+  };
+  
+  for (const [location, patterns] of Object.entries(locationPatterns)) {
+    if (patterns.some(pattern => text.includes(pattern))) {
+      locations.push(location);
+    }
   }
+  
+  return [...new Set(locations)]; // Remove duplicates
 },
-
-// 🆕 METHOD: Calculate Title Relevance Bonus
-calculateTitleRelevanceBonus(bookTitle, playlistName) {
-  const bookLower = bookTitle.toLowerCase();
-  const playlistLower = playlistName.toLowerCase();
   
-  let bonus = 0;
-  
-  // High bonus for direct relevance
-  if (bookLower.includes('hindia belanda') && playlistLower.includes('sejarah')) {
-    bonus += 20;
-    console.log(`🏆 HIGH RELEVANCE BONUS: "Hindia Belanda" + "Sejarah" → +20`);
-  }
-  
-  if (bookLower.includes('runtuhnya') && playlistLower.includes('sejarah')) {
-    bonus += 15;
-    console.log(`🎯 RELEVANCE BONUS: "Runtuhnya" + "Sejarah" → +15`);
-  }
-  
-  if (bookLower.includes('kolonial') && playlistLower.includes('sejarah')) {
-    bonus += 15;
-    console.log(`🎯 RELEVANCE BONUS: "Kolonial" + "Sejarah" → +15`);
-  }
-  
-  return bonus;
-},
-
-// 🆕 METHOD: Enhanced Basic Match (fallback)
-calculateEnhancedBasicMatch(book, playlist) {
-  const bookText = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
-  const playlistText = `${playlist.name} ${playlist.description || ''}`.toLowerCase();
+// 🆕 METHOD: AI Metadata Semantic Match
+calculateAIMetadataSemanticMatch(book, playlist) {
+  console.log(`\n🤖 ANALYZING AI METADATA SEMANTIC MATCH:`);
   
   let score = 0;
   
-  // Enhanced keyword matching
-  const enhancedKeywords = [
-    { keyword: 'hindia belanda', weight: 30 },
-    { keyword: 'kolonial', weight: 25 },
-    { keyword: 'sejarah indonesia', weight: 25 },
-    { keyword: 'belanda', weight: 20 },
-    { keyword: 'runtuhnya', weight: 20 },
-    { keyword: 'dekolonisasi', weight: 20 },
-    { keyword: 'politik', weight: 15 },
-    { keyword: 'sosial', weight: 10 },
-    { keyword: 'ekonomi', weight: 10 }
-  ];
-  
-  enhancedKeywords.forEach(({ keyword, weight }) => {
-    if (bookText.includes(keyword) && playlistText.includes(keyword)) {
-      score += weight;
-      console.log(`🔑 BASIC KEYWORD: "${keyword}" → +${weight}`);
+  if (playlist.ai_metadata && !playlist.ai_metadata.is_fallback) {
+    console.log(`📋 Using AI Metadata for semantic matching`);
+    const metadata = playlist.ai_metadata;
+    
+    // Gunakan AI metadata themes untuk semantic matching
+    if (metadata.key_themes && metadata.key_themes.length > 0) {
+      const bookThemes = this.extractSemanticThemes(book);
+      const aiThemeMatches = bookThemes.filter(theme =>
+        metadata.key_themes.includes(theme)
+      ).length;
+      
+      if (aiThemeMatches > 0) {
+        score += aiThemeMatches * 15;
+        console.log(`✅ AI THEME MATCHES: ${aiThemeMatches} → +${aiThemeMatches * 15}`);
+      }
     }
-  });
+    
+    // Gunakan historical context dari AI metadata
+    if (metadata.historical_context) {
+      const historicalMatch = this.evaluateHistoricalContextMatch(book, metadata.historical_context);
+      score += historicalMatch;
+    }
+    
+  } else {
+    console.log(`⚠️ No AI metadata available for semantic matching`);
+  }
   
-  return Math.min(60, score);
+  return Math.min(50, score);
 },
+
+// 🆕 METHOD: Contextual Match
+calculateContextualMatch(book, playlist) {
+  let score = 0;
+  
+  // Contextual factors
+  if (playlist.books && playlist.books.length > 5) {
+    score += 10; // Established playlist
+    console.log(`📚 ESTABLISHED PLAYLIST: +10`);
+  }
+  
+  if (book.tahun_terbit && playlist.created_at) {
+    const bookYear = parseInt(book.tahun_terbit);
+    if (!isNaN(bookYear) && bookYear < 1945) {
+      score += 15; // Historical book bonus
+      console.log(`🏛️ HISTORICAL BOOK BONUS: +15`);
+    }
+  }
+  
+  return Math.min(25, score);
+},
+
+// 🆕 METHOD: Infer Themes from Title (fallback)
+inferThemesFromTitle(title) {
+  const titleLower = title.toLowerCase();
+  const inferredThemes = [];
+  
+  if (titleLower.includes('sejarah') || titleLower.includes('history')) {
+    inferredThemes.push('sejarah');
+  }
+  
+  if (titleLower.includes('politik') || titleLower.includes('political')) {
+    inferredThemes.push('politik');
+  }
+  
+  if (titleLower.includes('sosial') || titleLower.includes('social')) {
+    inferredThemes.push('sosial');
+  }
+  
+  if (titleLower.includes('budaya') || titleLower.includes('culture')) {
+    inferredThemes.push('budaya');
+  }
+  
+  if (titleLower.includes('ekonomi') || titleLower.includes('economy')) {
+    inferredThemes.push('ekonomi');
+  }
+  
+  return inferredThemes;
+},
+
   
   // ===========================================================================
   // 🆕 IMPROVED AI FINAL ANALYSIS METHODS
@@ -1095,5 +1213,6 @@ Hanya JSON.
 
 
 export default aiMatchingService;
+
 
 
