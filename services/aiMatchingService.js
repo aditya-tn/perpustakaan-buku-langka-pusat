@@ -142,32 +142,27 @@ calculatePureMetadataMatch(book, playlist) {
   const playlistName = playlist.name.toLowerCase();
   const playlistDesc = playlist.description?.toLowerCase() || '';
   
-  console.log(`\n🔍 ========== MATCHING DETAIL ==========`);
-  console.log(`📚 BOOK: "${book.judul}"`);
-  console.log(`📝 DESC: "${bookDesc.substring(0, 100)}..."`);
-  console.log(`🎯 PLAYLIST: "${playlist.name}"`);
-  console.log(`📋 PLAYLIST DESC: "${playlistDesc}"`);
+  console.log(`🔍 Matching: "${bookTitle}" vs "${playlistName}"`);
   
   let score = 0;
 
-  // 1. 🎯 SMART TITLE MATCHING (40%)
-  const titleScore = this.calculateSmartTitleMatch(bookTitle, playlistName);
-  score += titleScore * 0.4;
-  console.log(`📖 Title Score: ${titleScore} → Total: ${score}`);
-
-  // 2. 🎯 CONTENT THEME MATCHING (35%)
+  // 1. 🎯 CONTENT THEME MATCHING (50%) - PALING PENTING
   const themeScore = this.calculateContentThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-  score += themeScore * 0.35;
+  score += themeScore * 0.5;
   console.log(`🎭 Theme Score: ${themeScore} → Total: ${score}`);
 
-  // 3. 🎯 METADATA ENHANCED MATCHING (25%)
+  // 2. 🎯 METADATA ENHANCED MATCHING (30%) - PENTING
   const metadataScore = this.calculateMetadataEnhancedMatch(book, playlist);
-  score += metadataScore * 0.25;
+  score += metadataScore * 0.3;
   console.log(`🤖 Metadata Score: ${metadataScore} → Total: ${score}`);
+
+  // 3. 🎯 TITLE MATCHING (20%) - TAMBAHAN SAJA
+  const titleScore = this.calculateSmartTitleMatch(bookTitle, playlistName);
+  score += titleScore * 0.2;
+  console.log(`📖 Title Score: ${titleScore} → Total: ${score}`);
 
   const finalScore = Math.min(100, Math.round(score));
   console.log(`✅ FINAL SCORE: ${finalScore} for "${playlist.name}"`);
-  console.log(`🔚 ========== END MATCHING ==========\n`);
   
   return finalScore;
 },
@@ -662,6 +657,7 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
 
 
