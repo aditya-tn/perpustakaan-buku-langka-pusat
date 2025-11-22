@@ -116,151 +116,185 @@ export const aiMatchingService = {
     return topPlaylists;
   },
 
-  calculatePureMetadataMatch(book, playlist) {
-    const bookTitle = book.judul.toLowerCase();
-    const bookDesc = book.deskripsi_buku?.toLowerCase() || '';
-    const playlistName = playlist.name.toLowerCase();
-    const playlistDesc = playlist.description?.toLowerCase() || '';
-    
-    console.log(`🔍 Matching: "${bookTitle}" vs "${playlistName}"`);
-    
-    let score = 0;
+calculatePureMetadataMatch(book, playlist) {
+  const bookTitle = book.judul.toLowerCase();
+  const bookDesc = book.deskripsi_buku?.toLowerCase() || '';
+  const playlistName = playlist.name.toLowerCase();
+  const playlistDesc = playlist.description?.toLowerCase() || '';
+  
+  console.log(`\n🔍 ========== MATCHING DETAIL ==========`);
+  console.log(`📚 BOOK: "${book.judul}"`);
+  console.log(`📝 DESC: "${bookDesc.substring(0, 100)}..."`);
+  console.log(`🎯 PLAYLIST: "${playlist.name}"`);
+  console.log(`📋 PLAYLIST DESC: "${playlistDesc}"`);
+  
+  let score = 0;
 
-    // 1. 🎯 SMART TITLE MATCHING (40%)
-    const titleScore = this.calculateSmartTitleMatch(bookTitle, playlistName);
-    score += titleScore * 0.4;
+  // 1. 🎯 SMART TITLE MATCHING (40%)
+  const titleScore = this.calculateSmartTitleMatch(bookTitle, playlistName);
+  score += titleScore * 0.4;
+  console.log(`📖 Title Score: ${titleScore} → Total: ${score}`);
 
-    // 2. 🎯 CONTENT THEME MATCHING (35%)
-    const themeScore = this.calculateContentThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-    score += themeScore * 0.35;
+  // 2. 🎯 CONTENT THEME MATCHING (35%)
+  const themeScore = this.calculateContentThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc);
+  score += themeScore * 0.35;
+  console.log(`🎭 Theme Score: ${themeScore} → Total: ${score}`);
 
-    // 3. 🎯 METADATA ENHANCED MATCHING (25%)
-    const metadataScore = this.calculateMetadataEnhancedMatch(book, playlist);
-    score += metadataScore * 0.25;
+  // 3. 🎯 METADATA ENHANCED MATCHING (25%)
+  const metadataScore = this.calculateMetadataEnhancedMatch(book, playlist);
+  score += metadataScore * 0.25;
+  console.log(`🤖 Metadata Score: ${metadataScore} → Total: ${score}`);
 
-    const finalScore = Math.min(100, Math.round(score));
-    console.log(` ✅ Final score: ${finalScore} for "${playlistName}"`);
-    
-    return finalScore;
-  },
+  const finalScore = Math.min(100, Math.round(score));
+  console.log(`✅ FINAL SCORE: ${finalScore} for "${playlist.name}"`);
+  console.log(`🔚 ========== END MATCHING ==========\n`);
+  
+  return finalScore;
+},
 
-  calculateSmartTitleMatch(bookTitle, playlistName) {
-    const bookWords = bookTitle.split(/\s+/).filter(word => word.length > 3);
-    const playlistWords = playlistName.split(/\s+/).filter(word => word.length > 3);
-    
-    if (bookWords.length === 0 || playlistWords.length === 0) return 30;
+calculateSmartTitleMatch(bookTitle, playlistName) {
+  console.log(`\n📖 ANALYZING TITLE MATCH:`);
+  console.log(`   Book: "${bookTitle}"`);
+  console.log(`   Playlist: "${playlistName}"`);
+  
+  const bookWords = bookTitle.split(/\s+/).filter(word => word.length > 3);
+  const playlistWords = playlistName.split(/\s+/).filter(word => word.length > 3);
+  
+  console.log(`   Book words: [${bookWords.join(', ')}]`);
+  console.log(`   Playlist words: [${playlistWords.join(', ')}]`);
+  
+  if (bookWords.length === 0 || playlistWords.length === 0) {
+    console.log(`   ⚠️  No meaningful words, return 30`);
+    return 30;
+  }
 
-    let score = 0;
-    let strongMatches = 0;
+  let score = 0;
+  let strongMatches = 0;
 
-    // 🎯 STRONG WORD MATCHES (kata kunci penting)
-    const strongKeywords = ['sejarah', 'indonesia', 'militer', 'perang', 'kolonial', 'budaya', 'ekonomi', 'politik'];
-    
-    for (const bookWord of bookWords) {
-      for (const playlistWord of playlistWords) {
-        // Exact match untuk kata kunci penting
-        if (strongKeywords.includes(bookWord) && bookWord === playlistWord) {
-          score += 25;
-          strongMatches++;
-          console.log(` 💪 Strong keyword match: "${bookWord}" = +25`);
-        }
-        // Partial match untuk kata umum
-        else if (playlistWord.includes(bookWord) || bookWord.includes(playlistWord)) {
-          score += 10;
-          console.log(` 🔗 Partial match: "${bookWord}" ↔ "${playlistWord}" = +10`);
-        }
-      }
-    }
-
-    // 🎯 BONUS: Multiple strong matches
-    if (strongMatches >= 2) {
-      score += 20;
-      console.log(` 🏆 Multiple strong matches = +20`);
-    }
-
-    return Math.min(80, score);
-  },
-
-  calculateContentThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
-    const bookText = `${bookTitle} ${bookDesc}`;
-    const playlistText = `${playlistName} ${playlistDesc}`;
-    
-    let score = 0;
-
-    // 🎯 THEME CATEGORIES MATCHING
-    const themeCategories = {
-      'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman', 'kolonial', 'penjajahan', 'kemerdekaan'],
-      'indonesia': ['indonesia', 'nusantara', 'nasional', 'hindia belanda', 'belanda'],
-      'militer': ['militer', 'tentara', 'perang', 'pertempuran', 'military'],
-      'politik': ['politik', 'pemerintah', 'negara', 'kekuasaan', 'dekolonisasi'],
-      'sosial': ['sosial', 'masyarakat', 'budaya', 'ekonomi', 'faktor']
-    };
-
-    // Hitung theme overlap antara buku dan playlist
-    let themeOverlap = 0;
-    let totalThemes = 0;
-
-    for (const [theme, keywords] of Object.entries(themeCategories)) {
-      const bookHasTheme = keywords.some(keyword => bookText.includes(keyword));
-      const playlistHasTheme = keywords.some(keyword => playlistText.includes(keyword));
-      
-      if (bookHasTheme) totalThemes++;
-      if (bookHasTheme && playlistHasTheme) {
-        themeOverlap++;
-        score += 15;
-        console.log(` 🎭 Theme match: "${theme}" = +15`);
-      }
-    }
-
-    // 🎯 BONUS: High theme overlap
-    if (totalThemes > 0) {
-      const overlapRatio = themeOverlap / totalThemes;
-      if (overlapRatio >= 0.5) {
+  const strongKeywords = ['sejarah', 'indonesia', 'militer', 'perang', 'kolonial', 'budaya', 'ekonomi', 'politik'];
+  
+  for (const bookWord of bookWords) {
+    for (const playlistWord of playlistWords) {
+      // Exact match untuk kata kunci penting
+      if (strongKeywords.includes(bookWord) && bookWord === playlistWord) {
         score += 25;
-        console.log(` 📊 High theme overlap (${Math.round(overlapRatio * 100)}%) = +25`);
+        strongMatches++;
+        console.log(`   💪 STRONG MATCH: "${bookWord}" = "${playlistWord}" → +25`);
+      }
+      // Partial match untuk kata umum
+      else if (playlistWord.includes(bookWord) || bookWord.includes(playlistWord)) {
+        score += 10;
+        console.log(`   🔗 PARTIAL MATCH: "${bookWord}" ↔ "${playlistWord}" → +10`);
       }
     }
+  }
 
-    return Math.min(100, score);
-  },
+  if (strongMatches >= 2) {
+    score += 20;
+    console.log(`   🏆 MULTIPLE STRONG MATCHES: ${strongMatches} → +20`);
+  }
 
-  calculateMetadataEnhancedMatch(book, playlist) {
-    let score = 0;
+  console.log(`   📊 FINAL TITLE SCORE: ${Math.min(80, score)}`);
+  return Math.min(80, score);
+},
 
-    // 🎯 GUNAKAN AI METADATA JIKA ADA
-    if (playlist.ai_metadata) {
-      const metadata = playlist.ai_metadata;
+calculateContentThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
+  console.log(`\n🎭 ANALYZING CONTENT THEME MATCH:`);
+  
+  const bookText = `${bookTitle} ${bookDesc}`;
+  const playlistText = `${playlistName} ${playlistDesc}`;
+  
+  console.log(`   Book text: "${bookText.substring(0, 100)}..."`);
+  console.log(`   Playlist text: "${playlistText}"`);
+  
+  let score = 0;
+
+  const themeCategories = {
+    'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman', 'kolonial', 'penjajahan', 'kemerdekaan'],
+    'indonesia': ['indonesia', 'nusantara', 'nasional', 'hindia belanda', 'belanda'],
+    'militer': ['militer', 'tentara', 'perang', 'pertempuran', 'military'],
+    'politik': ['politik', 'pemerintah', 'negara', 'kekuasaan', 'dekolonisasi'],
+    'sosial': ['sosial', 'masyarakat', 'budaya', 'ekonomi', 'faktor']
+  };
+
+  let themeOverlap = 0;
+  let totalThemes = 0;
+
+  for (const [theme, keywords] of Object.entries(themeCategories)) {
+    const bookHasTheme = keywords.some(keyword => bookText.includes(keyword));
+    const playlistHasTheme = keywords.some(keyword => playlistText.includes(keyword));
+    
+    if (bookHasTheme) totalThemes++;
+    if (bookHasTheme && playlistHasTheme) {
+      themeOverlap++;
+      score += 15;
+      console.log(`   ✅ THEME MATCH: "${theme}" → +15`);
+      console.log(`      Book keywords: ${keywords.filter(k => bookText.includes(k)).join(', ')}`);
+      console.log(`      Playlist keywords: ${keywords.filter(k => playlistText.includes(k)).join(', ')}`);
+    } else if (bookHasTheme) {
+      console.log(`   ❌ THEME MISMATCH: "${theme}" - Book has but playlist doesn't`);
+    }
+  }
+
+  if (totalThemes > 0) {
+    const overlapRatio = themeOverlap / totalThemes;
+    console.log(`   📊 THEME OVERLAP: ${themeOverlap}/${totalThemes} = ${Math.round(overlapRatio * 100)}%`);
+    
+    if (overlapRatio >= 0.5) {
+      score += 25;
+      console.log(`   🎯 HIGH OVERLAP BONUS: +25`);
+    }
+  }
+
+  console.log(`   📊 FINAL THEME SCORE: ${Math.min(100, score)}`);
+  return Math.min(100, score);
+},
+
+calculateMetadataEnhancedMatch(book, playlist) {
+  console.log(`\n🤖 ANALYZING AI METADATA MATCH:`);
+  
+  let score = 0;
+
+  if (playlist.ai_metadata) {
+    const metadata = playlist.ai_metadata;
+    console.log(`   📋 Playlist AI Metadata:`, metadata);
+    
+    if (metadata.key_themes && metadata.key_themes.length > 0) {
+      const bookThemes = this.extractBookThemes(book);
+      console.log(`   🏷️ Book themes: [${bookThemes.join(', ')}]`);
+      console.log(`   🏷️ Playlist AI themes: [${metadata.key_themes.join(', ')}]`);
       
-      // Match dengan key themes
-      if (metadata.key_themes && metadata.key_themes.length > 0) {
-        const bookThemes = this.extractBookThemes(book);
-        const themeMatches = bookThemes.filter(theme => 
-          metadata.key_themes.includes(theme)
-        ).length;
-        
-        if (themeMatches > 0) {
-          score += themeMatches * 10;
-          console.log(` 🤖 AI metadata theme matches: ${themeMatches} = +${themeMatches * 10}`);
-        }
-      }
-
-      // Match dengan historical names
-      if (metadata.historical_names && metadata.historical_names.length > 0) {
-        const bookText = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
-        const hasHistoricalMatch = metadata.historical_names.some(name => 
-          bookText.includes(name.toLowerCase())
-        );
-        
-        if (hasHistoricalMatch) {
-          score += 20;
-          console.log(` 🏛️ AI metadata historical match = +20`);
-        }
+      const themeMatches = bookThemes.filter(theme => 
+        metadata.key_themes.includes(theme)
+      ).length;
+      
+      console.log(`   🔗 Theme matches: ${themeMatches}`);
+      
+      if (themeMatches > 0) {
+        score += themeMatches * 10;
+        console.log(`   ✅ AI THEME MATCHES: ${themeMatches} → +${themeMatches * 10}`);
       }
     }
 
-    return Math.min(50, score);
-  },
+    if (metadata.historical_names && metadata.historical_names.length > 0) {
+      const bookText = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
+      const hasHistoricalMatch = metadata.historical_names.some(name => 
+        bookText.includes(name.toLowerCase())
+      );
+      
+      if (hasHistoricalMatch) {
+        score += 20;
+        console.log(`   🏛️ AI HISTORICAL MATCH → +20`);
+      }
+    }
+  } else {
+    console.log(`   ⚠️  No AI metadata available`);
+  }
 
+  console.log(`   📊 FINAL METADATA SCORE: ${Math.min(50, score)}`);
+  return Math.min(50, score);
+},
+  
   // 🆕 METHOD: Extract book themes dari judul + deskripsi
   extractBookThemes(book) {
     const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
@@ -578,3 +612,4 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
