@@ -442,13 +442,19 @@ calculateHistoricalToModernMapping(bookLocations, playlistLocations) {
   return score;
 },
 
-// 🆕 REGIONAL HIERARCHY MATCHING
+// 🆕 IMPROVED REGIONAL HIERARCHY MATCHING
 calculateRegionalHierarchy(bookLocations, playlistLocations) {
   let score = 0;
   
-  // Regional hierarchy: Province → Island → Country
+  console.log(`\n🏞️ ANALYZING REGIONAL HIERARCHY:`);
+  
+  // Enhanced regional hierarchy: Province → Island → Country
   const regionalHierarchy = {
-    // Sumatra Hierarchy
+    // 🇮🇩 INDONESIA ROOT - Semua daerah di bawah Indonesia
+    'indonesia': [], // Root level
+    
+    // 🏝️ SUMATRA ISLAND
+    'sumatra': ['indonesia'],
     'aceh': ['sumatra', 'indonesia'],
     'sumatra utara': ['sumatra', 'indonesia'],
     'sumatra barat': ['sumatra', 'indonesia'],
@@ -458,7 +464,8 @@ calculateRegionalHierarchy(bookLocations, playlistLocations) {
     'bengkulu': ['sumatra', 'indonesia'],
     'lampung': ['sumatra', 'indonesia'],
     
-    // Java Hierarchy
+    // 🗾 JAVA ISLAND
+    'jawa': ['indonesia'],
     'jakarta': ['jawa', 'indonesia'],
     'jawa barat': ['jawa', 'indonesia'],
     'jawa tengah': ['jawa', 'indonesia'],
@@ -466,31 +473,39 @@ calculateRegionalHierarchy(bookLocations, playlistLocations) {
     'jawa timur': ['jawa', 'indonesia'],
     'banten': ['jawa', 'indonesia'],
     
-    // Kalimantan Hierarchy
+    // 🏝️ KALIMANTAN ISLAND
+    'kalimantan': ['indonesia'],
     'kalimantan barat': ['kalimantan', 'indonesia'],
     'kalimantan tengah': ['kalimantan', 'indonesia'],
     'kalimantan selatan': ['kalimantan', 'indonesia'],
     'kalimantan timur': ['kalimantan', 'indonesia'],
     'kalimantan utara': ['kalimantan', 'indonesia'],
     
-    // Sulawesi Hierarchy
+    // 🏝️ SULAWESI ISLAND
+    'sulawesi': ['indonesia'],
     'sulawesi utara': ['sulawesi', 'indonesia'],
     'sulawesi tengah': ['sulawesi', 'indonesia'],
     'sulawesi selatan': ['sulawesi', 'indonesia'],
     'sulawesi tenggara': ['sulawesi', 'indonesia'],
     'gorontalo': ['sulawesi', 'indonesia'],
     
-    // Other Islands
+    // 🏝️ OTHER ISLANDS
     'bali': ['indonesia'],
     'nusa tenggara barat': ['indonesia'],
     'nusa tenggara timur': ['indonesia'],
     'maluku': ['indonesia'],
-    'maluku utara': ['indonesia'],
+    'maluku utara': ['maluku', 'indonesia'],
     'papua': ['indonesia'],
-    'papua barat': ['indonesia']
+    'papua barat': ['papua', 'indonesia'],
+    
+    // 🏛️ HISTORICAL REGIONS juga map ke Indonesia
+    'hindia belanda': ['indonesia'],
+    'padangsche bovenlanden': ['sumatra barat', 'sumatra', 'indonesia'],
+    'preanger regentschappen': ['jawa barat', 'jawa', 'indonesia'],
+    'oostkust van sumatra': ['sumatra utara', 'sumatra', 'indonesia']
   };
   
-  // Check if book locations are in the hierarchy of playlist locations
+  // STRATEGY 1: Book locations → Playlist hierarchy
   for (const bookLocation of bookLocations) {
     const hierarchy = regionalHierarchy[bookLocation];
     if (hierarchy) {
@@ -499,13 +514,13 @@ calculateRegionalHierarchy(bookLocations, playlistLocations) {
       );
       
       if (hierarchyMatches.length > 0) {
-        score += hierarchyMatches.length * 15;
-        console.log(`🏞️ REGIONAL HIERARCHY: "${bookLocation}" ∈ [${hierarchyMatches.join(', ')}] → +${hierarchyMatches.length * 15}`);
+        score += hierarchyMatches.length * 12; // Reduced from 15 to 12
+        console.log(`⬇️  HIERARCHY: "${bookLocation}" → [${hierarchyMatches.join(', ')}] → +${hierarchyMatches.length * 12}`);
       }
     }
   }
   
-  // Also check reverse: if playlist locations are in hierarchy of book locations
+  // STRATEGY 2: Playlist locations → Book hierarchy (REVERSE)
   for (const playlistLocation of playlistLocations) {
     const hierarchy = regionalHierarchy[playlistLocation];
     if (hierarchy) {
@@ -514,15 +529,160 @@ calculateRegionalHierarchy(bookLocations, playlistLocations) {
       );
       
       if (hierarchyMatches.length > 0) {
-        score += hierarchyMatches.length * 15;
-        console.log(`🏞️ REVERSE HIERARCHY: "${playlistLocation}" ∈ [${hierarchyMatches.join(', ')}] → +${hierarchyMatches.length * 15}`);
+        score += hierarchyMatches.length * 12;
+        console.log(`⬆️  REVERSE HIERARCHY: "${playlistLocation}" ← [${hierarchyMatches.join(', ')}] → +${hierarchyMatches.length * 12}`);
       }
     }
+  }
+  
+  // 🆕 STRATEGY 3: INDONESIA BONUS - Jika buku punya daerah Indonesia, beri bonus ke playlist "Indonesia"
+  const hasIndonesianRegion = bookLocations.some(location => 
+    location !== 'indonesia' && regionalHierarchy[location]?.includes('indonesia')
+  );
+  
+  const hasIndonesiaPlaylist = playlistLocations.includes('indonesia');
+  
+  if (hasIndonesianRegion && hasIndonesiaPlaylist) {
+    score += 20;
+    console.log(`🇮🇩 INDONESIA BONUS: Buku punya daerah Indonesia → Playlist "Indonesia" → +20`);
   }
   
   return score;
 },
 
+// 🆕 IMPROVED GEOGRAPHIC MATCHING dengan Indonesia bonus
+calculateGeographicMatch(book, playlist) {
+  try {
+    console.log(`\n🗺️ ANALYZING GEOGRAPHIC MATCH:`);
+    
+    const bookLocations = this.extractGeographicLocations(book);
+    const playlistLocations = this.extractGeographicLocationsFromPlaylist(playlist);
+    
+    console.log(`📘 Book Locations: [${bookLocations.join(', ')}]`);
+    console.log(`📗 Playlist Locations: [${playlistLocations.join(', ')}]`);
+    
+    let score = 0;
+
+    // 🎯 1. EXACT REGIONAL MATCHES - PALING PENTING (40 points)
+    const exactMatches = bookLocations.filter(location =>
+      playlistLocations.includes(location)
+    );
+    
+    if (exactMatches.length > 0) {
+      score = exactMatches.length * 40;
+      console.log(`🎯 CRITICAL EXACT MATCHES: [${exactMatches.join(', ')}] → +${score}`);
+      
+      // Bonus untuk exact regional matches
+      const regionalKeywords = ['sumatra barat', 'aceh', 'jawa barat'];
+      const regionalExactMatches = exactMatches.filter(match => 
+        regionalKeywords.some(keyword => match.includes(keyword))
+      );
+      
+      if (regionalExactMatches.length > 0) {
+        score += 25;
+        console.log(`🏆 REGIONAL EXACT MATCH BONUS: +25`);
+      }
+    }
+    
+    // 🗺️ 2. HISTORICAL TO MODERN MAPPING (30 points)
+    const historicalMatches = this.calculateHistoricalToModernMapping(bookLocations, playlistLocations);
+    score += historicalMatches;
+    
+    // 🏞️ 3. REGIONAL HIERARCHY (20 points) - IMPROVED!
+    const regionalMatches = this.calculateRegionalHierarchy(bookLocations, playlistLocations);
+    score += regionalMatches;
+    
+    // 🌏 4. INDONESIA DEFAULT BONUS - Jika buku tentang daerah Indonesia
+    const indonesiaBonus = this.calculateIndonesiaDefaultBonus(bookLocations, playlistLocations);
+    score += indonesiaBonus;
+    
+    return Math.min(100, score);
+    
+  } catch (error) {
+    console.error(`❌ Error in calculateGeographicMatch:`, error);
+    return 0;
+  }
+},
+
+// 🆕 METHOD: Indonesia Default Bonus
+calculateIndonesiaDefaultBonus(bookLocations, playlistLocations) {
+  let bonus = 0;
+  
+  // Cek jika buku tentang daerah manapun di Indonesia
+  const indonesianRegions = [
+    'aceh', 'sumatra utara', 'sumatra barat', 'riau', 'jambi', 
+    'sumatra selatan', 'bengkulu', 'lampung', 'jakarta', 'jawa barat',
+    'jawa tengah', 'yogyakarta', 'jawa timur', 'banten', 'bali',
+    'sulawesi', 'kalimantan', 'papua', 'maluku'
+  ];
+  
+  const hasIndonesianRegion = bookLocations.some(location => 
+    indonesianRegions.includes(location)
+  );
+  
+  const hasIndonesiaPlaylist = playlistLocations.includes('indonesia');
+  
+  if (hasIndonesianRegion && hasIndonesiaPlaylist) {
+    bonus += 15;
+    console.log(`🇮🇩 INDONESIA DEFAULT BONUS: Buku daerah Indonesia → Playlist "Indonesia" → +15`);
+  }
+  
+  // Bonus tambahan untuk playlist bertema "Sejarah Indonesia"
+  const hasSejarahIndonesia = playlistLocations.some(loc => 
+    loc.includes('sejarah') && playlistLocations.includes('indonesia')
+  );
+  
+  if (hasIndonesianRegion && hasSejarahIndonesia) {
+    bonus += 10;
+    console.log(`📚 SEJARAH INDONESIA BONUS: +10`);
+  }
+  
+  return bonus;
+},
+
+// 🆕 IMPROVED LOCATION EXTRACTION - Pastikan detect "indonesia"
+extractGeographicLocationsFromPlaylist(playlist) {
+  const text = `${playlist.name} ${playlist.description || ''}`.toLowerCase();
+  const locations = [];
+  
+  const locationPatterns = {
+    'indonesia': ['indonesia', 'nusantara'],
+    'sumatra': ['sumatra', 'sumatera'],
+    'jawa': ['jawa'],
+    'bali': ['bali'],
+    'sulawesi': ['sulawesi'],
+    'kalimantan': ['kalimantan'],
+    'papua': ['papua'],
+    'sumatra barat': ['sumatra barat', 'sumatera barat', 'west sumatra'],
+    'aceh': ['aceh'],
+    'sumatra utara': ['sumatra utara', 'north sumatra'],
+    'sumatra selatan': ['sumatra selatan', 'south sumatra'],
+    'riau': ['riau'],
+    'jambi': ['jambi'],
+    'bengkulu': ['bengkulu'],
+    'lampung': ['lampung'],
+    'jawa barat': ['jawa barat', 'west java'],
+    'jawa tengah': ['jawa tengah', 'central java'],
+    'jawa timur': ['jawa timur', 'east java'],
+    'malaysia': ['malaysia'],
+    'singapore': ['singapore', 'singapura'],
+    'belanda': ['belanda', 'netherlands']
+  };
+  
+  for (const [location, patterns] of Object.entries(locationPatterns)) {
+    if (patterns.some(pattern => text.includes(pattern))) {
+      locations.push(location);
+    }
+  }
+  
+  // 🆕 AUTO-ADD "indonesia" untuk playlist bertema sejarah Indonesia
+  if (text.includes('sejarah') && text.includes('indonesia') && !locations.includes('indonesia')) {
+    locations.push('indonesia');
+    console.log(`   🇮🇩 Auto-added "indonesia" for sejarah Indonesia playlist`);
+  }
+  
+  return locations;
+},
 // 🆕 ENHANCED LOCATION EXTRACTION dengan Residensi Kolonial
 extractGeographicLocations(book) {
   const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
@@ -1322,6 +1482,7 @@ Hanya JSON.
 
 
 export default aiMatchingService;
+
 
 
 
