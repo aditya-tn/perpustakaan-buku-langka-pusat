@@ -1,20 +1,5 @@
-// pages/api/ai-playlist-recommendations.js - FIX LOGGING
+// pages/api/ai-playlist-recommendations.js - CLEAN VERSION
 import aiMatchingService from '../../services/aiMatchingService';
-
-// OPTION 3: Dynamic import dengan fallback
-let aiMatchingService;
-try {
-  aiMatchingService = (await import('../../services/aiMatchingService')).default;
-} catch (error) {
-  console.error('❌ Failed to import aiMatchingService:', error);
-  // Fallback service
-  aiMatchingService = {
-    getPlaylistRecommendations: () => {
-      console.log('🔄 Using fallback service');
-      return Promise.resolve([]);
-    }
-  };
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -24,57 +9,53 @@ export default async function handler(req, res) {
   try {
     const { bookId, playlistIds } = req.body;
 
-    // FIX: Jangan pakai substring pada non-string
-    console.log('🚨 API START');
-    console.log('📦 Request:', { 
-      bookId: typeof bookId === 'string' ? bookId.substring(0, 20) : bookId,
-      playlistIdsCount: playlistIds?.length 
-    });
+    console.log('🚨 API START - Clean version');
 
+    // Validasi input
     if (!bookId || !playlistIds || !Array.isArray(playlistIds)) {
-      return res.status(400).json({ error: 'Invalid request data' });
+      return res.status(400).json({ error: 'bookId and playlistIds array are required' });
     }
 
-    // STEP 1: Get book data
+    // STEP 1: Dapatkan data buku
     console.log('📚 Getting book data...');
-    let bookData = await getBookData(bookId);
+    const bookData = await getBookData(bookId);
     if (!bookData) {
       return res.status(404).json({ error: 'Book not found' });
     }
 
     console.log('✅ Book:', bookData.judul);
 
-    // STEP 2: Get playlists dengan error handling
+    // STEP 2: Dapatkan data playlist
     console.log('🎯 Getting playlists...');
     const playlists = [];
     
     for (const playlistId of playlistIds) {
       try {
-        const playlist = await getPlaylistWithFallback(playlistId);
+        const playlist = await getPlaylistData(playlistId);
         if (playlist) {
           playlists.push(playlist);
-          console.log(`   ✅ ${playlist.name}`);
         }
       } catch (error) {
-        console.log(`   ❌ Skip playlist ${playlistId}`);
-        // Continue dengan playlist lain
+        console.log(`❌ Failed to get playlist ${playlistId}`);
+        // Continue dengan playlist lainnya
       }
-      
-      // Batasi untuk testing
-      if (playlists.length >= 5) break;
     }
 
-    console.log(`✅ Got ${playlists.length} playlists`);
+    console.log(`✅ Loaded ${playlists.length} playlists`);
 
     if (playlists.length === 0) {
       return res.json({
         success: true,
-        data: { recommendations: [], totalPlaylists: 0, error: 'No playlists available' }
+        data: { 
+          recommendations: [], 
+          totalPlaylists: 0,
+          message: 'No playlists available' 
+        }
       });
     }
 
-    // STEP 3: Get recommendations dengan robust error handling
-    console.log('🎯 Getting recommendations...');
+    // STEP 3: Dapatkan rekomendasi dari aiMatchingService
+    console.log('🎯 Getting AI recommendations...');
     let recommendations;
     
     try {
@@ -83,28 +64,33 @@ export default async function handler(req, res) {
         playlists: playlists
       });
       
-      console.log('✅ Recommendations success:', recommendations?.length);
+      console.log(`✅ AI recommendations: ${recommendations?.length || 0} items`);
       
     } catch (error) {
-      console.error('❌ Recommendations failed:', error);
+      console.error('❌ AI service failed:', error.message);
       
-      // Fallback sederhana
+      // Fallback sederhana berdasarkan nama playlist
       recommendations = playlists.slice(0, 3).map((playlist, index) => ({
         playlistId: playlist.id,
         playlistName: playlist.name,
-        matchScore: 70 - (index * 15), // 70, 55, 40
-        confidence: 0.6,
-        reasoning: 'Kecocokan berdasarkan tema umum',
+        matchScore: 60 - (index * 10), // 60, 50, 40
+        confidence: 0.5,
+        reasoning: 'Fallback: analisis sistem sederhana',
+        improvementSuggestions: ['Gunakan analisis AI untuk hasil lebih akurat'],
         isFallback: true
       }));
     }
 
+    // STEP 4: Return response
     res.json({
       success: true,
       data: { 
         recommendations: recommendations || [],
-        totalPlaylists: playlists.length
-      }
+        totalPlaylists: playlists.length,
+        analyzedPlaylists: recommendations?.length || 0,
+        bookTitle: bookData.judul
+      },
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
@@ -116,33 +102,7 @@ export default async function handler(req, res) {
   }
 }
 
-// 🆕 Robust playlist fetcher
-async function getPlaylistWithFallback(playlistId) {
-  try {
-    // Coba service dulu
-    return await playlistService.getPlaylistById(playlistId);
-  } catch (error) {
-    console.log(`   ⚠️ Service failed for ${playlistId}, trying direct fetch`);
-    
-    try {
-      // Fallback: direct Supabase query
-      const { supabase } = await import('../../lib/supabase');
-      const { data, error } = await supabase
-        .from('community_playlists')
-        .select('*')
-        .eq('id', playlistId)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    } catch (fallbackError) {
-      console.log(`   💥 Both methods failed for ${playlistId}`);
-      return null;
-    }
-  }
-}
-
-// Simple getBookData
+// Helper function: Get book data
 async function getBookData(bookId) {
   try {
     const { supabase } = await import('../../lib/supabase');
@@ -154,7 +114,24 @@ async function getBookData(bookId) {
 
     return error ? null : data;
   } catch (error) {
+    console.error('Error getting book data:', error);
     return null;
   }
 }
 
+// Helper function: Get playlist data
+async function getPlaylistData(playlistId) {
+  try {
+    const { supabase } = await import('../../lib/supabase');
+    const { data, error } = await supabase
+      .from('community_playlists')
+      .select('*')
+      .eq('id', playlistId)
+      .single();
+
+    return error ? null : data;
+  } catch (error) {
+    console.error('Error getting playlist data:', error);
+    return null;
+  }
+}
