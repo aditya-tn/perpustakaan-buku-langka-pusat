@@ -331,24 +331,39 @@ extractUltraBookThemes(book) {
   return themes.length > 0 ? themes : ['umum'];
 },
 
-// 🆕 METHOD: Enhanced Book Keywords
+// 🆕 ADD MISSING METHOD: isCommonWord
+isCommonWord(word) {
+  const commonWords = [
+    'yang', 'dengan', 'dalam', 'untuk', 'pada', 'oleh', 'dari', 'sebagai', 
+    'adalah', 'ini', 'itu', 'dan', 'atau', 'oleh', 'seorang', 'karya', 'dari',
+    'di', 'ke', 'pada', 'untuk', 'dengan', 'oleh', 'sebagai', 'ada', 'tidak',
+    'akan', 'telah', 'dapat', 'bisa', 'harus', 'perlu', 'bukan', 'saja',
+    'juga', 'bahwa', 'namun', 'tetapi', 'karena', 'jika', 'apabila', 'sehingga',
+    'agar', 'supaya', 'meskipun', 'walaupun', 'sementara', 'ketika', 'setelah',
+    'sebelum', 'selama', 'hingga', 'sampai', 'melalui', 'terhadap', 'mengenai',
+    'tentang', 'antara', 'dalam', 'atas', 'bawah', 'depan', 'belakang', 'samping',
+    'dalam', 'luar', 'atas', 'bawah', 'kanan', 'kiri', 'sini', 'situ', 'sana',
+    'ini', 'itu', 'sini', 'situ', 'sana', 'kami', 'kita', 'anda', 'dia', 'mereka',
+    'saya', 'aku', 'kamu', 'engkau', 'beliau', 'para', 'pun', 'lah', 'kah', 'tah',
+    'pun', 'nya', 'ku', 'mu', 'nya', 'lah', 'kah', 'tah', 'pun'
+  ];
+  return commonWords.includes(word.toLowerCase());
+},
+  
+// 🆕 IMPROVED METHOD: Enhanced Book Keywords dengan error handling
 extractEnhancedBookKeywords(book) {
-  const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
-  
-  // Remove common words and get meaningful keywords
-  const commonWords = ['yang', 'dengan', 'dalam', 'untuk', 'pada', 'oleh', 'dari', 'sebagai', 'adalah', 'ini', 'itu', 'dan', 'atau', 'oleh', 'seorang', 'karya'];
-  
-  const words = text
-    .split(/[\s.,;:!?()]+/)
-    .filter(word => 
-      word.length > 3 && 
-      !commonWords.includes(word) &&
-      !word.match(/^\d+$/) // Exclude numbers
-    )
-    .slice(0, 15); // Take more keywords
-  
-  // Return unique keywords
-  return [...new Set(words)];
+  try {
+    const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
+    
+    // Remove common words and get meaningful keywords
+    const words = this.tokenizeText(text).slice(0, 15); // Take more keywords
+    
+    // Return unique keywords
+    return [...new Set(words)];
+  } catch (error) {
+    console.error('❌ Error in extractEnhancedBookKeywords:', error);
+    return [];
+  }
 },
 
 // 🆕 METHOD: Ultra Theme Matching
@@ -403,44 +418,58 @@ calculateUltraThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
   return Math.min(100, score);
 },
 
-// 🆕 METHOD: Ultra Text Matching
+// 🆕 IMPROVED METHOD: Ultra Text Matching dengan error handling
 calculateUltraTextMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
-  const bookWords = this.tokenizeText(bookTitle);
-  const playlistWords = this.tokenizeText(playlistName);
-  
-  let score = 0;
-  
-  console.log(`\n📖 ULTRA TEXT MATCHING:`);
-  console.log(`Book words: [${bookWords.join(', ')}]`);
-  console.log(`Playlist words: [${playlistWords.join(', ')}]`);
-  
-  // Exact word matches dengan bobot tinggi
-  bookWords.forEach(bWord => {
-    playlistWords.forEach(pWord => {
-      if (bWord === pWord && bWord.length > 3) {
-        score += 12; // Increased from 8
-        console.log(`💫 EXACT MATCH: "${bWord}" → +12`);
-      } else if ((bWord.includes(pWord) || pWord.includes(bWord)) && bWord.length > 3 && pWord.length > 3) {
-        score += 6; // Increased from 4
-        console.log(`✨ PARTIAL MATCH: "${bWord}" ↔ "${pWord}" → +6`);
-      }
+  try {
+    const bookWords = this.tokenizeText(bookTitle);
+    const playlistWords = this.tokenizeText(playlistName);
+    
+    let score = 0;
+    
+    console.log(`\n📖 ULTRA TEXT MATCHING:`);
+    console.log(`Book words: [${bookWords.join(', ')}]`);
+    console.log(`Playlist words: [${playlistWords.join(', ')}]`);
+    
+    // Exact word matches dengan bobot tinggi
+    bookWords.forEach(bWord => {
+      playlistWords.forEach(pWord => {
+        if (bWord === pWord && bWord.length > 3) {
+          score += 12; // Increased from 8
+          console.log(`💫 EXACT MATCH: "${bWord}" → +12`);
+        } else if ((bWord.includes(pWord) || pWord.includes(bWord)) && bWord.length > 3 && pWord.length > 3) {
+          score += 6; // Increased from 4
+          console.log(`✨ PARTIAL MATCH: "${bWord}" ↔ "${pWord}" → +6`);
+        }
+      });
     });
-  });
-  
-  // Bonus untuk judul yang sangat relevan
-  const relevanceBonus = this.calculateTitleRelevanceBonus(bookTitle, playlistName);
-  score += relevanceBonus;
-  
-  return Math.min(50, score);
+    
+    // Bonus untuk judul yang sangat relevan
+    const relevanceBonus = this.calculateTitleRelevanceBonus(bookTitle, playlistName);
+    score += relevanceBonus;
+    
+    return Math.min(50, score);
+  } catch (error) {
+    console.error('❌ Error in calculateUltraTextMatch:', error);
+    return 0;
+  }
 },
 
-// 🆕 METHOD: Tokenize Text
+// 🆕 IMPROVED METHOD: Tokenize Text dengan error handling
 tokenizeText(text) {
-  return text
-    .toLowerCase()
-    .split(/[\s.,;:!?()]+/)
-    .filter(word => word.length > 2) // Include shorter words now
-    .filter(word => !this.isCommonWord(word));
+  try {
+    if (!text || typeof text !== 'string') {
+      return [];
+    }
+    
+    return text
+      .toLowerCase()
+      .split(/[\s.,;:!?()]+/)
+      .filter(word => word && word.length > 2) // Include shorter words now
+      .filter(word => !this.isCommonWord(word));
+  } catch (error) {
+    console.error('❌ Error in tokenizeText:', error);
+    return [];
+  }
 },
 
 // 🆕 METHOD: Calculate Title Relevance Bonus
@@ -1060,3 +1089,4 @@ Hanya JSON.
 
 
 export default aiMatchingService;
+
