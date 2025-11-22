@@ -1,7 +1,4 @@
-// pages/api/ai-playlist-recommendations.js - PASTIKAN FILE INI ADA
-import { aiMatchingService } from '../../services/aiMatchingService';
-import { playlistService } from '../../services/playlistService';
-
+// pages/api/ai-playlist-recommendations.js - ADD DETAILED LOGGING
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -10,43 +7,58 @@ export default async function handler(req, res) {
   try {
     const { bookId, playlistIds } = req.body;
 
-    console.log('🚨 API CALLED: ai-playlist-recommendations');
-    console.log('📦 Request data:', { bookId, playlistCount: playlistIds?.length });
+    console.log('🚨 ========== API CALL START ==========');
+    console.log('📦 Request body:', { 
+      bookId: bookId?.substring(0, 20) + '...',
+      playlistIdsCount: playlistIds?.length 
+    });
 
     if (!bookId || !playlistIds || !Array.isArray(playlistIds)) {
+      console.log('❌ Invalid request data');
       return res.status(400).json({
         error: 'bookId and playlistIds array are required'
       });
     }
 
     // STEP 1: Dapatkan data buku
+    console.log('📚 Fetching book data...');
     let bookData = await getBookData(bookId);
     if (!bookData) {
-      console.log('❌ Book not found:', bookId);
+      console.log('❌ Book not found in database');
       return res.status(404).json({ error: 'Book not found' });
     }
 
-    console.log('✅ Book found:', bookData.judul);
+    console.log('✅ Book data:', {
+      judul: bookData.judul,
+      hasDescription: !!bookData.deskripsi_buku,
+      descriptionSource: bookData.deskripsi_source
+    });
 
     // STEP 2: Ensure AI description
+    console.log('🔄 Checking AI description...');
     bookData = await ensureAIDescription(bookData);
-    console.log('✅ Book description ready');
+    
+    console.log('✅ After AI description check:', {
+      hasDescription: !!bookData.deskripsi_buku,
+      descriptionLength: bookData.deskripsi_buku?.length
+    });
 
     // STEP 3: Dapatkan SEMUA data playlist
+    console.log('🎯 Fetching playlists...');
     const playlists = [];
     for (const playlistId of playlistIds) {
       try {
         const playlist = await playlistService.getPlaylistById(playlistId);
         if (playlist) {
           playlists.push(playlist);
+          console.log(`   📋 Playlist: "${playlist.name}"`);
         }
       } catch (error) {
-        console.error(`Error fetching playlist ${playlistId}:`, error);
+        console.error(`   ❌ Error fetching playlist ${playlistId}:`, error);
       }
     }
 
-    console.log('✅ Playlists loaded:', playlists.length);
-    console.log('📋 Playlist names:', playlists.map(p => p.name));
+    console.log(`✅ Total playlists loaded: ${playlists.length}`);
 
     // STEP 4: Panggai AI Matching Service
     console.log('🎯 Calling aiMatchingService.getPlaylistRecommendations...');
@@ -57,7 +69,16 @@ export default async function handler(req, res) {
         book: bookData,
         playlists: playlists
       });
-      console.log('✅ AI recommendations received:', recommendations?.length);
+      console.log('✅ AI recommendations completed:', recommendations?.length);
+      
+      // LOG DETAILED RESULTS
+      if (recommendations && recommendations.length > 0) {
+        console.log('📊 RECOMMENDATION RESULTS:');
+        recommendations.forEach((rec, index) => {
+          console.log(`   ${index + 1}. "${rec.playlistName}" - Score: ${rec.matchScore} - ${rec.reasoning}`);
+        });
+      }
+      
     } catch (aiError) {
       console.error('❌ AI analysis failed:', aiError);
       
@@ -74,6 +95,8 @@ export default async function handler(req, res) {
         emergency: true
       }));
     }
+
+    console.log('🚨 ========== API CALL END ==========');
 
     res.json({
       success: true,
@@ -92,65 +115,5 @@ export default async function handler(req, res) {
       error: 'Failed to generate recommendations',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
-  }
-}
-
-// REUSE FUNCTIONS
-async function ensureAIDescription(book) {
-  const hasAIDescription = book.deskripsi_buku && 
-                          book.deskripsi_source === 'ai-enhanced';
-  
-  if (hasAIDescription) {
-    console.log('✅ Book already has AI description');
-    return book;
-  }
-
-  console.log('🔄 Book needs AI description, generating...');
-  
-  try {
-    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/generate-ai-description`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bookId: book.id,
-        bookTitle: book.judul,
-        bookYear: book.tahun_terbit,
-        bookAuthor: book.pengarang,
-        currentDescription: book.deskripsi_fisik || ''
-      })
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) {
-        console.log('✅ AI description generated for recommendations');
-        return { ...book, ...result.data };
-      }
-    }
-    
-    return book;
-  } catch (error) {
-    console.error('❌ Error generating AI description:', error);
-    return book;
-  }
-}
-
-async function getBookData(bookId) {
-  try {
-    const { supabase } = await import('../../lib/supabase');
-    const { data: book, error } = await supabase
-      .from('books')
-      .select('*')
-      .eq('id', bookId)
-      .single();
-
-    if (error) {
-      console.error('❌ Supabase error:', error);
-      return null;
-    }
-    return book;
-  } catch (error) {
-    console.error('❌ Error in getBookData:', error);
-    return null;
   }
 }
