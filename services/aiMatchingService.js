@@ -1,6 +1,5 @@
-// services/aiMatchingService.js - COMPLETE FIXED VERSION
+// services/aiMatchingService.js - UPDATED VERSION
 import { generateAIResponse } from '../lib/gemini';
-import { playlistMetadataService } from './playlistMetadataService';
 
 export const aiMatchingService = {
 
@@ -35,7 +34,7 @@ export const aiMatchingService = {
     }
   },
 
-  // 🆕 ENHANCED: Playlist recommendations dengan metadata
+  // 🆕 IMPROVED: Playlist recommendations dengan metadata enhancement
   async getPlaylistRecommendations({ book, playlists = [] }) {
     try {
       console.log('🎯 Getting playlist recommendations for book:', book.judul);
@@ -51,7 +50,9 @@ export const aiMatchingService = {
         return [];
       }
 
-      // STEP 2: 🆕 Enhanced selection dengan playlist metadata
+      console.log('🔍 Available playlists after filtering:', availablePlaylists.length);
+
+      // STEP 2: Enhanced selection dengan AI metadata
       const topPlaylists = await this.selectTopPlaylistsWithMetadata(book, availablePlaylists, 3);
 
       console.log('🎯 Top playlists selected:', topPlaylists.map(p => p.playlist.name));
@@ -99,7 +100,7 @@ export const aiMatchingService = {
     }
   },
 
-  // 🆕 METHOD: Enhanced selection dengan playlist metadata
+  // 🆕 IMPROVED: Enhanced selection dengan metadata AI
   async selectTopPlaylistsWithMetadata(book, playlists, maxCount = 3) {
     console.log('🔍 Enhanced selection with playlist metadata:');
     console.log(` Book: "${book.judul}"`);
@@ -107,11 +108,18 @@ export const aiMatchingService = {
     const scoredPlaylists = [];
 
     for (const playlist of playlists) {
-      // 🆕 GUNAKAN ENHANCED MATCHING DENGAN METADATA
-      const score = await this.calculateEnhancedMatchScoreWithMetadata(book, playlist);
-      
-      console.log(` ${playlist.name}: ${score} points`);
-      scoredPlaylists.push({ playlist, score });
+      try {
+        // 🆕 GUNAKAN METADATA AI JIKA ADA
+        const score = await this.calculateEnhancedMatchScoreWithMetadata(book, playlist);
+        
+        console.log(` ${playlist.name}: ${score} points`);
+        scoredPlaylists.push({ playlist, score });
+      } catch (error) {
+        console.error(`❌ Error scoring playlist ${playlist.name}:`, error);
+        // Fallback ke basic scoring
+        const fallbackScore = await this.calculateEnhancedMatchScore(book, playlist);
+        scoredPlaylists.push({ playlist, score: fallbackScore });
+      }
     }
 
     // Sort by score descending
@@ -131,29 +139,37 @@ export const aiMatchingService = {
     return filtered;
   },
 
-  // 🆕 METHOD: Enhanced matching dengan playlist metadata
+  // 🆕 IMPROVED: Enhanced matching dengan metadata AI
   async calculateEnhancedMatchScoreWithMetadata(book, playlist) {
     try {
-      // 🎯 GET ENHANCED PLAYLIST DENGAN METADATA
-      const enhancedPlaylist = await playlistMetadataService.getEnhancedPlaylist(playlist.id);
-      const metadata = enhancedPlaylist.ai_metadata || {};
-      
-      console.log(`🔍 Enhanced scoring for: "${enhancedPlaylist.name}"`);
+      console.log(`🔍 Enhanced scoring for: "${playlist.name}"`);
       console.log(` Book: "${book.judul}"`);
 
       let score = 0;
 
-      // 1. 🏛️ HISTORICAL CONTEXT MATCHING (40%)
-      const historicalScore = await this.calculateHistoricalContextMatch(book, enhancedPlaylist, metadata);
-      score += historicalScore * 0.4;
+      // 🎯 GUNAKAN METADATA AI JIKA ADA
+      const hasAIMetadata = playlist.ai_metadata && !playlist.ai_metadata.is_fallback;
+      const metadata = playlist.ai_metadata || {};
 
-      // 2. 🎭 THEMATIC MATCHING (35%)
-      const themeScore = this.calculateEnhancedThematicMatch(book, enhancedPlaylist, metadata);
-      score += themeScore * 0.35;
+      if (hasAIMetadata) {
+        console.log('🤖 Using AI metadata for enhanced matching');
+        
+        // 1. 🏛️ HISTORICAL CONTEXT MATCHING (40%)
+        const historicalScore = this.calculateHistoricalContextMatch(book, playlist, metadata);
+        score += historicalScore * 0.4;
 
-      // 3. 🌏 GEOGRAPHICAL MATCHING (25%)
-      const geoScore = this.calculateEnhancedGeographicalMatch(book, enhancedPlaylist, metadata);
-      score += geoScore * 0.25;
+        // 2. 🎭 THEMATIC MATCHING (35%)
+        const themeScore = this.calculateEnhancedThematicMatch(book, playlist, metadata);
+        score += themeScore * 0.35;
+
+        // 3. 🌏 GEOGRAPHICAL MATCHING (25%)
+        const geoScore = this.calculateEnhancedGeographicalMatch(book, playlist, metadata);
+        score += geoScore * 0.25;
+      } else {
+        // Fallback ke original enhanced scoring tanpa metadata
+        console.log('⚡ No AI metadata, using basic enhanced scoring');
+        score = await this.calculateEnhancedMatchScore(book, playlist);
+      }
 
       const finalScore = Math.min(100, Math.round(score));
       console.log(` ✅ Final enhanced score: ${finalScore}`);
@@ -162,12 +178,12 @@ export const aiMatchingService = {
       
     } catch (error) {
       console.error('❌ Enhanced matching failed, using basic score:', error);
-      return await this.calculateEnhancedMatchScore(book, playlist); // Fallback ke original
+      return await this.calculateEnhancedMatchScore(book, playlist);
     }
   },
 
   // 🆕 METHOD: Historical context matching dengan metadata
-  async calculateHistoricalContextMatch(book, enhancedPlaylist, metadata) {
+  calculateHistoricalContextMatch(book, playlist, metadata) {
     const bookText = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
     let score = 0;
 
@@ -177,16 +193,6 @@ export const aiMatchingService = {
       if (bookText.includes(historicalName.toLowerCase())) {
         score += 30; // High score untuk historical match
         console.log(` 🏛️ Historical name match: "${historicalName}" +30`);
-        break;
-      }
-    }
-
-    // 🎯 CHECK MODERN EQUIVALENTS 
-    const modernEquivalents = metadata.modern_equivalents || [];
-    for (const modern of modernEquivalents) {
-      if (bookText.includes(modern.toLowerCase())) {
-        score += 20;
-        console.log(` 🏛️ Modern equivalent match: "${modern}" +20`);
         break;
       }
     }
@@ -212,7 +218,7 @@ export const aiMatchingService = {
   },
 
   // 🆕 METHOD: Enhanced thematic matching dengan metadata
-  calculateEnhancedThematicMatch(book, enhancedPlaylist, metadata) {
+  calculateEnhancedThematicMatch(book, playlist, metadata) {
     const bookThemes = this.extractBookThemes(book);
     const playlistThemes = metadata.key_themes || [];
     
@@ -244,7 +250,7 @@ export const aiMatchingService = {
   },
 
   // 🆕 METHOD: Enhanced geographical matching dengan metadata
-  calculateEnhancedGeographicalMatch(book, enhancedPlaylist, metadata) {
+  calculateEnhancedGeographicalMatch(book, playlist, metadata) {
     const bookRegions = this.extractBookRegions(book);
     const playlistRegions = metadata.geographical_focus || [];
     
@@ -404,7 +410,7 @@ export const aiMatchingService = {
   },
 
   // ===========================================================================
-  // EXISTING METHODS - Tetap dipertahankan
+  // EXISTING METHODS - Tetap dipertahankan (dengan minor improvements)
   // ===========================================================================
 
   async calculateEnhancedMatchScore(book, playlist) {
@@ -1196,3 +1202,6 @@ Hanya JSON.
     return Math.min(100, Math.max(20, score));
   }
 };
+
+// Ekspor service
+export default aiMatchingService;
