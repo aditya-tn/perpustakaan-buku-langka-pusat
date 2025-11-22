@@ -301,103 +301,75 @@ calculateGeographicMatch(book, playlist) {
   return Math.min(80, score);
 },
 
-// 🆕 COMPREHENSIVE HISTORICAL TO MODERN MAPPING
+// 🆕 ENHANCED HISTORICAL MAPPING dengan Residensi
 calculateHistoricalToModernMapping(bookLocations, playlistLocations) {
   let score = 0;
   
-  // 🏛️ COMPREHENSIVE MAPPING: Hindia Belanda → Indonesia Modern
   const historicalMappings = {
-    // 🇮🇩 INDONESIA MODERN (Root Level)
-    'hindia belanda': ['indonesia', 'sumatra', 'jawa', 'bali', 'sulawesi', 'kalimantan', 'papua', 'maluku', 'nusa tenggara'],
-    'dutch east indies': ['indonesia', 'sumatra', 'jawa', 'bali', 'sulawesi', 'kalimantan', 'papua'],
-    'netherlands east indies': ['indonesia', 'sumatra', 'jawa', 'bali', 'sulawesi', 'kalimantan', 'papua'],
+    // 🏛️ RESIDENSI PADANG REGION
+    'padangsche bovenlanden': ['sumatra barat', 'sumatra', 'indonesia'],
+    'padangse bovenlanden': ['sumatra barat', 'sumatra', 'indonesia'],
+    'padangsche benedenlanden': ['sumatra barat', 'sumatra', 'indonesia'],
+    'agam': ['sumatra barat', 'sumatra', 'indonesia'],
+    'tanah datar': ['sumatra barat', 'sumatra', 'indonesia'],
+    'lima puluh kota': ['sumatra barat', 'sumatra', 'indonesia'],
+    'solok': ['sumatra barat', 'sumatra', 'indonesia'],
+    'pariaman': ['sumatra barat', 'sumatra', 'indonesia'],
+    'painan': ['sumatra barat', 'sumatra', 'indonesia'],
     
-    // 🏝️ SUMATRA REGION
-    'sumatra\'s westkust': ['sumatra barat', 'sumatra', 'indonesia'],
-    'sumatra\'s oostkust': ['sumatra utara', 'riau', 'sumatra', 'indonesia'],
-    'sumatra\'s zuidkust': ['lampung', 'bengkulu', 'sumatra', 'indonesia'],
-    'pantai barat sumatra': ['sumatra barat', 'aceh', 'sumatra', 'indonesia'],
-    'pantai timur sumatra': ['sumatra utara', 'riau', 'sumatra', 'indonesia'],
+    // 🏛️ RESIDENSI ACEH REGION
+    'groot atjeh': ['aceh', 'sumatra', 'indonesia'],
+    'groot-atjeh': ['aceh', 'sumatra', 'indonesia'],
+    'noordkust van atjeh': ['aceh', 'sumatra', 'indonesia'],
+    'oostkust van atjeh': ['aceh', 'sumatra', 'indonesia'],
+    'westkust van atjeh': ['aceh', 'sumatra', 'indonesia'],
+    'bengkulen': ['bengkulu', 'sumatra', 'indonesia'],
     
-    // 🗾 JAVA REGION  
-    'java': ['jawa', 'indonesia'],
-    'west java': ['jawa barat', 'jawa', 'indonesia'],
-    'midden java': ['jawa tengah', 'jawa', 'indonesia'],
-    'oost java': ['jawa timur', 'jawa', 'indonesia'],
+    // 🏛️ RESIDENSI SUMATRA TIMUR
+    'oostkust van sumatra': ['sumatra utara', 'sumatra', 'indonesia'],
+    'sumatra\'s oostkust': ['sumatra utara', 'sumatra', 'indonesia'],
+    'deli': ['sumatra utara', 'sumatra', 'indonesia'],
+    'serdang': ['sumatra utara', 'sumatra', 'indonesia'],
+    'langkat': ['sumatra utara', 'sumatra', 'indonesia'],
+    'tapanuli': ['sumatra utara', 'sumatra', 'indonesia'],
     
-    // 🏙️ JAVA CITIES (Historical → Modern)
-    'batavia': ['jakarta', 'jawa barat', 'jawa', 'indonesia'],
-    'buitenzorg': ['bogor', 'jawa barat', 'jawa', 'indonesia'],
-    'bandoeng': ['bandung', 'jawa barat', 'jawa', 'indonesia'],
-    'soerabaja': ['surabaya', 'jawa timur', 'jawa', 'indonesia'],
-    'semarang': ['semarang', 'jawa tengah', 'jawa', 'indonesia'],
-    'yogyakarta': ['yogyakarta', 'jawa tengah', 'jawa', 'indonesia'],
-    'solo': ['surakarta', 'jawa tengah', 'jawa', 'indonesia'],
+    // 🏛️ RESIDENSI SUMATRA SELATAN
+    'palembangsche bovenlanden': ['sumatra selatan', 'sumatra', 'indonesia'],
+    'palembangsche benedenlanden': ['sumatra selatan', 'sumatra', 'indonesia'],
+    'lampongsche districten': ['lampung', 'sumatra', 'indonesia'],
     
-    // 🏔️ SUMATRA CITIES & REGIONS
-    'padang': ['padang', 'sumatra barat', 'sumatra', 'indonesia'],
-    'bukittinggi': ['bukittinggi', 'sumatra barat', 'sumatra', 'indonesia'],
-    'payakumbuh': ['payakumbuh', 'sumatra barat', 'sumatra', 'indonesia'],
-    'medan': ['medan', 'sumatra utara', 'sumatra', 'indonesia'],
-    'pematang siantar': ['pematang siantar', 'sumatra utara', 'sumatra', 'indonesia'],
-    'palembang': ['palembang', 'sumatra selatan', 'sumatra', 'indonesia'],
-    'jambi': ['jambi', 'sumatra', 'indonesia'],
-    'bengkulu': ['bengkulu', 'sumatra', 'indonesia'],
-    'lampung': ['lampung', 'sumatra', 'indonesia'],
+    // 🏛️ RESIDENSI RIAU-JAMBI
+    'riouw-lingga archipel': ['riau', 'sumatra', 'indonesia'],
+    'indragiri': ['riau', 'sumatra', 'indonesia'],
+    'jambische bovenlanden': ['jambi', 'sumatra', 'indonesia'],
     
-    // 🛶 ACEH REGION
-    'aceh': ['aceh', 'sumatra', 'indonesia'],
-    'atjeh': ['aceh', 'sumatra', 'indonesia'],
-    'kutaraja': ['banda aceh', 'aceh', 'sumatra', 'indonesia'],
+    // 🗾 RESIDENSI JAVA BARAT
+    'batavia en omstreken': ['jawa barat', 'jawa', 'indonesia'],
+    'preanger regentschappen': ['jawa barat', 'jawa', 'indonesia'],
+    'preanger': ['jawa barat', 'jawa', 'indonesia'],
+    'priangan': ['jawa barat', 'jawa', 'indonesia'],
+    'buitenzorg': ['jawa barat', 'jawa', 'indonesia'],
+    'cheribon': ['jawa barat', 'jawa', 'indonesia'],
     
-    // 🏝️ BORNEO/KALIMANTAN
-    'borneo': ['kalimantan', 'indonesia'],
-    'west borneo': ['kalimantan barat', 'kalimantan', 'indonesia'],
-    'south borneo': ['kalimantan selatan', 'kalimantan', 'indonesia'],
-    'east borneo': ['kalimantan timur', 'kalimantan', 'indonesia'],
-    'pontianak': ['pontianak', 'kalimantan barat', 'kalimantan', 'indonesia'],
-    'banjarmasin': ['banjarmasin', 'kalimantan selatan', 'kalimantan', 'indonesia'],
-    'balikpapan': ['balikpapan', 'kalimantan timur', 'kalimantan', 'indonesia'],
+    // 🗾 RESIDENSI JAVA TENGAH
+    'semarangsche residentie': ['jawa tengah', 'jawa', 'indonesia'],
+    'kedoe': ['jawa tengah', 'jawa', 'indonesia'],
+    'bagelen': ['jawa tengah', 'jawa', 'indonesia'],
+    'banjoemas': ['jawa tengah', 'jawa', 'indonesia'],
     
-    // 🏝️ SULAWESI/CELEBES
-    'celebes': ['sulawesi', 'indonesia'],
-    'sulawesi': ['sulawesi', 'indonesia'],
-    'makassar': ['makassar', 'sulawesi selatan', 'sulawesi', 'indonesia'],
-    'manado': ['manado', 'sulawesi utara', 'sulawesi', 'indonesia'],
+    // 🗾 RESIDENSI JAVA TIMUR  
+    'soerabajasche residentie': ['jawa timur', 'jawa', 'indonesia'],
+    'madoera': ['jawa timur', 'jawa', 'indonesia'],
+    'pasoeroean': ['jawa timur', 'jawa', 'indonesia'],
     
-    // 🏝️ BALI & NUSA TENGGARA
-    'bali': ['bali', 'indonesia'],
-    'lombok': ['lombok', 'nusa tenggara barat', 'indonesia'],
-    'sumbawa': ['sumbawa', 'nusa tenggara barat', 'indonesia'],
-    'flores': ['flores', 'nusa tenggara timur', 'indonesia'],
-    'timor': ['timor', 'nusa tenggara timur', 'indonesia'],
+    // 🏝️ LAIN-LAIN
+    'bali en lombok': ['bali', 'indonesia'],
+    'manado residentie': ['sulawesi utara', 'sulawesi', 'indonesia'],
+    'amboinsche residentie': ['maluku', 'indonesia'],
     
-    // 🏝️ MALUKU & PAPUA
-    'molukken': ['maluku', 'indonesia'],
-    'ambon': ['ambon', 'maluku', 'indonesia'],
-    'ternate': ['ternate', 'maluku utara', 'maluku', 'indonesia'],
-    'tidore': ['tidore', 'maluku utara', 'maluku', 'indonesia'],
-    'nieuw guinea': ['papua', 'indonesia'],
-    'west papua': ['papua barat', 'papua', 'indonesia'],
-    
-    // 🌏 CULTURAL & ETHNIC REGIONS
-    'minangkabau': ['sumatra barat', 'sumatra', 'indonesia'],
-    'minang': ['sumatra barat', 'sumatra', 'indonesia'],
-    'batak': ['sumatra utara', 'sumatra', 'indonesia'],
-    'malay': ['sumatra', 'kalimantan', 'indonesia', 'malaysia'],
-    'javanese': ['jawa', 'indonesia'],
-    'sundanese': ['jawa barat', 'jawa', 'indonesia'],
-    'balinese': ['bali', 'indonesia'],
-    'bugis': ['sulawesi selatan', 'sulawesi', 'indonesia'],
-    'makassar': ['sulawesi selatan', 'sulawesi', 'indonesia'],
-    
-    // 🌍 INTERNATIONAL CONNECTIONS
-    'malaya': ['malaysia'],
-    'british malaya': ['malaysia'],
-    'straits settlements': ['malaysia', 'singapore'],
-    'singapore': ['singapore'],
-    'negri sembilan': ['malaysia', 'sumatra barat'], // Cultural connection
-    'negeri sembilan': ['malaysia', 'sumatra barat']
+    // 🇮🇩 HINDIA BELANDA
+    'hindia belanda': ['indonesia', 'sumatra', 'jawa', 'bali', 'sulawesi', 'kalimantan', 'papua'],
+    'nederlandsch-indie': ['indonesia', 'sumatra', 'jawa', 'bali', 'sulawesi', 'kalimantan', 'papua']
   };
   
   for (const bookLocation of bookLocations) {
@@ -498,72 +470,155 @@ calculateRegionalHierarchy(bookLocations, playlistLocations) {
   return score;
 },
 
-// 🆕 ENHANCED GEOGRAPHIC LOCATION EXTRACTION
+// 🆕 ENHANCED LOCATION EXTRACTION dengan Residensi Kolonial
 extractGeographicLocations(book) {
   const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
   const locations = [];
   
-  // COMPREHENSIVE LOCATION PATTERNS - Historical + Modern
+  // 🎯 SUMATRA REGION - HIGH PRIORITY
   const locationPatterns = {
-    // 🇮🇩 INDONESIA MODERN
-    'indonesia': ['indonesia', 'nusantara'],
+    // 🏛️ RESIDENSI SUMATRA BARAT (PADANG REGION)
+    'sumatra barat': [
+      'sumatra barat', 'sumatera barat', 'west sumatra', 
+      'minangkabau', 'minang', 'padang', 'bukittinggi', 'payakumbuh',
+      // 🆕 RESIDENSI KOLONIAL
+      'padangsche bovenlanden', 'padangse bovenlanden', 'padang highlands',
+      'padangsche benedenlanden', 'padang lowlands',
+      'agam', 'tanah datar', 'lima puluh kota', 'solok',
+      'pariaman', 'painan', 'padang panjang', 'padang panjang'
+    ],
+    
+    // 🏛️ RESIDENSI ACEH
+    'aceh': [
+      'aceh', 'atjeh', 
+      // 🆕 RESIDENSI KOLONIAL
+      'groot atjeh', 'groot-atjeh', 'great aceh',
+      'noordkust van atjeh', 'aceh north coast',
+      'oostkust van atjeh', 'aceh east coast',
+      'westkust van atjeh', 'aceh west coast',
+      'bengkulen', 'bengkulu', 'benkoelen'
+    ],
+    
+    // 🏛️ RESIDENSI SUMATRA UTARA
+    'sumatra utara': [
+      'sumatra utara', 'north sumatra', 'medan', 'batak',
+      // 🆕 RESIDENSI KOLONIAL  
+      'oostkust van sumatra', 'east coast of sumatra',
+      'sumatra\'s oostkust', 'sumatra east coast',
+      'deli', 'serdang', 'langkat', 'simalungun',
+      'tapanuli', 'toba', 'karo'
+    ],
+    
+    // 🏛️ RESIDENSI SUMATRA SELATAN
+    'sumatra selatan': [
+      'sumatra selatan', 'south sumatra', 'palembang',
+      // 🆕 RESIDENSI KOLONIAL
+      'palembangsche bovenlanden', 'palembang highlands',
+      'palembangsche benedenlanden', 'palembang lowlands',
+      'lampongsche districten', 'lampung districts'
+    ],
+    
+    // 🏛️ RESIDENSI RIAU & JAMBI
+    'riau': [
+      'riau', 'riouw',
+      // 🆕 RESIDENSI KOLONIAL
+      'riouw-lingga archipel', 'riau-lingga archipelago',
+      'indragiri', 'kampar', 'siak'
+    ],
+    
+    'jambi': [
+      'jambi', 'djambi',
+      // 🆕 RESIDENSI KOLONIAL
+      'jambische bovenlanden', 'jambi highlands'
+    ],
+    
+    // 🗾 RESIDENSI JAVA BARAT
+    'jawa barat': [
+      'jawa barat', 'west java', 'bandung', 'bogor', 'batavia', 'jakarta',
+      // 🆕 RESIDENSI KOLONIAL
+      'batavia en omstreken', 'batavia and surroundings',
+      'preanger regentschappen', 'preanger regencies',
+      'preanger', 'priangan', 'cianjur', 'sukabumi',
+      'buitenzorg', 'bogor', 'krawang', 'karawang',
+      'cheribon', 'cirebon', 'indra maju', 'indramayu'
+    ],
+    
+    // 🗾 RESIDENSI JAVA TENGAH
+    'jawa tengah': [
+      'jawa tengah', 'central java', 'semarang', 'yogyakarta', 'solo',
+      // 🆕 RESIDENSI KOLONIAL
+      'semarangsche residentie', 'semarang residency',
+      'kedoe', 'kedu', 'bagelen', 'banjoemas', 'banyumas',
+      'pekalongan', 'tegal', 'rembang', 'japara', 'jepara'
+    ],
+    
+    // 🗾 RESIDENSI JAVA TIMUR
+    'jawa timur': [
+      'jawa timur', 'east java', 'surabaya', 'soerabaja',
+      // 🆕 RESIDENSI KOLONIAL
+      'soerabajasche residentie', 'surabaya residency',
+      'madoera', 'madura', 'pasoeroean', 'pasuruan',
+      'probolinggo', 'besuki', 'banjoewangi', 'banyuwangi'
+    ],
+    
+    // 🏝️ RESIDENSI BALI & LOMBOK
+    'bali': [
+      'bali', 
+      // 🆕 RESIDENSI KOLONIAL
+      'bali en lombok', 'bali and lombok',
+      'zuid-bali', 'south bali', 'noord-bali', 'north bali'
+    ],
+    
+    // 🏝️ RESIDENSI SULAWESI
+    'sulawesi': [
+      'sulawesi', 'celebes', 'makassar', 'manado',
+      // 🆕 RESIDENSI KOLONIAL
+      'manado residentie', 'manado residency',
+      'gouvernement celebes', 'celebes government',
+      'zuider-en oosterafdeeling', 'south and east division'
+    ],
+    
+    // 🏝️ RESIDENSI KALIMANTAN
+    'kalimantan': [
+      'kalimantan', 'borneo',
+      // 🆕 RESIDENSI KOLONIAL
+      'zuider-en oosterafdeeling van borneo', 
+      'south and east division of borneo',
+      'westerafdeeling van borneo', 'west division of borneo'
+    ],
+    
+    // 🏝️ RESIDENSI MALUKU
+    'maluku': [
+      'maluku', 'molukken',
+      // 🆕 RESIDENSI KOLONIAL
+      'amboinsche residentie', 'ambon residency',
+      'ternate', 'tidore', 'banda-eilanden', 'banda islands'
+    ],
+    
+    // 🇮🇩 INDONESIA UMUM
     'sumatra': ['sumatra', 'sumatera'],
     'jawa': ['jawa', 'java'],
-    'bali': ['bali'],
-    'sulawesi': ['sulawesi', 'celebes'],
-    'kalimantan': ['kalimantan', 'borneo'],
-    'papua': ['papua', 'nieuw guinea', 'west papua'],
-    'maluku': ['maluku', 'molukken'],
-    'nusa tenggara': ['nusa tenggara'],
+    'indonesia': ['indonesia', 'nusantara'],
     
-    // 🏝️ SUMATRA PROVINCES
-    'aceh': ['aceh', 'atjeh'],
-    'sumatra utara': ['sumatra utara', 'north sumatra'],
-    'sumatra barat': ['sumatra barat', 'west sumatra', 'minangkabau', 'minang'],
-    'riau': ['riau'],
-    'jambi': ['jambi'],
-    'sumatra selatan': ['sumatra selatan', 'south sumatra'],
-    'bengkulu': ['bengkulu'],
-    'lampung': ['lampung'],
+    // 🏛️ HINDIA BELANDA
+    'hindia belanda': [
+      'hindia belanda', 'dutch east indies', 
+      'netherlands east indies', 'nederlandsch-indie'
+    ],
     
-    // 🗾 JAVA PROVINCES
-    'jakarta': ['jakarta', 'batavia'],
-    'jawa barat': ['jawa barat', 'west java', 'bogor', 'buitenzorg', 'bandung', 'bandoeng'],
-    'jawa tengah': ['jawa tengah', 'central java', 'semarang', 'yogyakarta', 'solo', 'surakarta'],
-    'jawa timur': ['jawa timur', 'east java', 'surabaya', 'soerabaja'],
-    'banten': ['banten'],
-    
-    // 🏝️ KALIMANTAN PROVINCES
-    'kalimantan barat': ['kalimantan barat', 'west borneo', 'pontianak'],
-    'kalimantan tengah': ['kalimantan tengah', 'central borneo'],
-    'kalimantan selatan': ['kalimantan selatan', 'south borneo', 'banjarmasin'],
-    'kalimantan timur': ['kalimantan timur', 'east borneo', 'balikpapan'],
-    
-    // 🏝️ SULAWESI PROVINCES
-    'sulawesi utara': ['sulawesi utara', 'north celebes', 'manado'],
-    'sulawesi tengah': ['sulawesi tengah', 'central celebes'],
-    'sulawesi selatan': ['sulawesi selatan', 'south celebes', 'makassar'],
-    
-    // 🏛️ HISTORICAL DUTCH TERMS
-    'hindia belanda': ['hindia belanda', 'dutch east indies', 'netherlands east indies'],
-    'batavia': ['batavia'],
-    'buitenzorg': ['buitenzorg'],
-    'bandoeng': ['bandoeng'],
-    'soerabaja': ['soerabaja'],
-    
-    // 🌏 INTERNATIONAL
-    'malaysia': ['malaysia', 'malaya', 'british malaya'],
-    'singapore': ['singapore', 'singapura'],
-    'belanda': ['belanda', 'netherlands', 'holland', 'dutch']
+    // 🌏 INTERNASIONAL
+    'malaysia': ['malaysia', 'malaya', 'british malaya', 'negri sembilan']
   };
   
   for (const [location, patterns] of Object.entries(locationPatterns)) {
-    if (patterns.some(pattern => text.includes(pattern))) {
+    const matchedPatterns = patterns.filter(pattern => text.includes(pattern));
+    if (matchedPatterns.length > 0) {
       locations.push(location);
+      console.log(`   📍 Detected "${location}" via: [${matchedPatterns.join(', ')}]`);
     }
   }
   
-  return [...new Set(locations)]; // Remove duplicates
+  return [...new Set(locations)];
 },
   
 // 🆕 METHOD: AI Metadata Semantic Match
@@ -1213,6 +1268,7 @@ Hanya JSON.
 
 
 export default aiMatchingService;
+
 
 
 
