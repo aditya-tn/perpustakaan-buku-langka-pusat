@@ -139,264 +139,366 @@ export const aiMatchingService = {
   },
 
   // 🆕 REPLACED: Enhanced Metadata Matching
-  calculateEnhancedMetadataMatch(book, playlist) {
-    console.log(`🔍 ENHANCED Matching: "${book.judul}" vs "${playlist.name}"`);
+calculateEnhancedMetadataMatch(book, playlist) {
+  console.log(`🔍 ULTRA ENHANCED Matching: "${book.judul}" vs "${playlist.name}"`);
+  
+  const bookTitle = book.judul.toLowerCase();
+  const bookDesc = (book.deskripsi_buku || '').toLowerCase();
+  const playlistName = playlist.name.toLowerCase();
+  const playlistDesc = (playlist.description || '').toLowerCase();
+  
+  let score = 0;
+
+  // 1. 🎯 CRITICAL KEYWORD MATCHING (30%) - PALING PENTING
+  const criticalScore = this.calculateCriticalKeywordMatch(bookTitle, bookDesc, playlistName, playlistDesc);
+  score += criticalScore * 0.3;
+  console.log(`🔥 Critical Keyword Score: ${criticalScore} → Total: ${score}`);
+
+  // 2. 🎯 AI METADATA MATCHING (30%) - SANGAT PENTING
+  const aiMetadataScore = this.calculateEnhancedAIMetadataMatch(book, playlist);
+  score += aiMetadataScore * 0.3;
+  console.log(`🤖 AI Metadata Score: ${aiMetadataScore} → Total: ${score}`);
+
+  // 3. 🎯 CONTENT THEME MATCHING (25%) - PENTING
+  const themeScore = this.calculateUltraThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc);
+  score += themeScore * 0.25;
+  console.log(`🎭 Ultra Theme Score: ${themeScore} → Total: ${score}`);
+
+  // 4. 🎯 SMART TEXT MATCHING (15%) - TAMBAHAN
+  const textMatchScore = this.calculateUltraTextMatch(bookTitle, bookDesc, playlistName, playlistDesc);
+  score += textMatchScore * 0.15;
+  console.log(`📖 Ultra Text Match: ${textMatchScore} → Total: ${score}`);
+
+  const finalScore = Math.min(100, Math.round(score));
+  console.log(`✅ FINAL ULTRA SCORE: ${finalScore} for "${playlist.name}"`);
+  
+  return finalScore;
+},
+
+// 🆕 METHOD: Critical Keyword Matching - DETECT KEYWORDS PENTING
+calculateCriticalKeywordMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
+  console.log(`\n🔥 ANALYZING CRITICAL KEYWORDS:`);
+  
+  const bookText = `${bookTitle} ${bookDesc}`;
+  const playlistText = `${playlistName} ${playlistDesc}`;
+  
+  let score = 0;
+  
+  // 🎯 CRITICAL KEYWORDS dengan bobot tinggi
+  const criticalKeywords = {
+    // Kolonial & Sejarah Indonesia
+    'hindia belanda': 40,
+    'kolonial': 35,
+    'penjajahan': 30,
+    'belanda': 25,
+    'sejarah indonesia': 40,
+    'nusantara': 20,
+    'indonesia': 15,
     
-    const bookTitle = book.judul.toLowerCase();
-    const bookDesc = (book.deskripsi_buku || '').toLowerCase();
-    const playlistName = playlist.name.toLowerCase();
-    const playlistDesc = (playlist.description || '').toLowerCase();
+    // Periode & Era
+    'runtuhnya': 25,
+    'dekolonisasi': 30,
+    'disintegrasi': 25,
+    'kemerdekaan': 20,
     
-    let score = 0;
-
-    // 1. 🎯 AI METADATA MATCHING (40%) - PALING PENTING
-    const aiMetadataScore = this.calculateAIMetadataMatch(book, playlist);
-    score += aiMetadataScore * 0.4;
-    console.log(`🤖 AI Metadata Score: ${aiMetadataScore} → Total: ${score}`);
-
-    // 2. 🎯 CONTENT THEME MATCHING (30%)
-    const themeScore = this.calculateEnhancedThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-    score += themeScore * 0.3;
-    console.log(`🎭 Enhanced Theme Score: ${themeScore} → Total: ${score}`);
-
-    // 3. 🎯 SMART TITLE & DESCRIPTION MATCHING (20%)
-    const textMatchScore = this.calculateSmartTextMatch(bookTitle, bookDesc, playlistName, playlistDesc);
-    score += textMatchScore * 0.2;
-    console.log(`📖 Text Match Score: ${textMatchScore} → Total: ${score}`);
-
-    // 4. 🎯 CONTEXTUAL BONUS (10%)
-    const contextualBonus = this.calculateContextualBonus(book, playlist);
-    score += contextualBonus * 0.1;
-    console.log(`🌟 Contextual Bonus: ${contextualBonus} → Total: ${score}`);
-
-    const finalScore = Math.min(100, Math.round(score));
-    console.log(`✅ FINAL ENHANCED SCORE: ${finalScore} for "${playlist.name}"`);
+    // Topik Utama
+    'politik': 20,
+    'sosial': 15,
+    'ekonomi': 15,
+    'militer': 20,
+    'pemerintahan': 18,
     
-    return finalScore;
-  },
-
-  // 🆕 METHOD: Enhanced AI Metadata Matching
-  calculateAIMetadataMatch(book, playlist) {
-    console.log(`\n🤖 ANALYZING AI METADATA MATCH:`);
+    // Regional (jika ada)
+    'jawa': 15,
+    'sumatra': 15,
+    'sulawesi': 15,
+    'kalimantan': 15,
+    'bali': 15,
+    'aceh': 15
+  };
+  
+  for (const [keyword, weight] of Object.entries(criticalKeywords)) {
+    const bookHasKeyword = bookText.includes(keyword);
+    const playlistHasKeyword = playlistText.includes(keyword);
     
-    let score = 0;
-    
-    if (playlist.ai_metadata && !playlist.ai_metadata.is_fallback) {
-      console.log(`📋 Using ENHANCED AI Metadata for: "${playlist.name}"`);
-      const metadata = playlist.ai_metadata;
-      
-      // Extract book themes and keywords
-      const bookThemes = this.extractEnhancedBookThemes(book);
-      const bookKeywords = this.extractBookKeywords(book);
-      
-      console.log(`🏷️ Book Themes: [${bookThemes.join(', ')}]`);
-      console.log(`🔑 Book Keywords: [${bookKeywords.join(', ')}]`);
-      console.log(`🎯 Playlist AI Themes: [${metadata.key_themes?.join(', ') || 'none'}]`);
-      
-      // Theme matching
-      if (metadata.key_themes && metadata.key_themes.length > 0) {
-        const themeMatches = bookThemes.filter(theme => 
-          metadata.key_themes.includes(theme)
-        ).length;
-        
-        if (themeMatches > 0) {
-          score += themeMatches * 15;
-          console.log(`✅ AI THEME MATCHES: ${themeMatches} → +${themeMatches * 15}`);
-        }
-      }
-      
-      // Historical context matching
-      if (metadata.historical_context) {
-        const contextMatch = this.evaluateHistoricalContext(book, metadata.historical_context);
-        score += contextMatch;
-        console.log(`🏛️ Historical Context Match: +${contextMatch}`);
-      }
-      
-      // Content type matching
-      if (metadata.content_type && book.kategori) {
-        const typeMatch = this.evaluateContentTypeMatch(book.kategori, metadata.content_type);
-        score += typeMatch;
-        console.log(`📚 Content Type Match: +${typeMatch}`);
-      }
-      
-    } else {
-      console.log(`⚠️ No enhanced AI metadata, using basic matching`);
-      // Fallback to basic metadata matching
-      score = this.calculateBasicMetadataMatch(book, playlist);
+    if (bookHasKeyword && playlistHasKeyword) {
+      score += weight;
+      console.log(`💥 CRITICAL MATCH: "${keyword}" → +${weight}`);
+    } else if (bookHasKeyword) {
+      console.log(`⚠️ Book has "${keyword}" but playlist doesn't`);
+    } else if (playlistHasKeyword) {
+      console.log(`ℹ️ Playlist has "${keyword}" but book doesn't`);
     }
-    
-    return Math.min(80, score);
-  },
+  }
+  
+  // Bonus untuk exact title match
+  if (playlistText.includes(bookTitle.toLowerCase())) {
+    score += 30;
+    console.log(`🏆 EXACT TITLE MATCH BONUS: +30`);
+  }
+  
+  return Math.min(100, score);
+},
 
-  // 🆕 METHOD: Extract Enhanced Book Themes
-  extractEnhancedBookThemes(book) {
-    const text = `${book.judul} ${book.deskripsi_buku || ''} ${book.kategori || ''}`.toLowerCase();
-    const themes = [];
+// 🆕 METHOD: Enhanced AI Metadata Matching
+calculateEnhancedAIMetadataMatch(book, playlist) {
+  console.log(`\n🤖 ENHANCED AI METADATA ANALYSIS:`);
+  
+  let score = 0;
+  
+  if (playlist.ai_metadata) {
+    console.log(`📋 AI Metadata available for: "${playlist.name}"`);
+    const metadata = playlist.ai_metadata;
     
-    const enhancedThemeKeywords = {
-      'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman', 'era', 'period', 'tahun', 'abad'],
-      'kolonial': ['kolonial', 'belanda', 'dutch', 'penjajahan', 'colonial', 'voc', 'hindia belanda'],
-      'revolusi': ['revolusi', 'kemerdekaan', 'perang', 'pertempuran', 'rebellion', 'independence'],
-      'politik': ['politik', 'pemerintah', 'negara', 'kekuasaan', 'policy', 'government', 'administration'],
-      'militer': ['militer', 'tentara', 'perang', 'pertempuran', 'military', 'army', 'navy', 'air force'],
-      'sosial': ['sosial', 'masyarakat', 'community', 'social', 'cultural', 'budaya'],
-      'ekonomi': ['ekonomi', 'economic', 'trade', 'commerce', 'industry', 'business', 'finance'],
-      'budaya': ['budaya', 'cultural', 'tradition', 'custom', 'adat', 'kesenian', 'art'],
-      'agama': ['agama', 'religion', 'islam', 'christian', 'hindu', 'buddha', 'faith'],
-      'pendidikan': ['pendidikan', 'education', 'school', 'university', 'learning', 'teaching']
-    };
+    // Extract ULTRA book themes
+    const bookThemes = this.extractUltraBookThemes(book);
+    const bookKeywords = this.extractEnhancedBookKeywords(book);
     
-    for (const [theme, keywords] of Object.entries(enhancedThemeKeywords)) {
-      if (keywords.some(keyword => text.includes(keyword))) {
-        themes.push(theme);
-      }
-    }
+    console.log(`🏷️ ULTRA Book Themes: [${bookThemes.join(', ')}]`);
+    console.log(`🔑 Enhanced Book Keywords: [${bookKeywords.join(', ')}]`);
+    console.log(`🎯 Playlist AI Themes: [${metadata.key_themes?.join(', ') || 'none'}]`);
     
-    return themes.length > 0 ? themes : ['umum'];
-  },
-
-  // 🆕 METHOD: Extract Book Keywords
-  extractBookKeywords(book) {
-    const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
-    const words = text.split(/\s+/).filter(word => 
-      word.length > 3 && !this.isCommonWord(word)
-    );
-    
-    // Return unique keywords
-    return [...new Set(words)].slice(0, 10);
-  },
-
-  // 🆕 METHOD: Check common words
-  isCommonWord(word) {
-    const commonWords = ['yang', 'dengan', 'dalam', 'untuk', 'pada', 'oleh', 'dari', 'sebagai', 'adalah', 'ini', 'itu', 'dan', 'atau'];
-    return commonWords.includes(word);
-  },
-
-  // 🆕 METHOD: Evaluate Historical Context
-  evaluateHistoricalContext(book, playlistHistoricalContext) {
-    const bookText = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
-    let score = 0;
-    
-    if (Array.isArray(playlistHistoricalContext)) {
-      const matches = playlistHistoricalContext.filter(context => 
-        bookText.includes(context.toLowerCase())
+    // 🎯 THEME MATCHING dengan bobot lebih tinggi
+    if (metadata.key_themes && metadata.key_themes.length > 0) {
+      const themeMatches = bookThemes.filter(theme => 
+        metadata.key_themes.includes(theme)
       ).length;
-      score = matches * 8;
+      
+      if (themeMatches > 0) {
+        score += themeMatches * 20; // Increased from 15
+        console.log(`✅ ENHANCED AI THEME MATCHES: ${themeMatches} → +${themeMatches * 20}`);
+      }
+      
+      // Bonus untuk multiple strong matches
+      if (themeMatches >= 2) {
+        score += 15;
+        console.log(`🌟 MULTIPLE THEME BONUS: +15`);
+      }
     }
     
-    return Math.min(30, score);
-  },
-
-  // 🆕 METHOD: Evaluate Content Type Match
-  evaluateContentTypeMatch(bookCategory, playlistContentType) {
-    if (!bookCategory || !playlistContentType) return 0;
-    
-    const bookCatLower = bookCategory.toLowerCase();
-    const playlistTypeLower = playlistContentType.toLowerCase();
-    
-    if (bookCatLower.includes(playlistTypeLower) || playlistTypeLower.includes(bookCatLower)) {
-      return 15;
+    // 🎯 HISTORICAL CONTEXT dengan matching lebih baik
+    if (metadata.historical_context) {
+      const contextMatch = this.evaluateEnhancedHistoricalContext(book, metadata.historical_context);
+      score += contextMatch;
+      console.log(`🏛️ ENHANCED Historical Context: +${contextMatch}`);
     }
     
-    return 0;
-  },
+    // 🎯 CONTENT TYPE matching improved
+    if (metadata.content_type && book.kategori) {
+      const typeMatch = this.evaluateEnhancedContentTypeMatch(book.kategori, metadata.content_type);
+      score += typeMatch;
+      console.log(`📚 ENHANCED Content Type: +${typeMatch}`);
+    }
+    
+    // 🎯 BONUS untuk established playlists dengan AI metadata
+    if (playlist.books && playlist.books.length > 3 && !metadata.is_fallback) {
+      score += 10;
+      console.log(`⭐ ESTABLISHED AI PLAYLIST BONUS: +10`);
+    }
+    
+  } else {
+    console.log(`⚠️ No AI metadata, using enhanced basic matching`);
+    score = this.calculateEnhancedBasicMatch(book, playlist);
+  }
+  
+  return Math.min(80, score);
+},
 
-  // 🆕 METHOD: Basic Metadata Match (Fallback)
-  calculateBasicMetadataMatch(book, playlist) {
-    const bookText = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
-    const playlistText = `${playlist.name} ${playlist.description || ''}`.toLowerCase();
+// 🆕 METHOD: Extract ULTRA Book Themes
+extractUltraBookThemes(book) {
+  const text = `${book.judul} ${book.deskripsi_buku || ''} ${book.kategori || ''}`.toLowerCase();
+  const themes = [];
+  
+  const ultraThemeKeywords = {
+    'sejarah': ['sejarah', 'historis', 'masa lalu', 'zaman', 'era', 'period', 'tahun', 'abad', 'runtuhnya'],
+    'kolonial': ['kolonial', 'belanda', 'dutch', 'penjajahan', 'colonial', 'voc', 'hindia belanda', 'hindia'],
+    'revolusi': ['revolusi', 'kemerdekaan', 'perang', 'pertempuran', 'rebellion', 'independence', 'dekolonisasi'],
+    'politik': ['politik', 'pemerintah', 'negara', 'kekuasaan', 'policy', 'government', 'administration', 'disintegrasi'],
+    'militer': ['militer', 'tentara', 'perang', 'pertempuran', 'military', 'army', 'navy', 'air force', 'konflik'],
+    'sosial': ['sosial', 'masyarakat', 'community', 'social', 'cultural', 'budaya', 'faktor'],
+    'ekonomi': ['ekonomi', 'economic', 'trade', 'commerce', 'industry', 'business', 'finance', 'faktor'],
+    'budaya': ['budaya', 'cultural', 'tradition', 'custom', 'adat', 'kesenian', 'art'],
+    'biografi': ['biografi', 'tokoh', 'pahlawan', 'presiden', 'pemimpin', 'onghokham'],
+    'indonesia': ['indonesia', 'nusantara', 'nasional', 'bangsa', 'nation']
+  };
+  
+  for (const [theme, keywords] of Object.entries(ultraThemeKeywords)) {
+    if (keywords.some(keyword => text.includes(keyword))) {
+      themes.push(theme);
+    }
+  }
+  
+  return themes.length > 0 ? themes : ['umum'];
+},
+
+// 🆕 METHOD: Enhanced Book Keywords
+extractEnhancedBookKeywords(book) {
+  const text = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
+  
+  // Remove common words and get meaningful keywords
+  const commonWords = ['yang', 'dengan', 'dalam', 'untuk', 'pada', 'oleh', 'dari', 'sebagai', 'adalah', 'ini', 'itu', 'dan', 'atau', 'oleh', 'seorang', 'karya'];
+  
+  const words = text
+    .split(/[\s.,;:!?()]+/)
+    .filter(word => 
+      word.length > 3 && 
+      !commonWords.includes(word) &&
+      !word.match(/^\d+$/) // Exclude numbers
+    )
+    .slice(0, 15); // Take more keywords
+  
+  // Return unique keywords
+  return [...new Set(words)];
+},
+
+// 🆕 METHOD: Ultra Theme Matching
+calculateUltraThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
+  const bookText = `${bookTitle} ${bookDesc}`;
+  const playlistText = `${playlistName} ${playlistDesc}`;
+  
+  let score = 0;
+  
+  // 🎯 ULTRA THEME CATEGORIES dengan bobot lebih tinggi
+  const ultraThemes = {
+    'sejarah indonesia': { 
+      keywords: ['sejarah indonesia', 'historis indonesia', 'nusantara', 'masa lalu indonesia'], 
+      weight: 35 
+    },
+    'kolonialisme': { 
+      keywords: ['kolonial', 'belanda', 'penjajahan', 'hindia belanda', 'colonial', 'voc'], 
+      weight: 40 
+    },
+    'revolusi kemerdekaan': { 
+      keywords: ['revolusi', 'kemerdekaan', 'dekolonisasi', 'disintegrasi', 'runtuhnya'], 
+      weight: 30 
+    },
+    'politik': { 
+      keywords: ['politik', 'pemerintahan', 'negara', 'kekuasaan', 'government'], 
+      weight: 25 
+    },
+    'militer': { 
+      keywords: ['militer', 'tentara', 'perang', 'pertempuran', 'military'], 
+      weight: 20 
+    },
+    'sosial budaya': { 
+      keywords: ['sosial', 'masyarakat', 'budaya', 'cultural', 'community'], 
+      weight: 15 
+    }
+  };
+  
+  for (const [theme, config] of Object.entries(ultraThemes)) {
+    const bookHasTheme = config.keywords.some(keyword => bookText.includes(keyword));
+    const playlistHasTheme = config.keywords.some(keyword => playlistText.includes(keyword));
     
-    let score = 0;
-    
-    // Simple keyword matching
-    const keywords = ['sejarah', 'indonesia', 'kolonial', 'belanda', 'militer', 'politik'];
-    
-    keywords.forEach(keyword => {
-      if (bookText.includes(keyword) && playlistText.includes(keyword)) {
-        score += 10;
+    if (bookHasTheme && playlistHasTheme) {
+      score += config.weight;
+      console.log(`🎯 ULTRA THEME "${theme}" MATCH: +${config.weight}`);
+    } else if (bookHasTheme) {
+      console.log(`📘 Book has "${theme}" theme`);
+    } else if (playlistHasTheme) {
+      console.log(`📗 Playlist has "${theme}" theme`);
+    }
+  }
+  
+  return Math.min(100, score);
+},
+
+// 🆕 METHOD: Ultra Text Matching
+calculateUltraTextMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
+  const bookWords = this.tokenizeText(bookTitle);
+  const playlistWords = this.tokenizeText(playlistName);
+  
+  let score = 0;
+  
+  console.log(`\n📖 ULTRA TEXT MATCHING:`);
+  console.log(`Book words: [${bookWords.join(', ')}]`);
+  console.log(`Playlist words: [${playlistWords.join(', ')}]`);
+  
+  // Exact word matches dengan bobot tinggi
+  bookWords.forEach(bWord => {
+    playlistWords.forEach(pWord => {
+      if (bWord === pWord && bWord.length > 3) {
+        score += 12; // Increased from 8
+        console.log(`💫 EXACT MATCH: "${bWord}" → +12`);
+      } else if ((bWord.includes(pWord) || pWord.includes(bWord)) && bWord.length > 3 && pWord.length > 3) {
+        score += 6; // Increased from 4
+        console.log(`✨ PARTIAL MATCH: "${bWord}" ↔ "${pWord}" → +6`);
       }
     });
-    
-    return Math.min(50, score);
-  },
+  });
+  
+  // Bonus untuk judul yang sangat relevan
+  const relevanceBonus = this.calculateTitleRelevanceBonus(bookTitle, playlistName);
+  score += relevanceBonus;
+  
+  return Math.min(50, score);
+},
 
-  // 🆕 METHOD: Enhanced Theme Matching
-  calculateEnhancedThemeMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
-    const bookText = `${bookTitle} ${bookDesc}`;
-    const playlistText = `${playlistName} ${playlistDesc}`;
-    
-    let score = 0;
-    
-    // Enhanced theme categories with weights
-    const weightedThemes = {
-      'sejarah': { keywords: ['sejarah', 'historis', 'masa lalu', 'zaman', 'era', 'period'], weight: 20 },
-      'kolonial': { keywords: ['kolonial', 'belanda', 'penjajahan', 'hindia belanda', 'colonial', 'voc'], weight: 25 },
-      'revolusi': { keywords: ['revolusi', 'kemerdekaan', 'perang', 'pertempuran', 'independence'], weight: 20 },
-      'nasional': { keywords: ['indonesia', 'nusantara', 'nasional', 'bangsa', 'nation'], weight: 15 },
-      'regional': { keywords: ['jawa', 'sumatra', 'sulawesi', 'kalimantan', 'papua', 'bali'], weight: 15 },
-      'biografi': { keywords: ['biografi', 'tokoh', 'pahlawan', 'presiden', 'pemimpin'], weight: 10 }
-    };
-    
-    for (const [theme, config] of Object.entries(weightedThemes)) {
-      const bookHasTheme = config.keywords.some(keyword => bookText.includes(keyword));
-      const playlistHasTheme = config.keywords.some(keyword => playlistText.includes(keyword));
-      
-      if (bookHasTheme && playlistHasTheme) {
-        score += config.weight;
-        console.log(`🎯 THEME "${theme}" MATCH: +${config.weight}`);
-      }
+// 🆕 METHOD: Tokenize Text
+tokenizeText(text) {
+  return text
+    .toLowerCase()
+    .split(/[\s.,;:!?()]+/)
+    .filter(word => word.length > 2) // Include shorter words now
+    .filter(word => !this.isCommonWord(word));
+},
+
+// 🆕 METHOD: Calculate Title Relevance Bonus
+calculateTitleRelevanceBonus(bookTitle, playlistName) {
+  const bookLower = bookTitle.toLowerCase();
+  const playlistLower = playlistName.toLowerCase();
+  
+  let bonus = 0;
+  
+  // High bonus for direct relevance
+  if (bookLower.includes('hindia belanda') && playlistLower.includes('sejarah')) {
+    bonus += 20;
+    console.log(`🏆 HIGH RELEVANCE BONUS: "Hindia Belanda" + "Sejarah" → +20`);
+  }
+  
+  if (bookLower.includes('runtuhnya') && playlistLower.includes('sejarah')) {
+    bonus += 15;
+    console.log(`🎯 RELEVANCE BONUS: "Runtuhnya" + "Sejarah" → +15`);
+  }
+  
+  if (bookLower.includes('kolonial') && playlistLower.includes('sejarah')) {
+    bonus += 15;
+    console.log(`🎯 RELEVANCE BONUS: "Kolonial" + "Sejarah" → +15`);
+  }
+  
+  return bonus;
+},
+
+// 🆕 METHOD: Enhanced Basic Match (fallback)
+calculateEnhancedBasicMatch(book, playlist) {
+  const bookText = `${book.judul} ${book.deskripsi_buku || ''}`.toLowerCase();
+  const playlistText = `${playlist.name} ${playlist.description || ''}`.toLowerCase();
+  
+  let score = 0;
+  
+  // Enhanced keyword matching
+  const enhancedKeywords = [
+    { keyword: 'hindia belanda', weight: 30 },
+    { keyword: 'kolonial', weight: 25 },
+    { keyword: 'sejarah indonesia', weight: 25 },
+    { keyword: 'belanda', weight: 20 },
+    { keyword: 'runtuhnya', weight: 20 },
+    { keyword: 'dekolonisasi', weight: 20 },
+    { keyword: 'politik', weight: 15 },
+    { keyword: 'sosial', weight: 10 },
+    { keyword: 'ekonomi', weight: 10 }
+  ];
+  
+  enhancedKeywords.forEach(({ keyword, weight }) => {
+    if (bookText.includes(keyword) && playlistText.includes(keyword)) {
+      score += weight;
+      console.log(`🔑 BASIC KEYWORD: "${keyword}" → +${weight}`);
     }
-    
-    return Math.min(100, score);
-  },
-
-  // 🆕 METHOD: Smart Text Matching
-  calculateSmartTextMatch(bookTitle, bookDesc, playlistName, playlistDesc) {
-    const bookWords = bookTitle.split(/\s+/).filter(word => word.length > 3);
-    const playlistWords = playlistName.split(/\s+/).filter(word => word.length > 3);
-    
-    let score = 0;
-    
-    // Exact word matches
-    bookWords.forEach(bWord => {
-      playlistWords.forEach(pWord => {
-        if (bWord === pWord) {
-          score += 8;
-          console.log(`🔤 EXACT MATCH: "${bWord}" → +8`);
-        } else if (bWord.includes(pWord) || pWord.includes(bWord)) {
-          score += 4;
-          console.log(`🔤 PARTIAL MATCH: "${bWord}" ↔ "${pWord}" → +4`);
-        }
-      });
-    });
-    
-    return Math.min(50, score);
-  },
-
-  // 🆕 METHOD: Contextual Bonus
-  calculateContextualBonus(book, playlist) {
-    let bonus = 0;
-    
-    // Bonus for same era/period
-    if (book.tahun_terbit && playlist.created_at) {
-      const bookYear = parseInt(book.tahun_terbit);
-      const playlistYear = new Date(playlist.created_at).getFullYear();
-      
-      if (!isNaN(bookYear) && Math.abs(bookYear - playlistYear) <= 10) {
-        bonus += 10;
-        console.log(`📅 SAME ERA BONUS: +10`);
-      }
-    }
-    
-    // Bonus for playlist with many books (well-established)
-    if (playlist.books && playlist.books.length > 5) {
-      bonus += 5;
-      console.log(`📚 ESTABLISHED PLAYLIST BONUS: +5`);
-    }
-    
-    return Math.min(20, bonus);
-  },
-
+  });
+  
+  return Math.min(60, score);
+},
+  
   // ===========================================================================
   // 🆕 IMPROVED AI FINAL ANALYSIS METHODS
   // ===========================================================================
@@ -955,5 +1057,6 @@ Hanya JSON.
     }
   }
 };
+
 
 export default aiMatchingService;
