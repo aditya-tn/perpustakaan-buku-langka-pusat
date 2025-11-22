@@ -1,4 +1,21 @@
 // pages/api/ai-playlist-recommendations.js - FIX LOGGING
+import aiMatchingService from '../../services/aiMatchingService';
+
+// OPTION 3: Dynamic import dengan fallback
+let aiMatchingService;
+try {
+  aiMatchingService = (await import('../../services/aiMatchingService')).default;
+} catch (error) {
+  console.error('❌ Failed to import aiMatchingService:', error);
+  // Fallback service
+  aiMatchingService = {
+    getPlaylistRecommendations: () => {
+      console.log('🔄 Using fallback service');
+      return Promise.resolve([]);
+    }
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -140,3 +157,4 @@ async function getBookData(bookId) {
     return null;
   }
 }
+
