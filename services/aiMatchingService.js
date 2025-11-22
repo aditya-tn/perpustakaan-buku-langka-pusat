@@ -33,6 +33,7 @@ export const aiMatchingService = {
       return this.getFallbackAnalysis(book, playlist);
     }
   },
+  };
 
   // 🆕 IMPROVED: Playlist recommendations dengan alur yang benar
   async getPlaylistRecommendations({ book, playlists = [] }) {
@@ -1283,3 +1284,4 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
