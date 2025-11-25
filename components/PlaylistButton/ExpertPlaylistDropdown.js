@@ -45,9 +45,31 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
     try {
       // 1. Tambah buku ke playlist
       const result = await addToPlaylist(playlistId, book);
-      
+
       if (result.success) {
-        // 2. Tampilkan success notification dulu
+        // 2. EXPERT MODE: Direct metadata matching
+        console.log('⚡ EXPERT MODE: Analyzing match...');
+        const analysis = await aiMatchingService.expertDirectMatch(book, playlist);
+        
+        // 3. 🆕 SIMPAN AI SCORE KE DATABASE
+        setTimeout(async () => {
+          try {
+            const saveResult = await saveAIScoreToDatabase(playlistId, book.id, analysis);
+            if (saveResult.success) {
+              console.log('✅ Expert mode score saved to database');
+              
+              // Update local state dengan score baru
+              setAiScores(prev => ({
+                ...prev,
+                [playlistId]: analysis
+              }));
+            }
+          } catch (saveError) {
+            console.error('❌ Failed to save expert score:', saveError);
+          }
+        }, 500);
+
+        // 4. Tampilkan success notification
         addNotification({
           type: 'success',
           title: 'Berhasil! 🎉',
@@ -56,63 +78,17 @@ const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBook
           duration: 3000
         });
 
+        // 5. Tampilkan surprise score
+        setTimeout(() => {
+          showSurpriseScore(analysis, playlist.name);
+        }, 1000);
+
         // 🆕 TRIGGER REFRESH DI PARENT COMPONENT
         if (onBookAdded) {
           onBookAdded();
         }
 
-        // 3. Background AI Analysis untuk surprise score
-        setTimeout(async () => {
-          try {
-            console.log('🤖 Starting background AI analysis...');
-            const aiAnalysis = await fetch('/api/ai-match-analysis', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ bookId: book.id, playlistId })
-            }).then(res => res.json());
-
-            console.log('🤖 AI Analysis result:', aiAnalysis);
-
-            if (aiAnalysis.success) {
-              // 4. Save AI score ke database
-              await saveAIScoreToDatabase(playlistId, book.id, aiAnalysis.data);
-              
-              // 🆕 TRIGGER REFRESH LAGI SETELAH AI SCORE DISIMPAN
-              if (onBookAdded) {
-                setTimeout(() => {
-                  onBookAdded();
-                }, 1000);
-              }
-
-              // 5. Update local state dengan score baru
-              setAiScores(prev => ({
-                ...prev,
-                [playlistId]: aiAnalysis.data
-              }));
-
-              // 6. Show notification untuk score ini
-              setShowScoreNotifications(prev => ({
-                ...prev,
-                [playlistId]: true
-              }));
-
-              // 7. Tampilkan surprise score notification
-              showSurpriseScore(aiAnalysis.data, playlist.name);
-              
-              // 8. Set timer untuk hide notification setelah 5 detik
-              setTimeout(() => {
-                setShowScoreNotifications(prev => ({
-                  ...prev,
-                  [playlistId]: false
-                }));
-              }, 5000);
-            }
-          } catch (error) {
-            console.error('❌ Background AI analysis failed:', error);
-          }
-        }, 1500);
-
-        // 9. Close modal setelah 2 detik
+        // Close modal setelah 2 detik
         setTimeout(() => {
           onClose();
         }, 2000);

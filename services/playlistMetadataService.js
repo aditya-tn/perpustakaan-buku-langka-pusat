@@ -50,48 +50,198 @@ export const playlistMetadataService = {
 
 // services/playlistMetadataService.js - UPDATE prompt
 async generateAIMetadata(playlist) {
-  const prompt = `
-ANALISIS PLAYLIST: "${playlist.name}"
-DESKRIPSI: "${playlist.description || 'Tidak ada deskripsi'}"
-
-INSTRUKSI: Berikan metadata JSON untuk matching buku sejarah.
-FORMAT:
-{
-  "historical_names": ["max 3 nama"],
-  "modern_equivalents": ["max 2 nama"], 
-  "key_themes": ["max 3 tema"],
-  "geographical_focus": ["max 2 region"],
-  "time_period": "singkat",
-  "keywords": ["max 5 kata kunci"],
-  "accuracy_reasoning": "1 kalimat singkat"
-}
-
-CONTOH:
-{
-  "historical_names": ["Hindia Belanda", "VOC"],
-  "modern_equivalents": ["Indonesia"],
-  "key_themes": ["sejarah", "kolonial"],
-  "geographical_focus": ["Jawa", "Sumatra"],
-  "time_period": "1800-1945",
-  "keywords": ["sejarah", "kolonial", "belanda"],
-  "accuracy_reasoning": "Relevan untuk buku sejarah Indonesia masa kolonial"
-}
-
-Hanya JSON.
-  `.trim();
-
+  // TENTUKAN JENIS KONTEN DULU
+  const contentType = this.determineContentType(playlist);
+  
+  const prompt = this.getContextAwarePrompt(playlist, contentType);
+  
   try {
     const aiResponse = await generateAIResponse(prompt, {
       temperature: 0.1,
-      maxTokens: 400 // 🆪 KURANGI TOKENS
+      maxTokens: 600
     });
+    
+    return this.parseContextAwareMetadata(aiResponse, playlist, contentType);
+  } catch (error) {
+    return this.getContextAwareFallback(playlist, contentType);
+  }
+},
 
-    console.log('✅ AI Response received (length:', aiResponse?.length, ')');
-    return this.parseAIMetadata(aiResponse, playlist);
+// TENTUKAN JENIS KONTEN
+determineContentType(playlist) {
+  const name = playlist.name.toLowerCase();
+  const description = playlist.description?.toLowerCase() || '';
+  const text = name + ' ' + description;
+  
+  if (text.includes('puisi') || text.includes('sastra') || text.includes('puisi')) {
+    return 'literature';
+  }
+  if (text.includes('biografi') || text.includes('tokoh') || text.includes('pahlawan')) {
+    return 'biography';
+  }
+  if (text.includes('seni') || text.includes('budaya') || text.includes('kesenian')) {
+    return 'art_culture';
+  }
+  if (text.includes('sejarah') || text.includes('kolonial') || text.includes('perang')) {
+    return 'history';
+  }
+  if (text.includes('militer') || text.includes('tni') || text.includes('knil')) {
+    return 'military_history';
+  }
+  
+  return 'general';
+},
+
+// PROMPT BERDASARKAN JENIS KONTEN
+getContextAwarePrompt(playlist, contentType) {
+  const basePrompt = `
+PLAYLIST: "${playlist.name}"
+DESCRIPTION: "${playlist.description || 'No description'}"
+CONTENT TYPE: ${contentType}
+
+INSTRUCTIONS: Provide metadata suitable for this content type.
+  `;
+  
+  const typeSpecificPrompts = {
+    literature: `
+${basePrompt}
+FOCUS ON: literary genres, themes, styles, authors
+OUTPUT FIELDS:
+- literary_genres: ["puisi", "prosa", "esai", etc.]
+- key_themes: ["cinta", "perjuangan", "alam", etc.] 
+- time_period: "sastrawan period"
+- authors: ["relevant authors"]
+- literary_movements: ["angkatan", "aliran"]
+SKIP: historical_names, geographical_focus
+    `,
+    
+    art_culture: `
+${basePrompt}
+FOCUS ON: art forms, cultural aspects, traditions
+OUTPUT FIELDS:
+- art_forms: ["seni rupa", "musik", "tari", etc.]
+- cultural_themes: ["tradisi", "modern", "kontemporer"]
+- regions: ["optional cultural regions"]
+- time_period: "cultural period"
+- cultural_movements: ["aliran seni"]
+SKIP: historical_names, military_context
+    `,
+    
+    biography: `
+${basePrompt} 
+FOCUS ON: person profiles, historical context, achievements
+OUTPUT FIELDS:
+- historical_names: ["person names", "organizations"]
+- key_themes: ["perjuangan", "kepemimpinan", "prestasi"]
+- time_period: "lifetime period"
+- geographical_focus: ["birthplace", "work locations"]
+- occupations: ["politician", "artist", "military"]
+    `,
+    
+    military_history: `
+${basePrompt}
+FOCUS ON: military units, conflicts, historical context  
+OUTPUT FIELDS:
+- historical_names: ["KNIL", "VOC", "TNI", etc.]
+- key_themes: ["militer", "perang", "strategi", "kolonial"]
+- geographical_focus: ["battle locations", "regions"]
+- time_period: "specific war/conflict period"
+- military_units: ["specific units"]
+- conflicts: ["war names"]
+    `,
+    
+    history: `
+${basePrompt}
+FOCUS ON: historical events, periods, contexts
+OUTPUT FIELDS:
+- historical_names: ["Hindia Belanda", "VOC", etc.]
+- key_themes: ["kolonial", "perjuangan", "politik"]
+- geographical_focus: ["historical regions"] 
+- time_period: "historical period"
+- historical_events: ["relevant events"]
+    `,
+    
+    general: `
+${basePrompt}
+OUTPUT FIELDS:
+- key_themes: ["general themes"]
+- content_category: "general category"
+- relevance_tags: ["general tags"]
+SKIP: historical_names, geographical_focus, time_period
+    `
+  };
+  
+  return (typeSpecificPrompts[contentType] || typeSpecificPrompts.general).trim();
+},
+
+// PARSING BERDASARKAN JENIS KONTEN
+parseContextAwareMetadata(aiResponse, playlist, contentType) {
+  try {
+    const cleanResponse = aiResponse.trim().replace(/```json|```/g, '');
+    const parsed = JSON.parse(cleanResponse);
+    
+    // BASE METADATA UNTUK SEMUA JENIS
+    const baseMetadata = {
+      content_type: contentType,
+      generated_at: new Date().toISOString(),
+      version: 1
+    };
+    
+    // TAMBAH FIELD SPESIFIK BERDASARKAN JENIS
+    const typeSpecificFields = {
+      literature: {
+        literary_genres: parsed.literary_genres || [],
+        key_themes: parsed.key_themes || [],
+        authors: parsed.authors || [],
+        literary_movements: parsed.literary_movements || [],
+        // JANGAN include historical/geographic fields
+      },
+      
+      art_culture: {
+        art_forms: parsed.art_forms || [],
+        cultural_themes: parsed.cultural_themes || [],
+        regions: parsed.regions || [],
+        cultural_movements: parsed.cultural_movements || [],
+        // JANGAN include historical names
+      },
+      
+      biography: {
+        historical_names: parsed.historical_names || [],
+        key_themes: parsed.key_themes || [],
+        time_period: parsed.time_period || '',
+        geographical_focus: parsed.geographical_focus || [],
+        occupations: parsed.occupations || []
+      },
+      
+      military_history: {
+        historical_names: parsed.historical_names || [],
+        key_themes: parsed.key_themes || [],
+        geographical_focus: parsed.geographical_focus || [],
+        time_period: parsed.time_period || '',
+        military_units: parsed.military_units || [],
+        conflicts: parsed.conflicts || []
+      },
+      
+      history: {
+        historical_names: parsed.historical_names || [],
+        key_themes: parsed.key_themes || [],
+        geographical_focus: parsed.geographical_focus || [],
+        time_period: parsed.time_period || '',
+        historical_events: parsed.historical_events || []
+      }
+    };
+    
+    return {
+      ...baseMetadata,
+      ...(typeSpecificFields[contentType] || {}),
+      // Fallback untuk field umum
+      key_themes: parsed.key_themes || [],
+      accuracy_reasoning: parsed.accuracy_reasoning || `Metadata untuk ${contentType}`
+    };
     
   } catch (error) {
-    console.error('❌ AI metadata generation failed:', error);
-    return this.getFallbackMetadata(playlist);
+    console.error('Context-aware parse failed:', error);
+    return this.getContextAwareFallback(playlist, contentType);
   }
 },
 

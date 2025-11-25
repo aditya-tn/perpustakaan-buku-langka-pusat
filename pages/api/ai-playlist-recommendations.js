@@ -1,4 +1,4 @@
-// pages/api/ai-playlist-recommendations.js - CLEAN VERSION
+// pages/api/ai-playlist-recommendations.js - ENHANCED VERSION
 import aiMatchingService from '../../services/aiMatchingService';
 
 export default async function handler(req, res) {
@@ -7,103 +7,81 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { bookId, playlistIds } = req.body;
+    const { bookId, playlistIds, mode = 'novice' } = req.body;
 
-    console.log('🚨 API START - Clean version');
-
-    // Validasi input
+    console.log('🚀 ENHANCED API - Colonial-aware matching');
+    
+    // Validasi
     if (!bookId || !playlistIds || !Array.isArray(playlistIds)) {
-      return res.status(400).json({ error: 'bookId and playlistIds array are required' });
+      return res.status(400).json({ 
+        error: 'bookId and playlistIds array are required',
+        received: { bookId, playlistIds }
+      });
     }
 
-    // STEP 1: Dapatkan data buku
-    console.log('📚 Getting book data...');
-    const bookData = await getBookData(bookId);
+    // STEP 1: Dapatkan data buku dengan metadata
+    const bookData = await getEnhancedBookData(bookId);
     if (!bookData) {
       return res.status(404).json({ error: 'Book not found' });
     }
 
-    console.log('✅ Book:', bookData.judul);
-
-    // STEP 2: Dapatkan data playlist
-    console.log('🎯 Getting playlists...');
-    const playlists = [];
+    // STEP 2: Dapatkan & enhance playlist data
+    const playlists = await getEnhancedPlaylistsData(playlistIds);
     
-    for (const playlistId of playlistIds) {
-      try {
-        const playlist = await getPlaylistData(playlistId);
-        if (playlist) {
-          playlists.push(playlist);
-        }
-      } catch (error) {
-        console.log(`❌ Failed to get playlist ${playlistId}`);
-        // Continue dengan playlist lainnya
-      }
-    }
-
-    console.log(`✅ Loaded ${playlists.length} playlists`);
+    console.log(`✅ Loaded ${playlists.length} enhanced playlists`);
 
     if (playlists.length === 0) {
       return res.json({
         success: true,
-        data: { 
-          recommendations: [], 
+        data: {
+          recommendations: [],
           totalPlaylists: 0,
-          message: 'No playlists available' 
+          message: 'No playlists available after enhancement'
         }
       });
     }
 
-    // STEP 3: Dapatkan rekomendasi dari aiMatchingService
-    console.log('🎯 Getting AI recommendations...');
+    // STEP 3: Pilih mode matching
     let recommendations;
-    
-    try {
-      recommendations = await aiMatchingService.getPlaylistRecommendations({
+    if (mode === 'expert') {
+      recommendations = await aiMatchingService.expertDirectMatch(bookData, playlists[0]);
+      recommendations = [recommendations];
+    } else {
+      // NOVICE MODE dengan enhanced pipeline
+      recommendations = await aiMatchingService.noviceRecommendations({
         book: bookData,
         playlists: playlists
       });
-      
-      console.log(`✅ AI recommendations: ${recommendations?.length || 0} items`);
-      
-    } catch (error) {
-      console.error('❌ AI service failed:', error.message);
-      
-      // Fallback sederhana berdasarkan nama playlist
-      recommendations = playlists.slice(0, 3).map((playlist, index) => ({
-        playlistId: playlist.id,
-        playlistName: playlist.name,
-        matchScore: 60 - (index * 10), // 60, 50, 40
-        confidence: 0.5,
-        reasoning: 'Fallback: analisis sistem sederhana',
-        improvementSuggestions: ['Gunakan analisis AI untuk hasil lebih akurat'],
-        isFallback: true
-      }));
     }
+
+    console.log(`🎯 Final recommendations: ${recommendations?.length || 0} items`);
 
     // STEP 4: Return response
     res.json({
       success: true,
-      data: { 
+      data: {
         recommendations: recommendations || [],
         totalPlaylists: playlists.length,
         analyzedPlaylists: recommendations?.length || 0,
-        bookTitle: bookData.judul
+        bookTitle: bookData.judul,
+        mode: mode,
+        colonialContext: true
       },
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('💥 API Error:', error.message);
+    console.error('💥 Enhanced API Error:', error);
     res.status(500).json({
       error: 'Internal server error',
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
 
-// Helper function: Get book data
-async function getBookData(bookId) {
+// Helper function untuk enhanced book data
+async function getEnhancedBookData(bookId) {
   try {
     const { supabase } = await import('../../lib/supabase');
     const { data, error } = await supabase
@@ -112,26 +90,67 @@ async function getBookData(bookId) {
       .eq('id', bookId)
       .single();
 
-    return error ? null : data;
+    if (error) return null;
+
+    // Ensure book has basic metadata structure
+    if (!data.metadata_structured) {
+      data.metadata_structured = {
+        key_themes: ['sejarah'], // default fallback
+        geographic_focus: ['indonesia'],
+        historical_period: ['kolonial'],
+        content_type: 'non-fiksi'
+      };
+    }
+
+    return data;
   } catch (error) {
-    console.error('Error getting book data:', error);
+    console.error('Error getting enhanced book data:', error);
     return null;
   }
 }
 
-// Helper function: Get playlist data
-async function getPlaylistData(playlistId) {
-  try {
-    const { supabase } = await import('../../lib/supabase');
-    const { data, error } = await supabase
-      .from('community_playlists')
-      .select('*')
-      .eq('id', playlistId)
-      .single();
+// Helper function untuk enhanced playlist data
+async function getEnhancedPlaylistsData(playlistIds) {
+  const playlists = [];
+  
+  for (const playlistId of playlistIds) {
+    try {
+      const { supabase } = await import('../../lib/supabase');
+      const { data, error } = await supabase
+        .from('community_playlists')
+        .select('*')
+        .eq('id', playlistId)
+        .single();
 
-    return error ? null : data;
-  } catch (error) {
-    console.error('Error getting playlist data:', error);
-    return null;
+      if (error) continue;
+
+      // Ensure playlist has quality metadata
+      if (!data.ai_metadata || data.ai_metadata.is_fallback) {
+        // Trigger metadata generation untuk playlist ini
+        console.log(`🔄 Generating metadata for playlist: ${data.name}`);
+        try {
+          const metadataResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/playlists/generate-metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ playlistId: data.id })
+          });
+          
+          if (metadataResponse.ok) {
+            const result = await metadataResponse.json();
+            if (result.success) {
+              data.ai_metadata = result.data;
+            }
+          }
+        } catch (metadataError) {
+          console.error('Metadata generation failed:', metadataError);
+        }
+      }
+
+      playlists.push(data);
+    } catch (error) {
+      console.error(`❌ Failed to enhance playlist ${playlistId}:`, error);
+    }
   }
+  
+  return playlists;
 }
