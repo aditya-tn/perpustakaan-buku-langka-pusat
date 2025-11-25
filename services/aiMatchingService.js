@@ -4,16 +4,61 @@ import { generateAIResponse } from '../lib/gemini';
 export const aiMatchingService = {
 
   // ==================== EXPERT MODE ====================
-  async expertDirectMatch(book, playlist) {
-    console.log('⚡ EXPERT MODE: Direct AI Matching');
-    
-    try {
-      return await this.directAIMatching(book, playlist);
-    } catch (error) {
-      console.error('❌ Expert AI matching failed:', error);
-      throw new Error('Analisis AI expert mode gagal. Silakan coba lagi.');
+async expertDirectMatch(book, playlist) {
+  console.log('⚡⚡⚡ EXPERT MODE: Starting Direct AI Matching ⚡⚡⚡');
+  console.log('📘 Book:', { 
+    id: book.id, 
+    judul: book.judul,
+    hasMetadata: !!book.metadata_structured,
+    themes: book.metadata_structured?.key_themes 
+  });
+  console.log('📗 Playlist:', { 
+    id: playlist.id, 
+    name: playlist.name,
+    hasMetadata: !!playlist.ai_metadata,
+    themes: playlist.ai_metadata?.key_themes 
+  });
+  
+  try {
+    console.log('🎯 Step 1: Checking AI service...');
+    if (!this.isGeminiAvailable()) {
+      throw new Error('AI service not available');
     }
-  },
+    console.log('✅ AI service available');
+
+    console.log('🎯 Step 2: Creating prompt...');
+    const prompt = this.createDirectMatchPrompt(book, playlist);
+    console.log('📋 Prompt length:', prompt.length);
+    
+    console.log('🎯 Step 3: Calling AI...');
+    const aiResponse = await generateAIResponse(prompt, {
+      temperature: 0.1,
+      maxTokens: 500,
+      timeout: 10000
+    });
+    
+    console.log('📨 AI Response status:', {
+      hasResponse: !!aiResponse,
+      length: aiResponse?.length,
+      first100Chars: aiResponse?.substring(0, 100)
+    });
+    
+    if (!aiResponse) {
+      throw new Error('No response from AI');
+    }
+
+    console.log('🎯 Step 4: Parsing response...');
+    const result = this.parseDirectMatchResponse(aiResponse, book, playlist);
+    
+    console.log('✅✅✅ EXPERT MODE SUCCESS:', result.matchScore);
+    return result;
+    
+  } catch (error) {
+    console.error('❌❌❌ EXPERT MODE FAILED AT STEP:', error);
+    console.error('💥 Error details:', error.message);
+    throw new Error('Analisis AI expert mode gagal. Silakan coba lagi.');
+  }
+},
 
   // ==================== NOVICE MODE ====================
   async noviceRecommendations({ book, playlists = [] }) {
@@ -892,3 +937,4 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
