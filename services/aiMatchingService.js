@@ -939,7 +939,7 @@ async getAIEnhancedRecommendations(book, topPlaylists) {
       return this.createEnhancedFallback(book, topPlaylists);
     }
 
-    const prompt = this.createColonialAwarePrompt(book, topPlaylists);
+    const prompt = this.(book, topPlaylists);
     console.log('📝 AI Prompt length:', prompt.length);
     
     try {
@@ -997,47 +997,33 @@ markRateLimited() {
 },
 
   // NEW: Colonial-aware AI prompt
-  createColonialAwarePrompt(book, topPlaylists) {
-    const playlistsDetail = topPlaylists.map((item, index) => 
-      `PLAYLIST ${index + 1}: "${item.playlist.name}"
-       THEMES: ${item.playlist.ai_metadata?.key_themes?.join(', ') || 'Unknown'}
-       REGIONS: ${item.playlist.ai_metadata?.geographic_focus?.join(', ') || 'Unknown'}
-       PERIOD: ${item.playlist.ai_metadata?.time_period || 'Unknown'}
-       METADATA SCORE: ${item.score}%`
-    ).join('\n\n');
+createColonialAwarePrompt(book, topPlaylists) {
+  // 🎯 REDUCE PROMPT LENGTH untuk avoid token limits
+  const playlistsDetail = topPlaylists.map((item, index) => 
+    `"${item.playlist.name}" (score:${item.score}%)`
+  ).join(', ');
 
-    return `
-ANALISIS KECOCOKAN BUKU SEJARAH KOLONIAL
+  return `
+BUKU: "${book.judul}"
+TAHUN: "${book.tahun_terbit || 'Tidak diketahui'}" 
+TEMA: ${book.metadata_structured?.key_themes?.join(', ') || 'Sejarah'}
 
-BUKU YANG DIANALISIS:
-- Judul: "${book.judul}"
-- Pengarang: "${book.pengarang || 'Tidak diketahui'}"
-- Tahun: "${book.tahun_terbit || 'Tidak diketahui'}"
-- Tema: ${book.metadata_structured?.key_themes?.join(', ') || 'Sejarah umum'}
+PLAYLIST: ${playlistsDetail}
 
-PLAYLIST KANDIDAT:
-${playlistsDetail}
+ANALISIS: Berikan score 0-100 untuk setiap playlist berdasarkan kecocokan dengan buku tentang sistem peradilan kolonial.
 
-INSTRUKSI:
-1. Berikan score 0-100 untuk setiap playlist berdasarkan kecocokan dengan buku
-2. Fokus pada konteks sejarah kolonial Belanda di Indonesia
-3. Pertimbangkan: tema, periode sejarah, lokasi geografis, relevansi konten
-4. Berikan alasan singkat dan spesifik untuk setiap score
-
-FORMAT OUTPUT (JSON array):
+FORMAT (JSON):
 [
   {
-    "playlistName": "nama playlist exact",
+    "playlistName": "nama exact",
     "finalScore": 85,
-    "reason": "Kecocokan tinggi karena fokus pada sejarah militer KNIL di Jawa tahun 1920-1940",
-    "strengths": ["tema militer kolonial", "lokasi Jawa", "periode relevan"],
-    "considerations": ["buku lebih fokus pada aspek sosial"]
+    "reason": "alasan singkat"
   }
 ]
 
-Hanya kembalikan JSON array, tanpa text lain.
+Hanya JSON.
 `.trim();
-  },
+},
 
   // NEW: Enhanced fallback
   createEnhancedFallback(book, topPlaylists) {
@@ -1533,3 +1519,4 @@ Hanya kembalikan JSON array, tanpa text lain.
 
 
 export default aiMatchingService;
+
