@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePlaylist } from '../../contexts/PlaylistContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { aiMatchingService } from '../../services/aiMatchingService';
 
 const ExpertPlaylistDropdown = ({ book, onClose, onShowPlaylistForm, onCloseBookDescription, integratedMode = false, onBookAdded }) => {
   const { playlists, addToPlaylist } = usePlaylist();
@@ -523,4 +524,5 @@ const handleCreatePlaylist = (e) => {
 
 
 export default ExpertPlaylistDropdown;
+
 
