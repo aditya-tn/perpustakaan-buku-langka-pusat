@@ -724,80 +724,149 @@ Hanya JSON.
     }
   },
 
-  createNoviceRecommendationPrompt(book, topPlaylists) {
-    const playlistsInfo = topPlaylists.map((item, index) => 
-      `"${item.playlist.name}"`
-    ).join(', ');
+// services/aiMatchingService.js - UPDATE NOVICE PROMPT
 
-    return `
+createNoviceRecommendationPrompt(book, topPlaylists) {
+  const playlistsInfo = topPlaylists.map((item, index) => 
+    `"${item.playlist.name}"`
+  ).join(', ');
+
+  return `
 BUKU: "${book.judul}"
 TEMA: ${book.metadata_structured?.key_themes?.join(', ') || 'Umum'}
 
 PLAYLIST: ${playlistsInfo}
 
-ANALISIS: Berikan score 0-100 untuk setiap playlist berdasarkan kecocokan dengan buku.
+INSTRUKSI:
+Berikan score 0-100 untuk setiap playlist berdasarkan kecocokan dengan buku.
+Hanya kembalikan JSON array dengan format berikut:
 
-FORMAT (JSON):
 [
   {
-    "playlistName": "nama",
+    "playlistName": "Kereta Api di Indonesia",
     "finalScore": 85,
-    "reason": "alasan singkat"
+    "reason": "alasan singkat kenapa cocok"
+  },
+  {
+    "playlistName": "Koleksi Sejarah Indonesia", 
+    "finalScore": 75,
+    "reason": "alasan singkat kenapa cocok"
+  },
+  {
+    "playlistName": "Sumatra Utara",
+    "finalScore": 65,
+    "reason": "alasan singkat kenapa cocok"
   }
 ]
 
-Hanya JSON.
+JANGAN tambah teks lain, hanya JSON.
 `.trim();
-  },
+},
 
-  parseNoviceAIResponse(aiResponse, topPlaylists) {
-    try {
-      console.log('🔍 Parsing AI response...');
+// services/aiMatchingService.js - UPDATE PARSING WITH BETTER DEBUG
+
+parseNoviceAIResponse(aiResponse, topPlaylists) {
+  try {
+    console.log('🔍 Parsing AI response...');
+    console.log('📨 Raw AI response:', aiResponse); // 🆕 TAMBAH INI
+    
+    let cleanResponse = aiResponse
+      .replace(/```json|```|`/g, '')
+      .trim();
+
+    console.log('🧹 Cleaned response:', cleanResponse); // 🆕 TAMBAH INI
+
+    cleanResponse = this.fixUnclosedJSONObjects(cleanResponse);
+    
+    const jsonMatch = cleanResponse.match(/\[[^\]]*\]/);
+    if (!jsonMatch) {
+      console.log('❌ No JSON array found in response');
+      console.log('🔍 Trying to find JSON objects...');
       
-      let cleanResponse = aiResponse
-        .replace(/```json|```|`/g, '')
-        .trim();
-
-      cleanResponse = this.fixUnclosedJSONObjects(cleanResponse);
+      // Coba extract individual objects
+      const objectMatches = cleanResponse.match(/\{[^}]+\}/g);
+      if (objectMatches) {
+        console.log('✅ Found individual objects:', objectMatches.length);
+        return this.parseIndividualObjects(objectMatches, topPlaylists);
+      }
       
-      const jsonMatch = cleanResponse.match(/\[[^\]]*\]/);
-      if (!jsonMatch) {
-        console.log('❌ No JSON array found, trying object extraction...');
-        return this.extractIndividualRecommendations(cleanResponse, topPlaylists);
-      }
-
-      let jsonText = jsonMatch[0];
-      jsonText = this.fixCommonJSONErrors(jsonText);
-
-      const parsed = JSON.parse(jsonText);
-      if (!Array.isArray(parsed)) {
-        throw new Error('AI response is not an array');
-      }
-
-      console.log(`✅ Successfully parsed ${parsed.length} AI recommendations`);
-      return parsed.map((item, index) => {
-        const playlist = topPlaylists[index]?.playlist;
-        if (!playlist) return null;
-
-        return {
-          playlistId: playlist.id,
-          playlistName: playlist.name,
-          matchScore: item.finalScore || item.matchScore || 50,
-          confidence: 0.9,
-          reasoning: item.reason || item.reasoning || 'Analisis AI',
-          strengths: item.strengths || [],
-          considerations: item.considerations || [],
-          improvementSuggestions: [],
-          isFallback: false,
-          aiEnhanced: true
-        };
-      }).filter(Boolean);
-
-    } catch (error) {
-      console.error('❌ Novice AI parse failed:', error.message);
-      return this.createFallbackRecommendations(topPlaylists);
+      console.log('🔄 Using object extraction...');
+      return this.extractIndividualRecommendations(cleanResponse, topPlaylists);
     }
-  },
+
+    let jsonText = jsonMatch[0];
+    console.log('📄 JSON text found:', jsonText); // 🆕 TAMBAH INI
+    
+    jsonText = this.fixCommonJSONErrors(jsonText);
+    
+    console.log('🧹 Final JSON:', jsonText);
+    
+    const parsed = JSON.parse(jsonText);
+    
+    if (!Array.isArray(parsed)) {
+      throw new Error('AI response is not an array');
+    }
+
+    console.log(`✅ Successfully parsed ${parsed.length} AI recommendations`);
+    return parsed.map((item, index) => {
+      const playlist = topPlaylists[index]?.playlist;
+      if (!playlist) return null;
+
+      return {
+        playlistId: playlist.id,
+        playlistName: playlist.name,
+        matchScore: item.finalScore || item.matchScore || 50,
+        confidence: 0.9,
+        reasoning: item.reason || item.reasoning || 'Analisis AI',
+        strengths: item.strengths || [],
+        considerations: item.considerations || [],
+        improvementSuggestions: [],
+        isFallback: false,
+        aiEnhanced: true
+      };
+    }).filter(Boolean);
+
+  } catch (error) {
+    console.error('❌ Novice AI parse failed:', error.message);
+    console.log('📝 Failed response was:', aiResponse);
+    return this.createFallbackRecommendations(topPlaylists);
+  }
+},
+
+// 🆕 METHOD BARU: Parse individual objects
+parseIndividualObjects(objectMatches, topPlaylists) {
+  console.log('🔍 Parsing individual objects...');
+  const recommendations = [];
+  
+  for (let i = 0; i < Math.min(objectMatches.length, topPlaylists.length); i++) {
+    try {
+      const jsonText = this.fixCommonJSONErrors(objectMatches[i]);
+      const parsed = JSON.parse(jsonText);
+      
+      const playlist = topPlaylists[i]?.playlist;
+      if (!playlist) continue;
+      
+      recommendations.push({
+        playlistId: playlist.id,
+        playlistName: playlist.name,
+        matchScore: parsed.finalScore || parsed.matchScore || 50,
+        confidence: 0.9,
+        reasoning: parsed.reason || parsed.reasoning || 'Analisis AI',
+        strengths: parsed.strengths || [],
+        considerations: parsed.considerations || [],
+        improvementSuggestions: [],
+        isFallback: false,
+        aiEnhanced: true
+      });
+      
+    } catch (error) {
+      console.error(`❌ Failed to parse object ${i}:`, error);
+    }
+  }
+  
+  console.log(`✅ Parsed ${recommendations.length} individual objects`);
+  return recommendations;
+},
 
   // ==================== HELPER FUNCTIONS ====================
   fixUnclosedJSONObjects(jsonString) {
@@ -937,4 +1006,5 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
