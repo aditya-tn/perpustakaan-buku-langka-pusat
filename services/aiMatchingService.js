@@ -939,7 +939,7 @@ async getAIEnhancedRecommendations(book, topPlaylists) {
       return this.createEnhancedFallback(book, topPlaylists);
     }
 
-    const prompt = this.(book, topPlaylists);
+    const prompt = this.createColonialAwarePrompt(book, topPlaylists);
     console.log('📝 AI Prompt length:', prompt.length);
     
     try {
@@ -1519,4 +1519,3 @@ Hanya JSON.
 
 
 export default aiMatchingService;
-
