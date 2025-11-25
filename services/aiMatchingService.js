@@ -1288,33 +1288,41 @@ Hanya kembalikan JSON array, tanpa text lain.
   parseNoviceAIResponse(aiResponse, topPlaylists) {
     try {
       console.log('🔍 Parsing AI response...');
+      
       // Clean response aggressively
       let cleanResponse = aiResponse
         .replace(/```json|```|`/g, '')
-        .replace(/\n/g, ' ')
         .trim();
-
+  
+      console.log('🧹 Raw AI response:', cleanResponse);
+  
+      // 🎯 FIX UNCLOSED JSON OBJECTS
+      cleanResponse = this.fixUnclosedJSONObjects(cleanResponse);
+      
       // Extract JSON dengan pattern yang lebih flexible
       const jsonMatch = cleanResponse.match(/\[[^\]]*\]/);
       if (!jsonMatch) {
         console.log('❌ No JSON array found, trying object extraction...');
         return this.extractIndividualRecommendations(cleanResponse, topPlaylists);
       }
-
+  
       let jsonText = jsonMatch[0];
-      // Fix incomplete JSON
-      jsonText = this.fixIncompleteJSON(jsonText);
+      
+      // 🎯 FIX COMMON JSON ERRORS
+      jsonText = this.fixCommonJSONErrors(jsonText);
+      
       console.log('🧹 Cleaned JSON:', jsonText);
-
+  
       const parsed = JSON.parse(jsonText);
       if (!Array.isArray(parsed)) {
         throw new Error('AI response is not an array');
       }
-
+  
       console.log(`✅ Successfully parsed ${parsed.length} AI recommendations`);
       return parsed.map((item, index) => {
         const playlist = topPlaylists[index]?.playlist;
         if (!playlist) return null;
+  
         return {
           playlistId: playlist.id,
           playlistName: playlist.name,
@@ -1328,54 +1336,113 @@ Hanya kembalikan JSON array, tanpa text lain.
           aiEnhanced: true
         };
       }).filter(Boolean);
-
+  
     } catch (error) {
       console.error('❌ Novice AI parse failed:', error.message);
+      console.log('📝 Failed response was:', aiResponse);
       return this.createFallbackRecommendations(topPlaylists);
     }
   },
-
-  fixIncompleteJSON(jsonText) {
-    let fixed = jsonText;
-    // Fix missing closing brackets
+  
+  // 🎯 NEW: Fix unclosed JSON objects
+  fixUnclosedJSONObjects(jsonString) {
+    let fixed = jsonString;
+    
+    // Count opening vs closing braces to detect unclosed objects
+    const openBraces = (fixed.match(/{/g) || []).length;
+    const closeBraces = (fixed.match(/}/g) || []).length;
+    
+    if (openBraces > closeBraces) {
+      // Add missing closing braces
+      fixed += '}'.repeat(openBraces - closeBraces);
+      console.log('🔧 Added missing closing braces');
+    }
+    
+    return fixed;
+  },
+  
+  // 🎯 NEW: Fix common JSON errors
+  fixCommonJSONErrors(jsonString) {
+    let fixed = jsonString;
+    
+    // 1. Fix missing commas between objects
+    fixed = fixed.replace(/}\s*{/g, '},{');
+    
+    // 2. Fix trailing commas before closing bracket
+    fixed = fixed.replace(/,\s*]/g, ']');
+    
+    // 3. Fix missing quotes around property names
+    fixed = fixed.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+    
+    // 4. Fix unclosed strings
+    fixed = fixed.replace(/(:"[^"]*)$/g, '$1"');
+    
+    // 5. Fix missing closing brackets for arrays
     const openBrackets = (fixed.match(/\[/g) || []).length;
     const closeBrackets = (fixed.match(/\]/g) || []).length;
     if (openBrackets > closeBrackets) {
       fixed += ']'.repeat(openBrackets - closeBrackets);
     }
-    // Fix missing closing braces in objects
-    fixed = fixed.replace(/(\{[^}]*)$/, '$1}');
-    // Fix trailing commas
-    fixed = fixed.replace(/,\s*([\]}])/g, '$1');
+    
+    // 6. Fix specific case from your error - incomplete array in strengths
+    fixed = fixed.replace(/"strengths":\s*\[[^\]]*$/g, (match) => {
+      if (!match.endsWith(']')) {
+        return match + ']';
+      }
+      return match;
+    });
+    
     return fixed;
   },
-
+  
+  // 🎯 UPDATE extractIndividualRecommendations untuk handle partial AI response
   extractIndividualRecommendations(text, topPlaylists) {
-    console.log('🔍 Extracting individual recommendations...');
+    console.log('🔍 Extracting individual recommendations from text...');
     const recommendations = [];
+    
     for (let i = 0; i < topPlaylists.length; i++) {
       const playlist = topPlaylists[i].playlist;
       const playlistName = playlist.name;
-      // Cari score untuk playlist ini
-      const scoreMatch = text.match(new RegExp(`"${playlistName}"[^}]*?"finalScore":\\s*(\\d+)`));
-      const score = scoreMatch ? parseInt(scoreMatch[1]) : (80 - (i * 20));
+      
+      // Try to find this playlist in AI response
+      let score = 50; // default fallback
+      let reason = 'Analisis berdasarkan konten playlist';
+      
+      // Look for playlist name in response
+      const playlistPattern = new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"finalScore":\\s*(\\d+)`, 'i');
+      const scoreMatch = text.match(playlistPattern);
+      
+      if (scoreMatch) {
+        score = parseInt(scoreMatch[1]);
+        // Try to extract reason
+        const reasonPattern = new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"reason":\\s*"([^"]*)"`, 'i');
+        const reasonMatch = text.match(reasonPattern);
+        if (reasonMatch) {
+          reason = reasonMatch[1];
+        }
+      } else {
+        // Fallback scoring based on position
+        score = Math.max(40, 70 - (i * 10));
+      }
+      
       recommendations.push({
         playlistId: playlist.id,
         playlistName: playlist.name,
         matchScore: score,
         confidence: 0.8,
-        reasoning: 'Analisis berdasarkan konten playlist',
-        strengths: [],
+        reasoning: reason,
+        strengths: ['Analisis AI'],
         considerations: [],
         improvementSuggestions: [],
-        isFallback: true,
-        aiEnhanced: false
+        isFallback: !scoreMatch, // Mark as fallback if not found in AI response
+        aiEnhanced: true
       });
     }
-    console.log(`✅ Extracted ${recommendations.length} individual recommendations`);
+    
+    console.log(`✅ Extracted ${recommendations.length} recommendations`);
     return recommendations;
   },
-
+  
   createFallbackRecommendations(topPlaylists) {
     console.log('🔄 Creating fallback recommendations');
     return topPlaylists.map((item, index) => ({
@@ -1391,7 +1458,7 @@ Hanya kembalikan JSON array, tanpa text lain.
       aiEnhanced: false
     }));
   },
-
+  
   // ==================== HELPER FUNCTIONS ====================
   generateMatchReasoning(score, factors) {
     if (score >= 80) return 'Kecocokan sangat tinggi berdasarkan metadata';
@@ -1463,5 +1530,6 @@ Hanya kembalikan JSON array, tanpa text lain.
   }
 
 };
+
 
 export default aiMatchingService;
