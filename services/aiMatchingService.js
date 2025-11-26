@@ -27,18 +27,32 @@ export const aiMatchingService = {
   },
 
   // ==================== EXPERT MODE ====================
-  async expertDirectMatch(book, playlist) {
-    console.log('⚡⚡⚡ EXPERT MODE: Starting Direct AI Matching ⚡⚡⚡');
-    console.log('📘 Book:', { 
-      id: book.id, 
-      judul: book.judul,
-      metadata: book.metadata_structured
-    });
-    console.log('📗 Playlist:', { 
-      id: playlist.id, 
-      name: playlist.name,
-      metadata: playlist.ai_metadata
-    });
+async expertDirectMatch(book, playlist) {
+  console.log('⚡⚡⚡ EXPERT MODE: Starting Direct AI Matching ⚡⚡⚡');
+  
+  // 🆕 ✅ CEK & GENERATE METADATA JIKA DIBUTUHKAN
+  let bookWithMetadata = book;
+  if (!book.metadata_structured && !book.ai_metadata) {
+    console.log('🔄 Book needs metadata, generating for expert mode...');
+    try {
+      bookWithMetadata = await this.generateBookMetadata(book);
+      console.log('✅ Metadata generated for expert mode');
+    } catch (error) {
+      console.error('💥 Metadata generation failed for expert mode');
+      throw new Error(`Tidak bisa melakukan matching: ${error.message}`);
+    }
+  }
+  
+  console.log('📘 Book:', { 
+    id: bookWithMetadata.id, 
+    judul: bookWithMetadata.judul,
+    metadata: bookWithMetadata.metadata_structured
+  });
+  console.log('📗 Playlist:', { 
+    id: playlist.id, 
+    name: playlist.name,
+    metadata: playlist.ai_metadata 
+  });
     
     try {
       console.log('🎯 Step 1: Checking AI service...');
@@ -555,6 +569,7 @@ async generateBookMetadata(book) {
   
   try {
     const { generateAIResponse } = await import('../lib/gemini');
+    const { supabase } = await import('../lib/supabase');
     
     // ✅ VALIDATE: Pastikan Gemini available
     if (!generateAIResponse || typeof generateAIResponse !== 'function') {
@@ -631,34 +646,49 @@ Hanya kembalikan JSON, tanpa penjelasan lain.
       }
     }
 
-    if (typeof metadata.content_type !== 'string') {
-      throw new Error('Metadata tidak lengkap - content_type harus string');
+    // ✅ BUILD COMPLETE METADATA OBJECT
+    const completeMetadata = {
+      // ✅ FIELD YANG SAMA DENGAN generate-ai-description.js
+      key_themes: metadata.key_themes || [],
+      geographic_focus: metadata.geographic_focus || [],
+      historical_period: metadata.historical_period || [],
+      content_type: metadata.content_type || 'non-fiksi',
+      subject_categories: metadata.subject_categories || [],
+      temporal_coverage: metadata.temporal_coverage || '',
+      
+      // ✅ FIELD TAMBAHAN UNTUK TRACKING
+      is_empty: false,
+      ai_failed: false,
+      generated_by: 'ai_matching_service',
+      generated_at: new Date().toISOString()
+    };
+
+    console.log('✅ AI metadata generation successful:', completeMetadata);
+
+    // 🆕 🚀 SIMPAN KE DATABASE
+    console.log('💾 Saving metadata to database...');
+    const { data: updatedBook, error: updateError } = await supabase
+      .from('books')
+      .update({
+        metadata_structured: completeMetadata,
+        metadata_generated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', book.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Failed to save metadata to database:', updateError);
+      // Lanjut saja, tidak throw error karena metadata sudah di-generate
+    } else {
+      console.log('✅ Metadata saved to database successfully');
     }
 
-    if (typeof metadata.temporal_coverage !== 'string') {
-      throw new Error('Metadata tidak lengkap - temporal_coverage harus string');
-    }
-
-    console.log('✅ AI metadata generation successful:', metadata);
-
-    // ✅ RETURN BOOK WITH METADATA - FORMAT SAMA DENGAN API
+    // ✅ RETURN BOOK WITH METADATA
     return {
       ...book,
-      metadata_structured: {
-        // ✅ FIELD YANG SAMA DENGAN generate-ai-description.js
-        key_themes: metadata.key_themes || [],
-        geographic_focus: metadata.geographic_focus || [],
-        historical_period: metadata.historical_period || [],
-        content_type: metadata.content_type || 'non-fiksi',
-        subject_categories: metadata.subject_categories || [], // 🆕 FIELD BARU
-        temporal_coverage: metadata.temporal_coverage || '',   // 🆕 FIELD BARU
-        
-        // ✅ FIELD TAMBAHAN UNTUK TRACKING
-        is_empty: false,
-        ai_failed: false,
-        generated_by: 'ai_matching_service',
-        generated_at: new Date().toISOString()
-      }
+      metadata_structured: completeMetadata
     };
 
   } catch (error) {
@@ -2127,6 +2157,7 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
 
 
