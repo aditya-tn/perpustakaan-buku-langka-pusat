@@ -1322,8 +1322,8 @@ Hanya JSON.
     }
   },
 
-  // Helper function di luar object
-  function generateBasicMetadataFromTitle(book) {
+  // 🆕 MISSING FUNCTION - ADDED FOR COMPLETENESS
+  generateBasicMetadataFromTitle(book) {
     const title = book.judul?.toLowerCase() || '';
     
     const themes = [];
@@ -1347,3 +1347,4 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
