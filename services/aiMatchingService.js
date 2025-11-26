@@ -6,87 +6,104 @@ export const aiMatchingService = {
   // ==================== EXPERT MODE ====================
 async expertDirectMatch(book, playlist) {
   console.log('⚡⚡⚡ EXPERT MODE: Starting Direct AI Matching ⚡⚡⚡');
-  
-  // 🆕 ✅ CEK & GENERATE METADATA JIKA DIBUTUHKAN
-  let bookWithMetadata = book;
-  if (!book.metadata_structured && !book.ai_metadata) {
-    console.log('🔄 Book needs metadata, generating for expert mode...');
-    try {
-      bookWithMetadata = await this.generateBookMetadata(book);
-      console.log('✅ Metadata generated for expert mode');
-    } catch (error) {
-      console.error('💥 Metadata generation failed for expert mode');
-      throw new Error(`Tidak bisa melakukan matching: ${error.message}`);
-    }
-  }
-  
   console.log('📘 Book:', { 
-    id: bookWithMetadata.id, 
-    judul: bookWithMetadata.judul,
-    metadata: bookWithMetadata.metadata_structured
+    id: book.id, 
+    judul: book.judul,
+    metadata: book.metadata_structured
   });
   console.log('📗 Playlist:', { 
     id: playlist.id, 
     name: playlist.name,
-    metadata: playlist.ai_metadata 
+    metadata: playlist.ai_metadata
   });
+  
+  // ✅ CEK DULU: Jika buku sudah punya metadata, gunakan rule-based
+  if (book.metadata_structured || book.ai_metadata) {
+    console.log('✅ Book has existing metadata, using rule-based matching');
+    return this.calculateDirectMetadataMatch(book, playlist);
+  }
+
+  try {
+    console.log('🎯 Step 1: Checking AI service...');
+    const geminiAvailable = this.isGeminiAvailable();
+    console.log('🔍 Gemini Available:', geminiAvailable);
     
-    try {
-      console.log('🎯 Step 1: Checking AI service...');
-      const geminiAvailable = this.isGeminiAvailable();
-      console.log('🔍 Gemini Available:', geminiAvailable);
-      
-      if (!geminiAvailable) {
-        console.log('❌ AI service not available, using enhanced fallback');
-        return this.getEnhancedFallback(book, playlist);
-      }
-
-      console.log('🎯 Step 2: Creating optimized prompt...');
-      const prompt = this.createOptimizedExpertPrompt(book, playlist);
-      console.log('📋 Prompt:', prompt);
-      
-      console.log('🎯 Step 3: Calling AI...');
-      const aiResponse = await generateAIResponse(prompt, {
-        temperature: 0.1,
-        maxTokens: 300,
-        timeout: 15000
-      });
-      
-      console.log('📨 AI Response:', {
-        hasResponse: !!aiResponse,
-        length: aiResponse?.length,
-        response: aiResponse
-      });
-      
-      if (!aiResponse) {
-        console.log('❌ No AI response received');
-        throw new Error('No response from AI');
-      }
-
-      console.log('🎯 Step 4: Parsing response...');
-      const result = this.parseExpertResponse(aiResponse, book, playlist);
-      
-      console.log('✅✅✅ EXPERT MODE SUCCESS:', result);
-      return result;
-      
-    } catch (error) {
-      console.error('❌❌❌ EXPERT MODE FAILED:', error);
-      console.error('💥 Error details:', error.message);
-      console.error('🔄 Using enhanced fallback...');
+    if (!geminiAvailable) {
+      console.log('❌ AI service not available, using enhanced fallback');
       return this.getEnhancedFallback(book, playlist);
     }
-  },
 
-  // 🆕 BETTER EXPERT PROMPT
-  createOptimizedExpertPrompt(book, playlist) {
-    const bookTitle = book.judul || 'Tidak ada judul';
-    const playlistName = playlist.name || 'Tidak ada nama';
+    console.log('🎯 Step 2: Creating optimized prompt...');
+    const prompt = this.createOptimizedExpertPrompt(book, playlist);
+    console.log('📋 Prompt length:', prompt.length);
     
-    // Extract key themes for better matching
-    const bookThemes = book.metadata_structured?.key_themes?.join(', ') || 'sejarah';
-    const playlistThemes = playlist.ai_metadata?.key_themes?.join(', ') || 'umum';
+    console.log('🎯 Step 3: Calling AI with retry...');
     
-    return `
+    // ✅ ADD RETRY MECHANISM
+    let aiResponse = null;
+    let attempts = 0;
+    const maxAttempts = 2;
+    
+    while (attempts < maxAttempts && !aiResponse) {
+      attempts++;
+      console.log(`🔄 Attempt ${attempts}/${maxAttempts}...`);
+      
+      try {
+        aiResponse = await generateAIResponse(prompt, {
+          temperature: 0.1,
+          maxTokens: 300,
+          timeout: 15000
+        });
+        
+        if (aiResponse) {
+          console.log(`✅ AI Response received on attempt ${attempts}`);
+          break;
+        }
+      } catch (retryError) {
+        console.log(`❌ Attempt ${attempts} failed:`, retryError.message);
+        if (attempts === maxAttempts) {
+          throw retryError;
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    console.log('📨 AI Response status:', {
+      hasResponse: !!aiResponse,
+      length: aiResponse?.length,
+      first100Chars: aiResponse?.substring(0, 100)
+    });
+    
+    if (!aiResponse) {
+      console.log('❌ No AI response after retries, using fallback');
+      return this.getEnhancedFallback(book, playlist);
+    }
+
+    console.log('🎯 Step 4: Parsing response...');
+    const result = this.parseExpertResponse(aiResponse, book, playlist);
+    
+    console.log('✅✅✅ EXPERT MODE SUCCESS:', result.matchScore);
+    return result;
+    
+  } catch (error) {
+    console.error('❌❌❌ EXPERT MODE FAILED:', error);
+    console.error('💥 Error details:', error.message);
+    console.error('🔄 Using enhanced fallback...');
+    return this.getEnhancedFallback(book, playlist);
+  }
+},
+
+// 🆕 IMPROVE EXPERT PROMPT
+createOptimizedExpertPrompt(book, playlist) {
+  const bookTitle = book.judul || 'Tidak ada judul';
+  const playlistName = playlist.name || 'Tidak ada nama';
+  
+  // Extract key themes for better matching
+  const bookThemes = book.metadata_structured?.key_themes?.join(', ') || 'sejarah militer';
+  const playlistThemes = playlist.ai_metadata?.key_themes?.join(', ') || 'umum';
+  
+  return `
 BUKU: "${bookTitle}"
 TEMA BUKU: ${bookThemes}
 
@@ -94,158 +111,131 @@ PLAYLIST: "${playlistName}"
 TEMA PLAYLIST: ${playlistThemes}
 
 INSTRUKSI: Berikan score 0-100 berdasarkan kecocokan buku dengan playlist.
-Berikan alasan singkat.
+Berikan alasan singkat 1 kalimat.
 
-CONTOH: {"matchScore": 85, "reason": "Kecocokan tinggi karena tema sejarah Indonesia"}
+CONTOH: {"matchScore": 85, "reason": "Kecocokan tinggi karena tema sejarah militer Indonesia"}
 
 OUTPUT: Hanya JSON.
 `.trim();
-  },
+},
 
-  // 🆕 IMPROVED PARSING WITH BETTER ERROR HANDLING
-  parseExpertResponse(aiResponse, book, playlist) {
-    try {
-      console.log('🔍 Parsing expert response...');
-      console.log('📨 Raw response:', aiResponse);
-      
-      let cleanResponse = aiResponse
-        .replace(/```json|```|`/g, '')
-        .trim();
-
-      console.log('🧹 Cleaned response:', cleanResponse);
-
-      // Try multiple extraction patterns
-      let jsonText = null;
-      
-      // Pattern 1: Full JSON object
-      const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonText = jsonMatch[0];
-      } 
-      // Pattern 2: Look for score and reason separately
-      else {
-        const scoreMatch = cleanResponse.match(/"matchScore":\s*(\d+)/);
-        const reasonMatch = cleanResponse.match(/"reason":\s*"([^"]*)"/);
-        
-        if (scoreMatch) {
-          jsonText = `{
-            "matchScore": ${scoreMatch[1]},
-            "reason": "${reasonMatch ? reasonMatch[1] : 'Analisis AI'}"
-          }`;
-        }
-      }
-      
-      if (!jsonText) {
-        throw new Error('Tidak dapat mengekstrak JSON dari respons AI');
-      }
-      
-      console.log('📄 JSON to parse:', jsonText);
-      
-      // Fix common JSON issues
-      jsonText = this.fixCommonJSONErrors(jsonText);
-      
-      const parsed = JSON.parse(jsonText);
-      
-      // Validate score
-      let finalScore = parsed.matchScore;
-      if (typeof finalScore !== 'number' || finalScore < 0 || finalScore > 100) {
-        console.log('⚠️ Invalid AI score, converting:', finalScore);
-        finalScore = parseInt(finalScore) || 50;
-        if (finalScore < 0) finalScore = 0;
-        if (finalScore > 100) finalScore = 100;
-      }
-      
-      console.log(`✅ Expert match successful: ${finalScore}%`);
-      
-      return {
-        matchScore: finalScore,
-        confidence: 0.9,
-        reasoning: parsed.reason || 'Analisis kecocokan langsung oleh AI',
-        keyFactors: ['expert_ai_analysis'],
-        playlistId: playlist.id,
-        bookId: book.id,
-        isFallback: false,
-        matchType: 'expert_direct_ai'
-      };
-      
-    } catch (error) {
-      console.error('❌ Expert parse failed:', error.message);
-      throw new Error(`Gagal memproses hasil expert matching: ${error.message}`);
-    }
-  },
-
-  // 🆕 IMPROVED FALLBACK WITH BETTER SCORING
-  getEnhancedFallback(book, playlist) {
-    console.log('🔄 Using enhanced fallback for expert mode');
+// 🆕 IMPROVE PARSING - MORE FORGIVING
+parseExpertResponse(aiResponse, book, playlist) {
+  try {
+    console.log('🔍 Parsing expert response...');
     
-    // Calculate score dengan bobot lebih baik
-    const calculatedScore = this.calculateEnhancedExpertFallback(book, playlist);
+    let cleanResponse = aiResponse
+      .replace(/```json|```|`/g, '')
+      .trim();
+
+    console.log('🧹 Cleaned response:', cleanResponse);
+
+    // ✅ MORE FLEXIBLE EXTRACTION
+    let jsonText = null;
+    let finalScore = 50; // Default fallback score
+    let reason = 'Analisis kecocokan oleh AI';
+    
+    // Pattern 1: Full JSON object
+    const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonText = jsonMatch[0];
+      try {
+        jsonText = this.fixCommonJSONErrors(jsonText);
+        const parsed = JSON.parse(jsonText);
+        finalScore = this.validateAIScore(parsed.matchScore);
+        reason = parsed.reason || reason;
+      } catch (parseError) {
+        console.log('❌ JSON parse failed, using score extraction:', parseError.message);
+      }
+    } 
+    
+    // Pattern 2: Score extraction fallback
+    if (!jsonText) {
+      const scoreMatch = cleanResponse.match(/"matchScore":\s*(\d+)/) || 
+                        cleanResponse.match(/"score":\s*(\d+)/) ||
+                        cleanResponse.match(/(\d{1,3})(?=\s*%|$)/);
+      
+      if (scoreMatch) {
+        finalScore = this.validateAIScore(parseInt(scoreMatch[1]));
+        console.log(`✅ Extracted score from text: ${finalScore}%`);
+      }
+      
+      // Try to extract reason
+      const reasonMatch = cleanResponse.match(/"reason":\s*"([^"]*)"/) ||
+                         cleanResponse.match(/"reason":\s*'([^']*)'/);
+      if (reasonMatch) {
+        reason = reasonMatch[1];
+      }
+    }
+    
+    console.log(`✅ Expert match successful: ${finalScore}%`);
     
     return {
-      matchScore: calculatedScore.matchScore,
-      confidence: calculatedScore.confidence,
-      reasoning: calculatedScore.reasoning,
-      keyFactors: calculatedScore.keyFactors,
+      matchScore: finalScore,
+      confidence: 0.9,
+      reasoning: reason,
+      keyFactors: ['expert_ai_analysis'],
+      playlistId: playlist.id,
+      bookId: book.id,
+      isFallback: false,
+      matchType: 'expert_direct_ai'
+    };
+    
+  } catch (error) {
+    console.error('❌ Expert parse failed:', error.message);
+    throw new Error(`Gagal memproses hasil expert matching: ${error.message}`);
+  }
+},
+  
+// 🆕 BETTER SCORE VALIDATION
+validateAIScore(score) {
+  if (typeof score !== 'number' || isNaN(score)) {
+    console.log('⚠️ Invalid AI score, using 50 as default');
+    return 50;
+  }
+  
+  let finalScore = score;
+  if (finalScore < 0) finalScore = 0;
+  if (finalScore > 100) finalScore = 100;
+  
+  return finalScore;
+},
+
+// 🆕 IMPROVE FALLBACK
+getEnhancedFallback(book, playlist) {
+  console.log('🔄 Using enhanced fallback for expert mode');
+  
+  try {
+    // ✅ COBA RULE-BASED DULU
+    const ruleBasedResult = this.calculateDirectMetadataMatch(book, playlist);
+    
+    return {
+      matchScore: ruleBasedResult.matchScore,
+      confidence: Math.max(0.3, ruleBasedResult.confidence - 0.2), // Lower confidence for fallback
+      reasoning: `Analisis sistem: ${ruleBasedResult.reasoning}`,
+      keyFactors: [...ruleBasedResult.keyFactors, 'fallback_mode'],
       playlistId: playlist.id,
       bookId: book.id,
       isFallback: true,
       matchType: 'enhanced_fallback'
     };
-  },
-
-  // 🆕 ENHANCED FALLBACK SCORING
-  calculateEnhancedExpertFallback(book, playlist) {
-    console.log('🎯 Calculating enhanced fallback score...');
     
-    const bookTitle = book.judul?.toLowerCase() || '';
-    const playlistName = playlist.name?.toLowerCase() || '';
+  } catch (fallbackError) {
+    console.error('❌ Enhanced fallback failed:', fallbackError);
     
-    let score = 50; // Base score
-    
-    // Title-based matching
-    if (bookTitle.includes('sejarah') && playlistName.includes('sejarah')) {
-      score += 30;
-      console.log('✅ Title match: sejarah');
-    }
-    
-    if (bookTitle.includes('indonesia') && playlistName.includes('indonesia')) {
-      score += 20;
-      console.log('✅ Title match: indonesia');
-    }
-    
-    if (bookTitle.includes('kebangsaan') && playlistName.includes('sejarah')) {
-      score += 15;
-      console.log('✅ Title match: kebangsaan + sejarah');
-    }
-    
-    // Theme-based matching
-    const bookThemes = book.metadata_structured?.key_themes || [];
-    const playlistThemes = playlist.ai_metadata?.key_themes || [];
-    
-    const themeMatches = bookThemes.filter(theme => 
-      playlistThemes.some(pTheme => 
-        pTheme.toLowerCase().includes(theme.toLowerCase()) ||
-        theme.toLowerCase().includes(pTheme.toLowerCase())
-      )
-    );
-    
-    if (themeMatches.length > 0) {
-      score += themeMatches.length * 10;
-      console.log('✅ Theme matches:', themeMatches);
-    }
-    
-    // Cap at 100
-    score = Math.min(100, score);
-    
-    console.log(`🎯 Enhanced fallback score: ${score}%`);
-    
+    // ✅ ULTIMATE FALLBACK
     return {
-      matchScore: score,
-      confidence: 0.7,
-      reasoning: `Analisis sistem: Kecocokan berdasarkan judul dan tema`,
-      keyFactors: ['title_matching', 'theme_analysis']
+      matchScore: 50,
+      confidence: 0.1,
+      reasoning: 'Sistem mengalami gangguan sementara',
+      keyFactors: ['emergency_fallback'],
+      playlistId: playlist.id,
+      bookId: book.id,
+      isFallback: true,
+      matchType: 'emergency'
     };
-  },
+  }
+},
 
   // ==================== NOVICE MODE ====================
   async noviceRecommendations({ book, playlists = [] }) {
@@ -2134,6 +2124,7 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
 
 
