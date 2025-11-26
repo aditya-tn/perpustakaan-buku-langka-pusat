@@ -755,7 +755,7 @@ calculateDirectMetadataMatch(book, playlist) {
 
   // 2. GEOGRAPHIC MATCHING (30%)
   const bookGeo = bookMeta.geographic_focus || bookMeta.geographical_focus || [];
-  const playlistGeo = playlistMeta.geographic_focus || playlistMeta.geographical_focus || [];
+  const playlistGeo = playlistMeta.geographic_focus || playlistMeta.geographical_focus || ['indonesia']; // Default fallback
   
   console.log('🗺️ GEO - Book:', bookGeo, 'Playlist:', playlistGeo);
   
@@ -2127,5 +2127,6 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
 
