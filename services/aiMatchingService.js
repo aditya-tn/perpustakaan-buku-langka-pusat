@@ -3,15 +3,27 @@ import { generateAIResponse } from '../lib/gemini';
 
 export const aiMatchingService = {
 
-  // 🆕 URL HELPER FUNCTION
+  // 🆕 FIXED URL HELPER FUNCTION
   getApiUrl(endpoint) {
-    // ✅ Gunakan absolute URL dari environment, fallback ke relative
-    if (process.env.NEXTAUTH_URL) {
-      return `${process.env.NEXTAUTH_URL}${endpoint}`;
+    // ✅ SELALU gunakan absolute URL untuk server-side
+    const baseUrl = process.env.NEXTAUTH_URL;
+    
+    if (!baseUrl) {
+      console.error('❌ NEXTAUTH_URL environment variable is not set');
+      // Fallback untuk development
+      if (process.env.NODE_ENV === 'development') {
+        return `http://localhost:3000${endpoint}`;
+      }
+      throw new Error('NEXTAUTH_URL environment variable is required for production');
     }
     
-    // ✅ Fallback ke relative URL untuk production
-    return endpoint;
+    // ✅ Pastikan baseUrl sudah termasuk protocol
+    let finalBaseUrl = baseUrl;
+    if (!finalBaseUrl.startsWith('http')) {
+      finalBaseUrl = `https://${finalBaseUrl}`;
+    }
+    
+    return `${finalBaseUrl}${endpoint}`;
   },
 
   // ==================== EXPERT MODE ====================
@@ -1950,3 +1962,4 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
