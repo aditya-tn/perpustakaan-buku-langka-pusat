@@ -542,55 +542,132 @@ OUTPUT: Hanya JSON.
   },
 
   // 🆕 CALL EXISTING generate-ai-description API - FIXED URL
-  async generateBookMetadata(book) {
-    console.log('📞 Calling generate-ai-description API for book:', book.id);
+async generateBookMetadata(book) {
+  console.log('🎯 GENERATING METADATA: Matching API format for', book.judul);
+  
+  // ✅ CEK: Jika sudah punya metadata, skip
+  if (book.metadata_structured || book.ai_metadata) {
+    console.log('✅ Book already has metadata, skipping generation');
+    return book;
+  }
+
+  console.log('🚀 Calling AI for metadata generation...');
+  
+  try {
+    const { generateAIResponse } = await import('../lib/gemini');
     
-    try {
-      // ✅ FIX: Gunakan URL helper untuk production/development
-      const apiUrl = this.getApiUrl('/api/generate-ai-description');
-      console.log('🔗 API URL:', apiUrl);
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookId: book.id,
-          bookTitle: book.judul,
-          bookYear: book.tahun_terbit,
-          bookAuthor: book.pengarang,
-          currentDescription: book.deskripsi_fisik || ''
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success && result.data) {
-        console.log('✅ AI metadata generated successfully');
-        return {
-          ...book,
-          metadata_structured: result.data.metadata_structured || result.data.ai_metadata,
-          deskripsi_buku: result.data.deskripsi_buku || book.deskripsi_buku
-        };
-      } else {
-        throw new Error(result.error || 'Failed to generate metadata');
-      }
-    } catch (error) {
-      console.error('❌ generate-ai-description API failed:', error);
-      
-      // ✅ FALLBACK: Generate basic metadata tanpa API call
-      console.log('🔄 Using fallback metadata generation...');
-      return {
-        ...book,
-        metadata_structured: this.generateBasicMetadataFromTitle(book)
-      };
+    // ✅ VALIDATE: Pastikan Gemini available
+    if (!generateAIResponse || typeof generateAIResponse !== 'function') {
+      throw new Error('AI service tidak tersedia');
     }
-  },
+
+    const prompt = `
+BUKU: "${book.judul}"
+PENGARANG: "${book.pengarang || 'Tidak diketahui'}"
+TAHUN: "${book.tahun_terbit || 'Tidak diketahui'}"
+
+INSTRUKSI: Berikan metadata terstruktur dalam format JSON yang spesifik untuk sistem matching buku sejarah.
+
+FORMAT OUTPUT (JSON saja - HARUS PERSIS):
+{
+  "key_themes": ["tema1", "tema2", "tema3"],
+  "geographic_focus": ["lokasi1", "lokasi2"], 
+  "historical_period": ["periode1", "periode2"],
+  "content_type": "jenis_konten",
+  "subject_categories": ["kategori1", "kategori2"],
+  "temporal_coverage": "TAHUN_AWAL-TAHUN_AKHIR"
+}
+
+ATURAN:
+- "subject_categories" WAJIB ada (array)
+- "temporal_coverage" format: "1820-1900" atau string kosong ""
+- Gunakan array kosong [] jika informasi tidak tersedia
+- Jangan tambahkan field lain selain yang di atas
+
+Hanya kembalikan JSON, tanpa penjelasan lain.
+`.trim();
+
+    console.log('📝 Sending request to AI...');
+    
+    const aiResponse = await generateAIResponse(prompt, {
+      temperature: 0.1,
+      maxTokens: 400,
+      timeout: 10000
+    });
+
+    console.log('📨 AI Response received:', {
+      length: aiResponse?.length,
+      preview: aiResponse?.substring(0, 100)
+    });
+
+    if (!aiResponse) {
+      throw new Error('AI tidak memberikan respons');
+    }
+
+    // ✅ PARSE AI RESPONSE dengan format yang sama
+    let cleanResponse = aiResponse
+      .replace(/```json|```|`/g, '')
+      .trim();
+
+    console.log('🧹 Cleaned response:', cleanResponse);
+
+    const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Format respons AI tidak valid - tidak ada JSON');
+    }
+
+    let jsonText = jsonMatch[0];
+    jsonText = this.fixCommonJSONErrors(jsonText);
+    
+    console.log('📄 JSON to parse:', jsonText);
+
+    const metadata = JSON.parse(jsonText);
+
+    // ✅ VALIDATE REQUIRED FIELDS sesuai format API
+    const requiredFields = ['key_themes', 'geographic_focus', 'historical_period', 'subject_categories'];
+    for (const field of requiredFields) {
+      if (!metadata[field] || !Array.isArray(metadata[field])) {
+        throw new Error(`Metadata tidak lengkap - ${field} harus array`);
+      }
+    }
+
+    if (typeof metadata.content_type !== 'string') {
+      throw new Error('Metadata tidak lengkap - content_type harus string');
+    }
+
+    if (typeof metadata.temporal_coverage !== 'string') {
+      throw new Error('Metadata tidak lengkap - temporal_coverage harus string');
+    }
+
+    console.log('✅ AI metadata generation successful:', metadata);
+
+    // ✅ RETURN BOOK WITH METADATA - FORMAT SAMA DENGAN API
+    return {
+      ...book,
+      metadata_structured: {
+        // ✅ FIELD YANG SAMA DENGAN generate-ai-description.js
+        key_themes: metadata.key_themes || [],
+        geographic_focus: metadata.geographic_focus || [],
+        historical_period: metadata.historical_period || [],
+        content_type: metadata.content_type || 'non-fiksi',
+        subject_categories: metadata.subject_categories || [], // 🆕 FIELD BARU
+        temporal_coverage: metadata.temporal_coverage || '',   // 🆕 FIELD BARU
+        
+        // ✅ FIELD TAMBAHAN UNTUK TRACKING
+        is_empty: false,
+        ai_failed: false,
+        generated_by: 'ai_matching_service',
+        generated_at: new Date().toISOString()
+      }
+    };
+
+  } catch (error) {
+    console.error('❌❌❌ AI METADATA GENERATION FAILED:', error);
+    
+    // ✅ THROW ERROR - tidak ada fallback
+    throw new Error(`Gagal generate metadata AI: ${error.message}. Silakan coba lagi nanti.`);
+  }
+},
 
   // 🆕 ADD MISSING METHOD - BASIC METADATA GENERATION
   generateBasicMetadataFromTitle(book) {
@@ -642,75 +719,163 @@ OUTPUT: Hanya JSON.
     };
   },
 
-  calculateDirectMetadataMatch(book, playlist) {
-    console.log('🔍 DIRECT METADATA MATCHING - FIXED FIELD ACCESS');
+calculateDirectMetadataMatch(book, playlist) {
+  console.log('🔍 DIRECT METADATA MATCHING - UPDATED FIELD ACCESS');
+  
+  // ✅ GUNAKAN FORMAT YANG SAMA DENGAN API
+  const bookMeta = book.metadata_structured || book.ai_metadata || {};
+  const playlistMeta = playlist.ai_metadata || playlist.metadata_structured || {};
+  
+  console.log('📘 Book Meta:', {
+    key_themes: bookMeta.key_themes,
+    geographic_focus: bookMeta.geographic_focus,
+    historical_period: bookMeta.historical_period,
+    subject_categories: bookMeta.subject_categories // 🆕 FIELD BARU
+  });
+  
+  console.log('📗 Playlist Meta:', {
+    key_themes: playlistMeta.key_themes,
+    geographic_focus: playlistMeta.geographic_focus, 
+    historical_period: playlistMeta.historical_period,
+    subject_categories: playlistMeta.subject_categories // 🆕 FIELD BARU
+  });
+
+  let score = 0;
+  const factors = [];
+
+  // 1. THEME MATCHING (40%) - GUNAKAN subject_categories JIKA ADA
+  const bookThemes = bookMeta.key_themes || bookMeta.subject_categories || [];
+  const playlistThemes = playlistMeta.key_themes || playlistMeta.subject_categories || [];
+  
+  console.log('🎯 THEMES - Book:', bookThemes, 'Playlist:', playlistThemes);
+  
+  const themeScore = this.calculateThemeMatch(bookThemes, playlistThemes);
+  score += themeScore * 0.4;
+  if (themeScore > 0) factors.push('tema_sejalan');
+
+  // 2. GEOGRAPHIC MATCHING (30%)
+  const bookGeo = bookMeta.geographic_focus || bookMeta.geographical_focus || [];
+  const playlistGeo = playlistMeta.geographic_focus || playlistMeta.geographical_focus || [];
+  
+  console.log('🗺️ GEO - Book:', bookGeo, 'Playlist:', playlistGeo);
+  
+  const geoScore = this.calculateGeographicMatch(bookGeo, playlistGeo);
+  score += geoScore * 0.3;
+  if (geoScore > 0) factors.push('lokasi_serumpun');
+
+  // 3. TEMPORAL MATCHING (20%) - 🆕 FIELD BARU
+  const bookTemporal = bookMeta.temporal_coverage || '';
+  const playlistTemporal = playlistMeta.temporal_coverage || '';
+  
+  console.log('📅 TEMPORAL - Book:', bookTemporal, 'Playlist:', playlistTemporal);
+  
+  const temporalScore = this.calculateTemporalMatch(bookTemporal, playlistTemporal);
+  score += temporalScore * 0.2;
+  if (temporalScore > 0) factors.push('periode_sezaman');
+
+  // 4. CONTENT TYPE MATCHING (10%)
+  const bookType = bookMeta.content_type || '';
+  const playlistType = playlistMeta.content_type || '';
+  
+  console.log('📚 CONTENT TYPE - Book:', bookType, 'Playlist:', playlistType);
+  
+  const contentTypeScore = this.calculateContentTypeMatch(bookType, playlistType);
+  score += contentTypeScore * 0.1;
+  if (contentTypeScore > 0) factors.push('jenis_konten_sesuai');
+
+  const finalScore = Math.min(100, Math.round(score));
+
+  console.log(`📊 FINAL MATCH SCORE: ${finalScore}%`);
+  console.log('🎯 FACTORS:', factors);
+
+  return {
+    matchScore: finalScore,
+    confidence: factors.length > 0 ? 0.7 : 0.3,
+    reasoning: this.generateMatchReasoning(finalScore, factors),
+    keyFactors: factors,
+    playlistId: playlist.id,
+    bookId: book.id,
+    isFallback: false,
+    matchType: 'direct_metadata'
+  };
+},
+
+// 🆕 ADD TEMPORAL MATCHING METHOD
+calculateTemporalMatch(bookTemporal = '', playlistTemporal = '') {
+  if (!bookTemporal || !playlistTemporal) return 0;
+  
+  console.log('📅 TEMPORAL MATCHING:', { bookTemporal, playlistTemporal });
+  
+  // Exact match
+  if (bookTemporal === playlistTemporal) {
+    console.log('✅ Exact temporal match');
+    return 100;
+  }
+  
+  // Extract years untuk range comparison
+  const bookYears = this.extractYearsFromTemporal(bookTemporal);
+  const playlistYears = this.extractYearsFromTemporal(playlistTemporal);
+  
+  if (bookYears && playlistYears) {
+    const [bookStart, bookEnd] = bookYears;
+    const [playlistStart, playlistEnd] = playlistYears;
     
-    // 🆕 FIX: Check multiple possible metadata fields
-    const bookMeta = book.metadata_structured || book.ai_metadata || book.metadata || {};
-    const playlistMeta = playlist.ai_metadata || playlist.metadata_structured || {};
+    // Check for overlap
+    if (bookStart <= playlistEnd && bookEnd >= playlistStart) {
+      const overlapScore = this.calculateTemporalOverlap(bookYears, playlistYears);
+      console.log(`✅ Temporal overlap: ${overlapScore}%`);
+      return overlapScore;
+    }
+  }
+  
+  console.log('❌ No temporal match');
+  return 0;
+},
+
+// 🆕 HELPER: Extract years from temporal coverage
+extractYearsFromTemporal(temporal) {
+  if (!temporal) return null;
+  
+  // Format: "1820-1900" atau "1800-1899"
+  const yearMatch = temporal.match(/(\d{4})-(\d{4})/);
+  if (yearMatch) {
+    return [parseInt(yearMatch[1]), parseInt(yearMatch[2])];
+  }
+  
+  // Format: "abad ke-19" → convert to years
+  if (temporal.includes('abad ke-19') || temporal.includes('19th')) {
+    return [1800, 1899];
+  }
+  
+  if (temporal.includes('abad ke-20') || temporal.includes('20th')) {
+    return [1900, 1999];
+  }
+  
+  return null;
+},
+
+// 🆕 HELPER: Calculate temporal overlap percentage
+calculateTemporalOverlap(bookYears, playlistYears) {
+  const [bookStart, bookEnd] = bookYears;
+  const [playlistStart, playlistEnd] = playlistYears;
+  
+  const overlapStart = Math.max(bookStart, playlistStart);
+  const overlapEnd = Math.min(bookEnd, playlistEnd);
+  
+  if (overlapStart <= overlapEnd) {
+    const overlapDuration = overlapEnd - overlapStart + 1;
+    const bookDuration = bookEnd - bookStart + 1;
+    const playlistDuration = playlistEnd - playlistStart + 1;
     
-    console.log('📘 Book Meta (all fields):', {
-      metadata_structured: book.metadata_structured,
-      ai_metadata: book.ai_metadata, 
-      metadata: book.metadata
-    });
-    console.log('📗 Playlist Meta:', playlistMeta);
-
-    let score = 0;
-    const factors = [];
-
-    // 1. IMPROVED THEME MATCHING - Check multiple field names
-    const bookThemes = bookMeta.key_themes || bookMeta.subject_categories || [];
-    const playlistThemes = playlistMeta.key_themes || playlistMeta.subject_categories || [];
+    const minDuration = Math.min(bookDuration, playlistDuration);
+    const score = Math.round((overlapDuration / minDuration) * 100);
     
-    console.log('🎯 THEMES - Book:', bookThemes, 'Playlist:', playlistThemes);
-    
-    const themeScore = this.calculateThemeMatch(bookThemes, playlistThemes);
-    score += themeScore * 0.4;
-    if (themeScore > 0) factors.push('tema_sejalan');
-
-    // 2. IMPROVED GEOGRAPHIC MATCHING - Check multiple field names
-    const bookGeo = bookMeta.geographic_focus || bookMeta.geographical_focus || [];
-    const playlistGeo = playlistMeta.geographic_focus || playlistMeta.geographical_focus || [];
-    
-    console.log('🗺️ GEO - Book:', bookGeo, 'Playlist:', playlistGeo);
-    
-    const geoScore = this.calculateGeographicMatch(bookGeo, playlistGeo);
-    score += geoScore * 0.3;
-    if (geoScore > 0) factors.push('lokasi_serumpun');
-
-    // 3. CONTENT TYPE MATCHING
-    const bookType = bookMeta.content_type || '';
-    const playlistType = playlistMeta.content_type || '';
-    
-    console.log('📚 CONTENT TYPE - Book:', bookType, 'Playlist:', playlistType);
-    
-    const contentTypeScore = this.calculateContentTypeMatch(bookType, playlistType);
-    score += contentTypeScore * 0.2;
-    if (contentTypeScore > 0) factors.push('jenis_konten_sesuai');
-
-    // 4. KEYWORD MATCHING FALLBACK - Enhanced
-    const keywordScore = this.calculateEnhancedKeywordMatch(book, playlist);
-    score += keywordScore * 0.1;
-    if (keywordScore > 0) factors.push('kata_kunci_serupa');
-
-    const finalScore = Math.min(100, Math.round(score));
-
-    console.log(`📊 FINAL MATCH SCORE: ${finalScore}%`);
-    console.log('🎯 FACTORS:', factors);
-
-    return {
-      matchScore: finalScore,
-      confidence: factors.length > 0 ? 0.7 : 0.3,
-      reasoning: this.generateMatchReasoning(finalScore, factors),
-      keyFactors: factors,
-      playlistId: playlist.id,
-      bookId: book.id,
-      isFallback: false,
-      matchType: 'direct_metadata'
-    };
-  },
-
+    return Math.min(100, score);
+  }
+  
+  return 0;
+},
+  
   // 🆕 ENHANCED KEYWORD MATCHING
   calculateEnhancedKeywordMatch(book, playlist) {
     const bookTitle = book.judul?.toLowerCase() || '';
@@ -1962,4 +2127,5 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
