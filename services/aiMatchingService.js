@@ -4,109 +4,197 @@ import { generateAIResponse } from '../lib/gemini';
 export const aiMatchingService = {
 
   // ==================== EXPERT MODE ====================
+// services/aiMatchingService.js - EXPERT MODE DIRECT AI ONLY
+
 async expertDirectMatch(book, playlist) {
-  console.log('⚡⚡⚡ EXPERT MODE: Pure AI Matching ⚡⚡⚡');
-  console.log('📘 Book:', book.judul);
-  console.log('📗 Playlist:', playlist.name);
+  console.log('⚡⚡⚡ EXPERT MODE: Direct AI Matching Only ⚡⚡⚡');
+  console.log('📘 Book:', { 
+    id: book.id, 
+    judul: book.judul,
+    deskripsi: book.deskripsi_buku ? '✅ Ada' : '❌ Tidak ada'
+  });
+  console.log('📗 Playlist:', { 
+    id: playlist.id, 
+    name: playlist.name,
+    deskripsi: playlist.description ? '✅ Ada' : '❌ Tidak ada'
+  });
   
   try {
-    // ✅ LANGSUNG PANGGIL AI - TANPA CEK METADATA
-    console.log('🎯 Creating pure AI prompt...');
-    const prompt = this.createPureExpertPrompt(book, playlist);
-    console.log('📋 Prompt:', prompt);
-    
-    console.log('🎯 Calling AI directly...');
-    const aiResponse = await generateAIResponse(prompt, {
-      temperature: 0.1,
-      maxTokens: 200, // Lebih ringkas
-      timeout: 10000
-    });
-    
-    console.log('📨 AI Response:', aiResponse);
-    
-    if (!aiResponse) {
-      throw new Error('AI tidak memberikan respons');
+    // ✅ STEP 1: PASTIKAN BUKU PUNYA DESKRIPSI AI
+    let bookWithDescription = book;
+    if (!book.deskripsi_buku || book.deskripsi_source !== 'ai-enhanced') {
+      console.log('🔄 Book missing AI description, generating...');
+      bookWithDescription = await this.ensureBookAIDescription(book);
     }
 
-    console.log('🎯 Parsing AI response...');
-    const result = this.parsePureExpertResponse(aiResponse, book, playlist);
+    // ✅ STEP 2: PASTIKAN PLAYLIST PUNYA DESKRIPSI  
+    let playlistWithDescription = playlist;
+    if (!playlist.description) {
+      console.log('🔄 Playlist missing description, using basic info...');
+      playlistWithDescription = {
+        ...playlist,
+        description: playlist.name // Fallback ke nama playlist
+      };
+    }
+
+    // ✅ STEP 3: LANGSUNG PANGGIL AI UNTUK SCORING
+    console.log('🎯 Calling AI for direct scoring...');
+    const aiResult = await this.directAIScoring(bookWithDescription, playlistWithDescription);
     
-    console.log('✅✅✅ EXPERT MODE SUCCESS:', result.matchScore);
-    return result;
+    console.log('✅✅✅ EXPERT MODE SUCCESS:', aiResult.matchScore);
+    return aiResult;
     
   } catch (error) {
     console.error('❌❌❌ EXPERT MODE FAILED:', error);
-    // ✅ TANPA FALLBACK - LANGSUNG THROW ERROR
-    throw new Error(`Analisis AI gagal: ${error.message}. Silakan coba lagi.`);
+    throw new Error(`Tidak bisa melakukan matching: ${error.message}`);
   }
 },
 
-// 🆕 PURE EXPERT PROMPT - HANYA DESKRIPSI
-createPureExpertPrompt(book, playlist) {
-  return `
-BUKU: "${book.judul}"
-${book.deskripsi_buku ? `DESKRIPSI: ${book.deskripsi_buku}` : ''}
+// 🆕 METHOD: Ensure book has AI description
+async ensureBookAIDescription(book) {
+  console.log('📞 Ensuring AI description for book:', book.judul);
+  
+  try {
+    // ✅ PANGGIL API generate-ai-description
+    const apiUrl = this.getApiUrl('/api/generate-ai-description');
+    console.log('🔗 Calling API:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bookId: book.id,
+        bookTitle: book.judul,
+        bookYear: book.tahun_terbit,
+        bookAuthor: book.pengarang,
+        currentDescription: book.deskripsi_fisik || ''
+      })
+    });
 
-PLAYLIST: "${playlist.name}"  
-${playlist.description ? `DESKRIPSI: ${playlist.description}` : ''}
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
 
-INSTRUKSI: Berikan score 0-100 berdasarkan kecocokan buku dengan playlist.
-Berikan alasan singkat 1 kalimat.
-
-FORMAT: {"matchScore": 85, "reason": "Alasan singkat"}
-
-Hanya JSON.
-`.trim();
+    const result = await response.json();
+    
+    if (result.success && result.data) {
+      console.log('✅ AI description generated and saved');
+      return {
+        ...book,
+        deskripsi_buku: result.data.deskripsi_buku,
+        deskripsi_source: 'ai-enhanced',
+        metadata_structured: result.data.metadata_structured
+      };
+    } else {
+      throw new Error(result.error || 'Failed to generate AI description');
+    }
+  } catch (error) {
+    console.error('❌ AI description generation failed:', error);
+    throw new Error(`Gagal generate deskripsi AI: ${error.message}`);
+  }
 },
 
-// 🆕 SIMPLE PARSING - TANPA KOMPLIKASI
-parsePureExpertResponse(aiResponse, book, playlist) {
+// 🆕 METHOD: Direct AI scoring - hanya berdasarkan deskripsi
+async directAIScoring(book, playlist) {
+  console.log('🎯 DIRECT AI SCORING: Book vs Playlist');
+  
+  const { generateAIResponse } = await import('../lib/gemini');
+  
+  const prompt = `
+BUKU: "${book.judul}"
+DESKRIPSI BUKU: "${book.deskripsi_buku || 'Tidak ada deskripsi'}"
+
+PLAYLIST: "${playlist.name}"  
+DESKRIPSI PLAYLIST: "${playlist.description || 'Tidak ada deskripsi'}"
+
+INSTRUKSI: Bandingkan deskripsi buku dan playlist. Berikan score 0-100 berdasarkan kecocokan konten.
+Berikan alasan singkat 1-2 kalimat.
+
+FORMAT OUTPUT (JSON saja):
+{
+  "matchScore": 85,
+  "reason": "Penjelasan singkat kecocokan"
+}
+
+Hanya kembalikan JSON.
+`.trim();
+
+  console.log('📝 AI Prompt length:', prompt.length);
+  
+  const aiResponse = await generateAIResponse(prompt, {
+    temperature: 0.1,
+    maxTokens: 300,
+    timeout: 15000
+  });
+
+  console.log('📨 AI Response:', {
+    hasResponse: !!aiResponse,
+    length: aiResponse?.length,
+    preview: aiResponse?.substring(0, 100)
+  });
+
+  if (!aiResponse) {
+    throw new Error('AI tidak memberikan respons');
+  }
+
+  return this.parseDirectAIResponse(aiResponse, book, playlist);
+},
+
+// 🆕 METHOD: Parse direct AI response
+parseDirectAIResponse(aiResponse, book, playlist) {
   try {
-    console.log('🔍 Parsing pure AI response...');
+    console.log('🔍 Parsing direct AI response...');
     
-    // Bersihkan response
     let cleanResponse = aiResponse
       .replace(/```json|```|`/g, '')
       .trim();
 
-    console.log('🧹 Cleaned:', cleanResponse);
+    console.log('🧹 Cleaned response:', cleanResponse);
 
     // Extract JSON
     const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Tidak ada JSON dalam respons');
+      throw new Error('Tidak ada JSON dalam respons AI');
     }
     
     let jsonText = jsonMatch[0];
+    jsonText = this.fixCommonJSONErrors(jsonText);
     
-    // Parse langsung
+    console.log('📄 JSON to parse:', jsonText);
+
     const parsed = JSON.parse(jsonText);
     
-    // Validasi sederhana
-    if (typeof parsed.matchScore !== 'number') {
-      throw new Error('Score tidak valid');
+    // Validate score
+    let finalScore = parsed.matchScore;
+    if (typeof finalScore !== 'number' || finalScore < 0 || finalScore > 100) {
+      console.log('⚠️ Invalid AI score, converting:', finalScore);
+      finalScore = parseInt(finalScore) || 50;
+      if (finalScore < 0) finalScore = 0;
+      if (finalScore > 100) finalScore = 100;
     }
     
-    const finalScore = Math.max(0, Math.min(100, parsed.matchScore));
-    
-    console.log(`✅ Pure expert match: ${finalScore}%`);
+    console.log(`✅ Direct AI scoring successful: ${finalScore}%`);
     
     return {
       matchScore: finalScore,
-      confidence: 0.95, // High confidence untuk expert mode
-      reasoning: parsed.reason || 'Analisis langsung oleh AI',
-      keyFactors: ['direct_ai_analysis'],
+      confidence: 0.9,
+      reasoning: parsed.reason || 'Analisis kecocokan langsung oleh AI',
+      keyFactors: ['direct_ai_scoring'],
       playlistId: playlist.id,
       bookId: book.id,
       isFallback: false,
-      matchType: 'pure_expert_ai'
+      matchType: 'expert_direct_ai'
     };
     
   } catch (error) {
-    console.error('❌ Pure expert parse failed:', error);
+    console.error('❌ Direct AI parse failed:', error.message);
     throw new Error(`Gagal memproses hasil AI: ${error.message}`);
   }
 },
+
+  
   // ==================== NOVICE MODE ====================
   async noviceRecommendations({ book, playlists = [] }) {
     console.log('🤖 NOVICE MODE: AI-powered recommendations');
@@ -1994,6 +2082,7 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
 
 
