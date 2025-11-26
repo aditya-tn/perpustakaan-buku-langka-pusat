@@ -531,45 +531,41 @@ OUTPUT: Hanya JSON.
 
   // 🆕 CALL EXISTING generate-ai-description API - FIXED URL
   async generateBookMetadata(book) {
-    console.log('📞 Calling generate-ai-description API for book:', book.id);
+    console.log('📞 Generating AI metadata for book:', book.id);
     
     try {
-      // ✅ FIX: Gunakan URL helper untuk production/development
-      const apiUrl = this.getApiUrl('/api/generate-ai-description');
-      console.log('🔗 API URL:', apiUrl);
+      // ✅ OPTION 1: Import dan panggil service langsung (lebih efisien)
+      const { generateAIDescription } = await import('./descriptionService.js');
       
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      if (generateAIDescription && typeof generateAIDescription === 'function') {
+        console.log('✅ Using internal AI description service');
+        const result = await generateAIDescription({
           bookId: book.id,
           bookTitle: book.judul,
           bookYear: book.tahun_terbit,
           bookAuthor: book.pengarang,
           currentDescription: book.deskripsi_fisik || ''
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        });
+        
+        if (result.success) {
+          console.log('✅ AI metadata generated successfully via internal service');
+          return {
+            ...book,
+            metadata_structured: result.data.metadata_structured || result.data.ai_metadata,
+            deskripsi_buku: result.data.deskripsi_buku || book.deskripsi_buku
+          };
+        }
       }
-
-      const result = await response.json();
       
-      if (result.success && result.data) {
-        console.log('✅ AI metadata generated successfully');
-        return {
-          ...book,
-          metadata_structured: result.data.metadata_structured || result.data.ai_metadata,
-          deskripsi_buku: result.data.deskripsi_buku || book.deskripsi_buku
-        };
-      } else {
-        throw new Error(result.error || 'Failed to generate metadata');
-      }
+      // ✅ OPTION 2: Fallback ke basic metadata generation
+      console.log('🔄 Internal service not available, using basic metadata generation');
+      return {
+        ...book,
+        metadata_structured: this.generateBasicMetadataFromTitle(book)
+      };
+      
     } catch (error) {
-      console.error('❌ generate-ai-description API failed:', error);
+      console.error('❌ AI metadata generation failed:', error);
       
       // ✅ FALLBACK: Generate basic metadata tanpa API call
       console.log('🔄 Using fallback metadata generation...');
@@ -579,7 +575,7 @@ OUTPUT: Hanya JSON.
       };
     }
   },
-
+  
   // 🆕 ADD MISSING METHOD - BASIC METADATA GENERATION
   generateBasicMetadataFromTitle(book) {
     console.log('🔄 Generating basic metadata from book title...');
@@ -1950,3 +1946,4 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
