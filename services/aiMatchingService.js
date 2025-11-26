@@ -1,64 +1,63 @@
-// services/aiMatchingService.js - FIXED VERSION
+// services/aiMatchingService.js - COMPLETE FIXED VERSION
 import { generateAIResponse } from '../lib/gemini';
 
 export const aiMatchingService = {
 
   // ==================== EXPERT MODE ====================
-async expertDirectMatch(book, playlist) {
-  console.log('⚡⚡⚡ EXPERT MODE: Starting Direct AI Matching ⚡⚡⚡');
-  console.log('📘 Book:', { 
-    id: book.id, 
-    judul: book.judul,
-    hasMetadata: !!book.metadata_structured,
-    themes: book.metadata_structured?.key_themes 
-  });
-  console.log('📗 Playlist:', { 
-    id: playlist.id, 
-    name: playlist.name,
-    hasMetadata: !!playlist.ai_metadata,
-    themes: playlist.ai_metadata?.key_themes 
-  });
-  
-  try {
-    console.log('🎯 Step 1: Checking AI service...');
-    if (!this.isGeminiAvailable()) {
-      throw new Error('AI service not available');
-    }
-    console.log('✅ AI service available');
-
-    console.log('🎯 Step 2: Creating prompt...');
-    const prompt = this.createDirectMatchPrompt(book, playlist);
-    console.log('📋 Prompt length:', prompt.length);
-    
-    console.log('🎯 Step 3: Calling AI...');
-    const aiResponse = await generateAIResponse(prompt, {
-      temperature: 0.1,
-      maxTokens: 500,
-      timeout: 10000
+  async expertDirectMatch(book, playlist) {
+    console.log('⚡⚡⚡ EXPERT MODE: Starting Direct AI Matching ⚡⚡⚡');
+    console.log('📘 Book:', { 
+      id: book.id, 
+      judul: book.judul,
+      hasMetadata: !!book.metadata_structured,
+      themes: book.metadata_structured?.key_themes 
+    });
+    console.log('📗 Playlist:', { 
+      id: playlist.id, 
+      name: playlist.name,
+      hasMetadata: !!playlist.ai_metadata,
+      themes: playlist.ai_metadata?.key_themes 
     });
     
-    console.log('📨 AI Response status:', {
-      hasResponse: !!aiResponse,
-      length: aiResponse?.length,
-      first100Chars: aiResponse?.substring(0, 100)
-    });
-    
-    if (!aiResponse) {
-      throw new Error('No response from AI');
-    }
+    try {
+      console.log('🎯 Step 1: Checking AI service...');
+      if (!this.isGeminiAvailable()) {
+        throw new Error('AI service not available');
+      }
+      console.log('✅ AI service available');
 
-    console.log('🎯 Step 4: Parsing response...');
-    const result = this.parseDirectMatchResponse(aiResponse, book, playlist);
-    
-    console.log('✅✅✅ EXPERT MODE SUCCESS:', result.matchScore);
-    return result;
-    
-  } catch (error) {
-    console.error('❌❌❌ EXPERT MODE FAILED AT STEP:', error);
-    console.error('💥 Error details:', error.message);
-    throw new Error('Analisis AI expert mode gagal. Silakan coba lagi.');
-  }
-},
+      console.log('🎯 Step 2: Creating prompt...');
+      const prompt = this.createDirectMatchPrompt(book, playlist);
+      console.log('📋 Prompt length:', prompt.length);
+      
+      console.log('🎯 Step 3: Calling AI...');
+      const aiResponse = await generateAIResponse(prompt, {
+        temperature: 0.1,
+        maxTokens: 500,
+        timeout: 15000
+      });
+      
+      console.log('📨 AI Response status:', {
+        hasResponse: !!aiResponse,
+        length: aiResponse?.length,
+        first100Chars: aiResponse?.substring(0, 100)
+      });
+      
+      if (!aiResponse) {
+        throw new Error('No response from AI');
+      }
+
+      console.log('🎯 Step 4: Parsing response...');
+      const result = this.parseDirectMatchResponse(aiResponse, book, playlist);
+      
+      console.log('✅✅✅ EXPERT MODE SUCCESS:', result.matchScore);
+      return result;
+      
+    } catch (error) {
+      console.error('❌❌❌ EXPERT MODE FAILED:', error);
+      return this.getEmergencyFallback(book, playlist);
+    }
+  },
 
   // ==================== NOVICE MODE ====================
   async noviceRecommendations({ book, playlists = [] }) {
@@ -84,7 +83,7 @@ async expertDirectMatch(book, playlist) {
       
       // STEP 4: Ambil top 3 dengan threshold minimum
       const topPlaylists = scoredPlaylists
-        .filter(item => item.score >= 10)
+        .filter(item => item.score >= 10) // Lower threshold untuk testing
         .slice(0, 3);
 
       console.log('📊 Top playlists after filtering:', topPlaylists.map(p => ({
@@ -597,35 +596,6 @@ async expertDirectMatch(book, playlist) {
   },
 
   // ==================== DIRECT AI MATCHING (EXPERT MODE) ====================
-  async directAIMatching(book, playlist) {
-    console.log('🤖 DIRECT AI MATCHING: Book vs Playlist');
-    
-    if (!this.isGeminiAvailable()) {
-      throw new Error('Layanan AI tidak tersedia');
-    }
-
-    try {
-      const prompt = this.createDirectMatchPrompt(book, playlist);
-      
-      const aiResponse = await generateAIResponse(prompt, {
-        temperature: 0.1,
-        maxTokens: 500,
-        timeout: 10000
-      });
-      
-      if (!aiResponse) {
-        throw new Error('AI tidak memberikan respons');
-      }
-      
-      console.log('✅ Direct AI response received');
-      return this.parseDirectMatchResponse(aiResponse, book, playlist);
-      
-    } catch (error) {
-      console.error('❌ Direct AI matching failed:', error);
-      throw new Error(`Matching AI gagal: ${error.message}`);
-    }
-  },
-
   createDirectMatchPrompt(book, playlist) {
     return `
 BUKU: 
@@ -705,17 +675,19 @@ Hanya JSON.
       }
 
       const prompt = this.createNoviceRecommendationPrompt(book, topPlaylists);
+      console.log('📝 AI Prompt created, length:', prompt.length);
       
       const aiResponse = await generateAIResponse(prompt, {
         temperature: 0.2,
-        maxTokens: 800
+        maxTokens: 800, // Increased for complete responses
+        timeout: 20000
       });
       
       if (!aiResponse) {
         throw new Error('Empty AI response');
       }
       
-      console.log('✅ AI Response received for novice mode');
+      console.log('✅ AI Response received, length:', aiResponse.length);
       return this.parseNoviceAIResponse(aiResponse, topPlaylists);
       
     } catch (error) {
@@ -724,22 +696,21 @@ Hanya JSON.
     }
   },
 
-// services/aiMatchingService.js - UPDATE NOVICE PROMPT
+  createNoviceRecommendationPrompt(book, topPlaylists) {
+    const playlistsInfo = topPlaylists.map((item, index) => 
+      `PLAYLIST ${index + 1}: "${item.playlist.name}"`
+    ).join('\n');
 
-createNoviceRecommendationPrompt(book, topPlaylists) {
-  const playlistsInfo = topPlaylists.map((item, index) => 
-    `"${item.playlist.name}"`
-  ).join(', ');
-
-  return `
+    return `
 BUKU: "${book.judul}"
 TEMA: ${book.metadata_structured?.key_themes?.join(', ') || 'Umum'}
 
-PLAYLIST: ${playlistsInfo}
+PLAYLIST YANG DIANALISIS:
+${playlistsInfo}
 
 INSTRUKSI:
 Berikan score 0-100 untuk setiap playlist berdasarkan kecocokan dengan buku.
-Hanya kembalikan JSON array dengan format berikut:
+Format output HARUS JSON array seperti contoh:
 
 [
   {
@@ -751,157 +722,114 @@ Hanya kembalikan JSON array dengan format berikut:
     "playlistName": "Koleksi Sejarah Indonesia", 
     "finalScore": 75,
     "reason": "alasan singkat kenapa cocok"
-  },
-  {
-    "playlistName": "Sumatra Utara",
-    "finalScore": 65,
-    "reason": "alasan singkat kenapa cocok"
   }
 ]
 
-JANGAN tambah teks lain, hanya JSON.
+Hanya kembalikan JSON array, tanpa teks lain.
+Pastikan semua string ditutup dengan quote.
 `.trim();
-},
-
-// services/aiMatchingService.js - UPDATE PARSING WITH BETTER DEBUG
-
-parseNoviceAIResponse(aiResponse, topPlaylists) {
-  try {
-    console.log('🔍 Parsing AI response...');
-    console.log('📨 Raw AI response:', aiResponse); // 🆕 TAMBAH INI
-    
-    let cleanResponse = aiResponse
-      .replace(/```json|```|`/g, '')
-      .trim();
-
-    console.log('🧹 Cleaned response:', cleanResponse); // 🆕 TAMBAH INI
-
-    cleanResponse = this.fixUnclosedJSONObjects(cleanResponse);
-    
-    const jsonMatch = cleanResponse.match(/\[[^\]]*\]/);
-    if (!jsonMatch) {
-      console.log('❌ No JSON array found in response');
-      console.log('🔍 Trying to find JSON objects...');
-      
-      // Coba extract individual objects
-      const objectMatches = cleanResponse.match(/\{[^}]+\}/g);
-      if (objectMatches) {
-        console.log('✅ Found individual objects:', objectMatches.length);
-        return this.parseIndividualObjects(objectMatches, topPlaylists);
-      }
-      
-      console.log('🔄 Using object extraction...');
-      return this.extractIndividualRecommendations(cleanResponse, topPlaylists);
-    }
-
-    let jsonText = jsonMatch[0];
-    console.log('📄 JSON text found:', jsonText); // 🆕 TAMBAH INI
-    
-    jsonText = this.fixCommonJSONErrors(jsonText);
-    
-    console.log('🧹 Final JSON:', jsonText);
-    
-    const parsed = JSON.parse(jsonText);
-    
-    if (!Array.isArray(parsed)) {
-      throw new Error('AI response is not an array');
-    }
-
-    console.log(`✅ Successfully parsed ${parsed.length} AI recommendations`);
-    return parsed.map((item, index) => {
-      const playlist = topPlaylists[index]?.playlist;
-      if (!playlist) return null;
-
-      return {
-        playlistId: playlist.id,
-        playlistName: playlist.name,
-        matchScore: item.finalScore || item.matchScore || 50,
-        confidence: 0.9,
-        reasoning: item.reason || item.reasoning || 'Analisis AI',
-        strengths: item.strengths || [],
-        considerations: item.considerations || [],
-        improvementSuggestions: [],
-        isFallback: false,
-        aiEnhanced: true
-      };
-    }).filter(Boolean);
-
-  } catch (error) {
-    console.error('❌ Novice AI parse failed:', error.message);
-    console.log('📝 Failed response was:', aiResponse);
-    return this.createFallbackRecommendations(topPlaylists);
-  }
-},
-
-// 🆕 METHOD BARU: Parse individual objects
-parseIndividualObjects(objectMatches, topPlaylists) {
-  console.log('🔍 Parsing individual objects...');
-  const recommendations = [];
-  
-  for (let i = 0; i < Math.min(objectMatches.length, topPlaylists.length); i++) {
-    try {
-      const jsonText = this.fixCommonJSONErrors(objectMatches[i]);
-      const parsed = JSON.parse(jsonText);
-      
-      const playlist = topPlaylists[i]?.playlist;
-      if (!playlist) continue;
-      
-      recommendations.push({
-        playlistId: playlist.id,
-        playlistName: playlist.name,
-        matchScore: parsed.finalScore || parsed.matchScore || 50,
-        confidence: 0.9,
-        reasoning: parsed.reason || parsed.reasoning || 'Analisis AI',
-        strengths: parsed.strengths || [],
-        considerations: parsed.considerations || [],
-        improvementSuggestions: [],
-        isFallback: false,
-        aiEnhanced: true
-      });
-      
-    } catch (error) {
-      console.error(`❌ Failed to parse object ${i}:`, error);
-    }
-  }
-  
-  console.log(`✅ Parsed ${recommendations.length} individual objects`);
-  return recommendations;
-},
-
-  // ==================== HELPER FUNCTIONS ====================
-  fixUnclosedJSONObjects(jsonString) {
-    let fixed = jsonString;
-    
-    const openBraces = (fixed.match(/{/g) || []).length;
-    const closeBraces = (fixed.match(/}/g) || []).length;
-    
-    if (openBraces > closeBraces) {
-      fixed += '}'.repeat(openBraces - closeBraces);
-    }
-    
-    return fixed;
   },
 
-  fixCommonJSONErrors(jsonString) {
-    let fixed = jsonString;
-    
-    fixed = fixed.replace(/}\s*{/g, '},{');
-    fixed = fixed.replace(/,\s*]/g, ']');
-    fixed = fixed.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
-    fixed = fixed.replace(/(:"[^"]*)$/g, '$1"');
-    
-    const openBrackets = (fixed.match(/\[/g) || []).length;
-    const closeBrackets = (fixed.match(/\]/g) || []).length;
-    if (openBrackets > closeBrackets) {
-      fixed += ']'.repeat(openBrackets - closeBrackets);
-    }
-    
-    fixed = fixed.replace(/"strengths":\s*\[[^\]]*$/g, (match) => {
-      if (!match.endsWith(']')) {
-        return match + ']';
+  // 🆕 FIXED PARSING METHOD - HANDLES TRUNCATED RESPONSES
+  parseNoviceAIResponse(aiResponse, topPlaylists) {
+    try {
+      console.log('🔍 Parsing AI response...');
+      console.log('📨 Raw AI response length:', aiResponse.length);
+      
+      let cleanResponse = aiResponse
+        .replace(/```json|```|`/g, '')
+        .trim();
+
+      console.log('🧹 Cleaned response length:', cleanResponse.length);
+
+      // 🆕 FIX: Handle truncated JSON responses
+      cleanResponse = this.fixTruncatedJSON(cleanResponse);
+      
+      const jsonMatch = cleanResponse.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.log('❌ No JSON array found, trying object extraction...');
+        return this.extractIndividualRecommendations(cleanResponse, topPlaylists);
       }
-      return match;
-    });
+
+      let jsonText = jsonMatch[0];
+      console.log('📄 JSON text found, length:', jsonText.length);
+      
+      jsonText = this.fixCommonJSONErrors(jsonText);
+      
+      console.log('🧹 Final JSON length:', jsonText.length);
+      
+      const parsed = JSON.parse(jsonText);
+      
+      if (!Array.isArray(parsed)) {
+        throw new Error('AI response is not an array');
+      }
+
+      console.log(`✅ Successfully parsed ${parsed.length} AI recommendations`);
+      
+      return parsed.map((item, index) => {
+        const playlist = topPlaylists[index]?.playlist;
+        if (!playlist) {
+          console.log(`❌ No playlist found for index ${index}`);
+          return null;
+        }
+
+        return {
+          playlistId: playlist.id,
+          playlistName: playlist.name,
+          matchScore: item.finalScore || item.matchScore || 50,
+          confidence: 0.9,
+          reasoning: item.reason || item.reasoning || 'Analisis AI',
+          strengths: item.strengths || [],
+          considerations: item.considerations || [],
+          improvementSuggestions: [],
+          isFallback: false,
+          aiEnhanced: true
+        };
+      }).filter(Boolean);
+
+    } catch (error) {
+      console.error('❌ Novice AI parse failed:', error.message);
+      console.log('📝 Failed response (first 500 chars):', aiResponse.substring(0, 500));
+      return this.createFallbackRecommendations(topPlaylists);
+    }
+  },
+
+  // 🆕 FIX: Handle truncated JSON responses
+  fixTruncatedJSON(jsonString) {
+    let fixed = jsonString.trim();
+    
+    // If response is clearly truncated, complete it
+    if (!fixed.endsWith(']') && fixed.includes('[')) {
+      console.log('🔄 Fixing truncated JSON array...');
+      
+      // Count open and close brackets
+      const openBrackets = (fixed.match(/\[/g) || []).length;
+      const closeBrackets = (fixed.match(/\]/g) || []).length;
+      
+      // Add missing closing brackets
+      if (openBrackets > closeBrackets) {
+        fixed += ']'.repeat(openBrackets - closeBrackets);
+      }
+      
+      // Fix truncated objects within array
+      fixed = fixed.replace(/,?\s*{\s*"[^"]*"\s*:\s*"[^"]*$/g, (match) => {
+        if (!match.endsWith('"')) {
+          return match + '"}';
+        }
+        return match;
+      });
+      
+      // Ensure array ends properly
+      if (!fixed.endsWith(']')) {
+        // Find the last complete object and close the array
+        const lastCompleteObject = fixed.match(/\{[^}]*\}(?=\s*,?\s*$)/);
+        if (lastCompleteObject) {
+          fixed = fixed.substring(0, fixed.lastIndexOf(lastCompleteObject[0]) + lastCompleteObject[0].length) + ']';
+        } else {
+          fixed += ']';
+        }
+      }
+    }
     
     return fixed;
   },
@@ -917,18 +845,26 @@ parseIndividualObjects(objectMatches, topPlaylists) {
       let score = 50;
       let reason = 'Analisis berdasarkan konten playlist';
       
-      const playlistPattern = new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"finalScore":\\s*(\\d+)`, 'i');
-      const scoreMatch = text.match(playlistPattern);
+      // Multiple patterns to find scores
+      const patterns = [
+        new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"finalScore":\\s*(\\d+)`, 'i'),
+        new RegExp(`"${playlistName}"[^}]*?"finalScore":\\s*(\\d+)`, 'i'),
+        new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"score":\\s*(\\d+)`, 'i'),
+        new RegExp(`${playlistName}.*?(\\d{1,3})(?=\\D|$)`, 'i')
+      ];
       
-      if (scoreMatch) {
-        score = parseInt(scoreMatch[1]);
-        const reasonPattern = new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"reason":\\s*"([^"]*)"`, 'i');
-        const reasonMatch = text.match(reasonPattern);
-        if (reasonMatch) {
-          reason = reasonMatch[1];
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          score = parseInt(match[1]);
+          // Try to extract reason
+          const reasonPattern = new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"reason":\\s*"([^"]*)"`, 'i');
+          const reasonMatch = text.match(reasonPattern);
+          if (reasonMatch) {
+            reason = reasonMatch[1];
+          }
+          break;
         }
-      } else {
-        score = Math.max(40, 70 - (i * 10));
       }
       
       recommendations.push({
@@ -940,7 +876,7 @@ parseIndividualObjects(objectMatches, topPlaylists) {
         strengths: ['Analisis AI'],
         considerations: [],
         improvementSuggestions: [],
-        isFallback: !scoreMatch,
+        isFallback: false,
         aiEnhanced: true
       });
     }
@@ -984,6 +920,42 @@ parseIndividualObjects(objectMatches, topPlaylists) {
     }));
   },
 
+  getEmergencyFallback(book, playlist) {
+    console.log('🆘 Using emergency fallback for expert mode');
+    return {
+      matchScore: 50,
+      confidence: 0.1,
+      reasoning: 'Fallback - sistem AI mengalami gangguan',
+      keyFactors: ['emergency_fallback'],
+      playlistId: playlist.id,
+      bookId: book.id,
+      isFallback: true,
+      matchType: 'emergency'
+    };
+  },
+
+  fixCommonJSONErrors(jsonString) {
+    let fixed = jsonString;
+    
+    // Fix trailing commas before closing brackets/braces
+    fixed = fixed.replace(/,\s*([\]}])/g, '$1');
+    
+    // Fix missing quotes around property names
+    fixed = fixed.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+    
+    // Fix unclosed strings
+    fixed = fixed.replace(/(:"[^"]*)$/g, '$1"');
+    
+    // Fix missing closing braces
+    const openBraces = (fixed.match(/{/g) || []).length;
+    const closeBraces = (fixed.match(/}/g) || []).length;
+    if (openBraces > closeBraces) {
+      fixed += '}'.repeat(openBraces - closeBraces);
+    }
+    
+    return fixed;
+  },
+
   // ==================== COMPATIBILITY FUNCTIONS ====================
   async getPlaylistRecommendations({ book, playlists = [] }) {
     console.log('🔄 LEGACY: getPlaylistRecommendations called - using novice mode');
@@ -996,6 +968,12 @@ parseIndividualObjects(objectMatches, topPlaylists) {
       const hasApiKey = !!process.env.GEMINI_API_KEY;
       const hasGeminiFunction = typeof generateAIResponse === 'function';
       
+      console.log('🔍 Gemini Availability:', {
+        hasApiKey: !!hasApiKey,
+        hasGeminiFunction,
+        apiKeyLength: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0
+      });
+      
       return hasApiKey && hasGeminiFunction;
     } catch (error) {
       console.error('❌ Error checking Gemini availability:', error);
@@ -1006,5 +984,3 @@ parseIndividualObjects(objectMatches, topPlaylists) {
 };
 
 export default aiMatchingService;
-
-
