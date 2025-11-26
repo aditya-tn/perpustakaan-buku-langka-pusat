@@ -555,7 +555,7 @@ OUTPUT: Hanya JSON.
             deskripsi_buku: result.data.deskripsi_buku || book.deskripsi_buku
           };
         }
-      }
+      },
       
       // ✅ OPTION 2: Fallback ke basic metadata generation
       console.log('🔄 Internal service not available, using basic metadata generation');
@@ -1946,4 +1946,5 @@ Hanya JSON.
 };
 
 export default aiMatchingService;
+
 
