@@ -1,78 +1,89 @@
-// services/aiMatchingService.js - COMPLETE FIXED VERSION
+// services/aiMatchingService.js - COMPLETE PRODUCTION READY VERSION
 import { generateAIResponse } from '../lib/gemini';
 
 export const aiMatchingService = {
 
-  // ==================== EXPERT MODE ====================
-async expertDirectMatch(book, playlist) {
-  console.log('⚡⚡⚡ EXPERT MODE: Starting Direct AI Matching ⚡⚡⚡');
-  console.log('📘 Book:', { 
-    id: book.id, 
-    judul: book.judul,
-    metadata: book.metadata_structured
-  });
-  console.log('📗 Playlist:', { 
-    id: playlist.id, 
-    name: playlist.name,
-    metadata: playlist.ai_metadata
-  });
-  
-  try {
-    console.log('🎯 Step 1: Checking AI service...');
-    const geminiAvailable = this.isGeminiAvailable();
-    console.log('🔍 Gemini Available:', geminiAvailable);
+  // 🆕 URL HELPER FUNCTION
+  getApiUrl(endpoint) {
+    // ✅ Gunakan absolute URL dari environment, fallback ke relative
+    if (process.env.NEXTAUTH_URL) {
+      return `${process.env.NEXTAUTH_URL}${endpoint}`;
+    }
     
-    if (!geminiAvailable) {
-      console.log('❌ AI service not available, using enhanced fallback');
+    // ✅ Fallback ke relative URL untuk production
+    return endpoint;
+  },
+
+  // ==================== EXPERT MODE ====================
+  async expertDirectMatch(book, playlist) {
+    console.log('⚡⚡⚡ EXPERT MODE: Starting Direct AI Matching ⚡⚡⚡');
+    console.log('📘 Book:', { 
+      id: book.id, 
+      judul: book.judul,
+      metadata: book.metadata_structured
+    });
+    console.log('📗 Playlist:', { 
+      id: playlist.id, 
+      name: playlist.name,
+      metadata: playlist.ai_metadata
+    });
+    
+    try {
+      console.log('🎯 Step 1: Checking AI service...');
+      const geminiAvailable = this.isGeminiAvailable();
+      console.log('🔍 Gemini Available:', geminiAvailable);
+      
+      if (!geminiAvailable) {
+        console.log('❌ AI service not available, using enhanced fallback');
+        return this.getEnhancedFallback(book, playlist);
+      }
+
+      console.log('🎯 Step 2: Creating optimized prompt...');
+      const prompt = this.createOptimizedExpertPrompt(book, playlist);
+      console.log('📋 Prompt:', prompt);
+      
+      console.log('🎯 Step 3: Calling AI...');
+      const aiResponse = await generateAIResponse(prompt, {
+        temperature: 0.1,
+        maxTokens: 300,
+        timeout: 15000
+      });
+      
+      console.log('📨 AI Response:', {
+        hasResponse: !!aiResponse,
+        length: aiResponse?.length,
+        response: aiResponse
+      });
+      
+      if (!aiResponse) {
+        console.log('❌ No AI response received');
+        throw new Error('No response from AI');
+      }
+
+      console.log('🎯 Step 4: Parsing response...');
+      const result = this.parseExpertResponse(aiResponse, book, playlist);
+      
+      console.log('✅✅✅ EXPERT MODE SUCCESS:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('❌❌❌ EXPERT MODE FAILED:', error);
+      console.error('💥 Error details:', error.message);
+      console.error('🔄 Using enhanced fallback...');
       return this.getEnhancedFallback(book, playlist);
     }
+  },
 
-    console.log('🎯 Step 2: Creating optimized prompt...');
-    const prompt = this.createOptimizedExpertPrompt(book, playlist);
-    console.log('📋 Prompt:', prompt);
+  // 🆕 BETTER EXPERT PROMPT
+  createOptimizedExpertPrompt(book, playlist) {
+    const bookTitle = book.judul || 'Tidak ada judul';
+    const playlistName = playlist.name || 'Tidak ada nama';
     
-    console.log('🎯 Step 3: Calling AI...');
-    const aiResponse = await generateAIResponse(prompt, {
-      temperature: 0.1,
-      maxTokens: 300,
-      timeout: 15000
-    });
+    // Extract key themes for better matching
+    const bookThemes = book.metadata_structured?.key_themes?.join(', ') || 'sejarah';
+    const playlistThemes = playlist.ai_metadata?.key_themes?.join(', ') || 'umum';
     
-    console.log('📨 AI Response:', {
-      hasResponse: !!aiResponse,
-      length: aiResponse?.length,
-      response: aiResponse
-    });
-    
-    if (!aiResponse) {
-      console.log('❌ No AI response received');
-      throw new Error('No response from AI');
-    }
-
-    console.log('🎯 Step 4: Parsing response...');
-    const result = this.parseExpertResponse(aiResponse, book, playlist);
-    
-    console.log('✅✅✅ EXPERT MODE SUCCESS:', result);
-    return result;
-    
-  } catch (error) {
-    console.error('❌❌❌ EXPERT MODE FAILED:', error);
-    console.error('💥 Error details:', error.message);
-    console.error('🔄 Using enhanced fallback...');
-    return this.getEnhancedFallback(book, playlist);
-  }
-},
-
-// 🆕 BETTER EXPERT PROMPT
-createOptimizedExpertPrompt(book, playlist) {
-  const bookTitle = book.judul || 'Tidak ada judul';
-  const playlistName = playlist.name || 'Tidak ada nama';
-  
-  // Extract key themes for better matching
-  const bookThemes = book.metadata_structured?.key_themes?.join(', ') || 'sejarah';
-  const playlistThemes = playlist.ai_metadata?.key_themes?.join(', ') || 'umum';
-  
-  return `
+    return `
 BUKU: "${bookTitle}"
 TEMA BUKU: ${bookThemes}
 
@@ -86,153 +97,152 @@ CONTOH: {"matchScore": 85, "reason": "Kecocokan tinggi karena tema sejarah Indon
 
 OUTPUT: Hanya JSON.
 `.trim();
-},
+  },
 
-// 🆕 IMPROVED PARSING WITH BETTER ERROR HANDLING
-parseExpertResponse(aiResponse, book, playlist) {
-  try {
-    console.log('🔍 Parsing expert response...');
-    console.log('📨 Raw response:', aiResponse);
-    
-    let cleanResponse = aiResponse
-      .replace(/```json|```|`/g, '')
-      .trim();
-
-    console.log('🧹 Cleaned response:', cleanResponse);
-
-    // Try multiple extraction patterns
-    let jsonText = null;
-    
-    // Pattern 1: Full JSON object
-    const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      jsonText = jsonMatch[0];
-    } 
-    // Pattern 2: Look for score and reason separately
-    else {
-      const scoreMatch = cleanResponse.match(/"matchScore":\s*(\d+)/);
-      const reasonMatch = cleanResponse.match(/"reason":\s*"([^"]*)"/);
+  // 🆕 IMPROVED PARSING WITH BETTER ERROR HANDLING
+  parseExpertResponse(aiResponse, book, playlist) {
+    try {
+      console.log('🔍 Parsing expert response...');
+      console.log('📨 Raw response:', aiResponse);
       
-      if (scoreMatch) {
-        jsonText = `{
-          "matchScore": ${scoreMatch[1]},
-          "reason": "${reasonMatch ? reasonMatch[1] : 'Analisis AI'}"
-        }`;
+      let cleanResponse = aiResponse
+        .replace(/```json|```|`/g, '')
+        .trim();
+
+      console.log('🧹 Cleaned response:', cleanResponse);
+
+      // Try multiple extraction patterns
+      let jsonText = null;
+      
+      // Pattern 1: Full JSON object
+      const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[0];
+      } 
+      // Pattern 2: Look for score and reason separately
+      else {
+        const scoreMatch = cleanResponse.match(/"matchScore":\s*(\d+)/);
+        const reasonMatch = cleanResponse.match(/"reason":\s*"([^"]*)"/);
+        
+        if (scoreMatch) {
+          jsonText = `{
+            "matchScore": ${scoreMatch[1]},
+            "reason": "${reasonMatch ? reasonMatch[1] : 'Analisis AI'}"
+          }`;
+        }
       }
+      
+      if (!jsonText) {
+        throw new Error('Tidak dapat mengekstrak JSON dari respons AI');
+      }
+      
+      console.log('📄 JSON to parse:', jsonText);
+      
+      // Fix common JSON issues
+      jsonText = this.fixCommonJSONErrors(jsonText);
+      
+      const parsed = JSON.parse(jsonText);
+      
+      // Validate score
+      let finalScore = parsed.matchScore;
+      if (typeof finalScore !== 'number' || finalScore < 0 || finalScore > 100) {
+        console.log('⚠️ Invalid AI score, converting:', finalScore);
+        finalScore = parseInt(finalScore) || 50;
+        if (finalScore < 0) finalScore = 0;
+        if (finalScore > 100) finalScore = 100;
+      }
+      
+      console.log(`✅ Expert match successful: ${finalScore}%`);
+      
+      return {
+        matchScore: finalScore,
+        confidence: 0.9,
+        reasoning: parsed.reason || 'Analisis kecocokan langsung oleh AI',
+        keyFactors: ['expert_ai_analysis'],
+        playlistId: playlist.id,
+        bookId: book.id,
+        isFallback: false,
+        matchType: 'expert_direct_ai'
+      };
+      
+    } catch (error) {
+      console.error('❌ Expert parse failed:', error.message);
+      throw new Error(`Gagal memproses hasil expert matching: ${error.message}`);
     }
+  },
+
+  // 🆕 IMPROVED FALLBACK WITH BETTER SCORING
+  getEnhancedFallback(book, playlist) {
+    console.log('🔄 Using enhanced fallback for expert mode');
     
-    if (!jsonText) {
-      throw new Error('Tidak dapat mengekstrak JSON dari respons AI');
-    }
-    
-    console.log('📄 JSON to parse:', jsonText);
-    
-    // Fix common JSON issues
-    jsonText = this.fixCommonJSONErrors(jsonText);
-    
-    const parsed = JSON.parse(jsonText);
-    
-    // Validate score
-    let finalScore = parsed.matchScore;
-    if (typeof finalScore !== 'number' || finalScore < 0 || finalScore > 100) {
-      console.log('⚠️ Invalid AI score, converting:', finalScore);
-      finalScore = parseInt(finalScore) || 50;
-      if (finalScore < 0) finalScore = 0;
-      if (finalScore > 100) finalScore = 100;
-    }
-    
-    console.log(`✅ Expert match successful: ${finalScore}%`);
+    // Calculate score dengan bobot lebih baik
+    const calculatedScore = this.calculateEnhancedExpertFallback(book, playlist);
     
     return {
-      matchScore: finalScore,
-      confidence: 0.9,
-      reasoning: parsed.reason || 'Analisis kecocokan langsung oleh AI',
-      keyFactors: ['expert_ai_analysis'],
+      matchScore: calculatedScore.matchScore,
+      confidence: calculatedScore.confidence,
+      reasoning: calculatedScore.reasoning,
+      keyFactors: calculatedScore.keyFactors,
       playlistId: playlist.id,
       bookId: book.id,
-      isFallback: false,
-      matchType: 'expert_direct_ai'
+      isFallback: true,
+      matchType: 'enhanced_fallback'
     };
+  },
+
+  // 🆕 ENHANCED FALLBACK SCORING
+  calculateEnhancedExpertFallback(book, playlist) {
+    console.log('🎯 Calculating enhanced fallback score...');
     
-  } catch (error) {
-    console.error('❌ Expert parse failed:', error.message);
-    throw new Error(`Gagal memproses hasil expert matching: ${error.message}`);
-  }
-},
-
-// 🆕 IMPROVED FALLBACK WITH BETTER SCORING
-getEnhancedFallback(book, playlist) {
-  console.log('🔄 Using enhanced fallback for expert mode');
-  
-  // Calculate score dengan bobot lebih baik
-  const calculatedScore = this.calculateEnhancedExpertFallback(book, playlist);
-  
-  return {
-    matchScore: calculatedScore.matchScore,
-    confidence: calculatedScore.confidence,
-    reasoning: calculatedScore.reasoning,
-    keyFactors: calculatedScore.keyFactors,
-    playlistId: playlist.id,
-    bookId: book.id,
-    isFallback: true,
-    matchType: 'enhanced_fallback'
-  };
-},
-
-
-// 🆕 ENHANCED FALLBACK SCORING
-calculateEnhancedExpertFallback(book, playlist) {
-  console.log('🎯 Calculating enhanced fallback score...');
-  
-  const bookTitle = book.judul?.toLowerCase() || '';
-  const playlistName = playlist.name?.toLowerCase() || '';
-  
-  let score = 50; // Base score
-  
-  // Title-based matching
-  if (bookTitle.includes('sejarah') && playlistName.includes('sejarah')) {
-    score += 30;
-    console.log('✅ Title match: sejarah');
-  }
-  
-  if (bookTitle.includes('indonesia') && playlistName.includes('indonesia')) {
-    score += 20;
-    console.log('✅ Title match: indonesia');
-  }
-  
-  if (bookTitle.includes('kebangsaan') && playlistName.includes('sejarah')) {
-    score += 15;
-    console.log('✅ Title match: kebangsaan + sejarah');
-  }
-  
-  // Theme-based matching
-  const bookThemes = book.metadata_structured?.key_themes || [];
-  const playlistThemes = playlist.ai_metadata?.key_themes || [];
-  
-  const themeMatches = bookThemes.filter(theme => 
-    playlistThemes.some(pTheme => 
-      pTheme.toLowerCase().includes(theme.toLowerCase()) ||
-      theme.toLowerCase().includes(pTheme.toLowerCase())
-    )
-  );
-  
-  if (themeMatches.length > 0) {
-    score += themeMatches.length * 10;
-    console.log('✅ Theme matches:', themeMatches);
-  }
-  
-  // Cap at 100
-  score = Math.min(100, score);
-  
-  console.log(`🎯 Enhanced fallback score: ${score}%`);
-  
-  return {
-    matchScore: score,
-    confidence: 0.7,
-    reasoning: `Analisis sistem: Kecocokan berdasarkan judul dan tema`,
-    keyFactors: ['title_matching', 'theme_analysis']
-  };
-},
+    const bookTitle = book.judul?.toLowerCase() || '';
+    const playlistName = playlist.name?.toLowerCase() || '';
+    
+    let score = 50; // Base score
+    
+    // Title-based matching
+    if (bookTitle.includes('sejarah') && playlistName.includes('sejarah')) {
+      score += 30;
+      console.log('✅ Title match: sejarah');
+    }
+    
+    if (bookTitle.includes('indonesia') && playlistName.includes('indonesia')) {
+      score += 20;
+      console.log('✅ Title match: indonesia');
+    }
+    
+    if (bookTitle.includes('kebangsaan') && playlistName.includes('sejarah')) {
+      score += 15;
+      console.log('✅ Title match: kebangsaan + sejarah');
+    }
+    
+    // Theme-based matching
+    const bookThemes = book.metadata_structured?.key_themes || [];
+    const playlistThemes = playlist.ai_metadata?.key_themes || [];
+    
+    const themeMatches = bookThemes.filter(theme => 
+      playlistThemes.some(pTheme => 
+        pTheme.toLowerCase().includes(theme.toLowerCase()) ||
+        theme.toLowerCase().includes(pTheme.toLowerCase())
+      )
+    );
+    
+    if (themeMatches.length > 0) {
+      score += themeMatches.length * 10;
+      console.log('✅ Theme matches:', themeMatches);
+    }
+    
+    // Cap at 100
+    score = Math.min(100, score);
+    
+    console.log(`🎯 Enhanced fallback score: ${score}%`);
+    
+    return {
+      matchScore: score,
+      confidence: 0.7,
+      reasoning: `Analisis sistem: Kecocokan berdasarkan judul dan tema`,
+      keyFactors: ['title_matching', 'theme_analysis']
+    };
+  },
 
   // ==================== NOVICE MODE ====================
   async noviceRecommendations({ book, playlists = [] }) {
@@ -519,12 +529,16 @@ calculateEnhancedExpertFallback(book, playlist) {
     return scoredPlaylists.sort((a, b) => b.score - a.score);
   },
 
-  // 🆕 CALL EXISTING generate-ai-description API
+  // 🆕 CALL EXISTING generate-ai-description API - FIXED URL
   async generateBookMetadata(book) {
     console.log('📞 Calling generate-ai-description API for book:', book.id);
     
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/generate-ai-description`, {
+      // ✅ FIX: Gunakan URL helper untuk production/development
+      const apiUrl = this.getApiUrl('/api/generate-ai-description');
+      console.log('🔗 API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -556,79 +570,134 @@ calculateEnhancedExpertFallback(book, playlist) {
       }
     } catch (error) {
       console.error('❌ generate-ai-description API failed:', error);
-      throw error;
+      
+      // ✅ FALLBACK: Generate basic metadata tanpa API call
+      console.log('🔄 Using fallback metadata generation...');
+      return {
+        ...book,
+        metadata_structured: this.generateBasicMetadataFromTitle(book)
+      };
     }
   },
 
+  // 🆕 ADD MISSING METHOD - BASIC METADATA GENERATION
+  generateBasicMetadataFromTitle(book) {
+    console.log('🔄 Generating basic metadata from book title...');
+    const title = book.judul?.toLowerCase() || '';
+    
+    const inferredThemes = [];
+    const inferredLocations = [];
+    const inferredPeriods = [];
+    
+    // Theme inference from title
+    if (title.includes('sejarah')) inferredThemes.push('sejarah');
+    if (title.includes('militer') || title.includes('perang')) inferredThemes.push('militer');
+    if (title.includes('budaya') || title.includes('seni')) inferredThemes.push('budaya');
+    if (title.includes('biografi') || title.includes('tokoh')) inferredThemes.push('biografi');
+    if (title.includes('politik')) inferredThemes.push('politik');
+    if (title.includes('ekonomi')) inferredThemes.push('ekonomi');
+    if (title.includes('sosial')) inferredThemes.push('sosial');
+    if (title.includes('hukum')) inferredThemes.push('hukum');
+    if (title.includes('pendidikan')) inferredThemes.push('pendidikan');
+    
+    // Default fallback
+    if (inferredThemes.length === 0) inferredThemes.push('sejarah');
+    
+    // Location inference
+    if (title.includes('indonesia')) inferredLocations.push('indonesia');
+    if (title.includes('jawa')) inferredLocations.push('jawa');
+    if (title.includes('sumatra')) inferredLocations.push('sumatra');
+    if (title.includes('bali')) inferredLocations.push('bali');
+    if (title.includes('kalimantan')) inferredLocations.push('kalimantan');
+    if (title.includes('sulawesi')) inferredLocations.push('sulawesi');
+    if (title.includes('papua')) inferredLocations.push('papua');
+    if (inferredLocations.length === 0) inferredLocations.push('indonesia');
+    
+    // Period inference
+    if (title.includes('kolonial') || title.includes('belanda')) inferredPeriods.push('kolonial');
+    if (title.includes('jepang')) inferredPeriods.push('pendudukan jepang');
+    if (title.includes('revolusi') || title.includes('kemerdekaan')) inferredPeriods.push('revolusi');
+    if (title.match(/\b(1[0-9]{3})\b/)) inferredPeriods.push('sejarah');
+    
+    return {
+      key_themes: inferredThemes,
+      geographic_focus: inferredLocations,
+      historical_period: inferredPeriods.length > 0 ? inferredPeriods : ['sejarah'],
+      content_type: 'non-fiksi',
+      is_fallback: true,
+      generated_from: 'title_inference',
+      generated_at: new Date().toISOString()
+    };
+  },
 
-calculateDirectMetadataMatch(book, playlist) {
-  console.log('🔍 DIRECT METADATA MATCHING - FIXED FIELD ACCESS');
-  
-  // 🆕 FIX: Check multiple possible metadata fields
-  const bookMeta = book.metadata_structured || book.ai_metadata || book.metadata || {};
-  const playlistMeta = playlist.ai_metadata || playlist.metadata_structured || {};
-  
-  console.log('📘 Book Meta (all fields):', {
-    metadata_structured: book.metadata_structured,
-    ai_metadata: book.ai_metadata, 
-    metadata: book.metadata
-  });
-  console.log('📗 Playlist Meta:', playlistMeta);
+  calculateDirectMetadataMatch(book, playlist) {
+    console.log('🔍 DIRECT METADATA MATCHING - FIXED FIELD ACCESS');
+    
+    // 🆕 FIX: Check multiple possible metadata fields
+    const bookMeta = book.metadata_structured || book.ai_metadata || book.metadata || {};
+    const playlistMeta = playlist.ai_metadata || playlist.metadata_structured || {};
+    
+    console.log('📘 Book Meta (all fields):', {
+      metadata_structured: book.metadata_structured,
+      ai_metadata: book.ai_metadata, 
+      metadata: book.metadata
+    });
+    console.log('📗 Playlist Meta:', playlistMeta);
 
-  let score = 0;
-  const factors = [];
+    let score = 0;
+    const factors = [];
 
-  // 1. IMPROVED THEME MATCHING - Check multiple field names
-  const bookThemes = bookMeta.key_themes || bookMeta.subject_categories || [];
-  const playlistThemes = playlistMeta.key_themes || playlistMeta.subject_categories || [];
-  
-  console.log('🎯 THEMES - Book:', bookThemes, 'Playlist:', playlistThemes);
-  
-  const themeScore = this.calculateThemeMatch(bookThemes, playlistThemes);
-  score += themeScore * 0.4;
-  if (themeScore > 0) factors.push('tema_sejalan');
+    // 1. IMPROVED THEME MATCHING - Check multiple field names
+    const bookThemes = bookMeta.key_themes || bookMeta.subject_categories || [];
+    const playlistThemes = playlistMeta.key_themes || playlistMeta.subject_categories || [];
+    
+    console.log('🎯 THEMES - Book:', bookThemes, 'Playlist:', playlistThemes);
+    
+    const themeScore = this.calculateThemeMatch(bookThemes, playlistThemes);
+    score += themeScore * 0.4;
+    if (themeScore > 0) factors.push('tema_sejalan');
 
-  // 2. IMPROVED GEOGRAPHIC MATCHING - Check multiple field names
-  const bookGeo = bookMeta.geographic_focus || bookMeta.geographical_focus || [];
-  const playlistGeo = playlistMeta.geographic_focus || playlistMeta.geographical_focus || [];
-  
-  console.log('🗺️ GEO - Book:', bookGeo, 'Playlist:', playlistGeo);
-  
-  const geoScore = this.calculateGeographicMatch(bookGeo, playlistGeo);
-  score += geoScore * 0.3;
-  if (geoScore > 0) factors.push('lokasi_serumpun');
+    // 2. IMPROVED GEOGRAPHIC MATCHING - Check multiple field names
+    const bookGeo = bookMeta.geographic_focus || bookMeta.geographical_focus || [];
+    const playlistGeo = playlistMeta.geographic_focus || playlistMeta.geographical_focus || [];
+    
+    console.log('🗺️ GEO - Book:', bookGeo, 'Playlist:', playlistGeo);
+    
+    const geoScore = this.calculateGeographicMatch(bookGeo, playlistGeo);
+    score += geoScore * 0.3;
+    if (geoScore > 0) factors.push('lokasi_serumpun');
 
-  // 3. CONTENT TYPE MATCHING
-  const bookType = bookMeta.content_type || '';
-  const playlistType = playlistMeta.content_type || '';
-  
-  console.log('📚 CONTENT TYPE - Book:', bookType, 'Playlist:', playlistType);
-  
-  const contentTypeScore = this.calculateContentTypeMatch(bookType, playlistType);
-  score += contentTypeScore * 0.2;
-  if (contentTypeScore > 0) factors.push('jenis_konten_sesuai');
+    // 3. CONTENT TYPE MATCHING
+    const bookType = bookMeta.content_type || '';
+    const playlistType = playlistMeta.content_type || '';
+    
+    console.log('📚 CONTENT TYPE - Book:', bookType, 'Playlist:', playlistType);
+    
+    const contentTypeScore = this.calculateContentTypeMatch(bookType, playlistType);
+    score += contentTypeScore * 0.2;
+    if (contentTypeScore > 0) factors.push('jenis_konten_sesuai');
 
-  // 4. KEYWORD MATCHING FALLBACK - Enhanced
-  const keywordScore = this.calculateEnhancedKeywordMatch(book, playlist);
-  score += keywordScore * 0.1;
-  if (keywordScore > 0) factors.push('kata_kunci_serupa');
+    // 4. KEYWORD MATCHING FALLBACK - Enhanced
+    const keywordScore = this.calculateEnhancedKeywordMatch(book, playlist);
+    score += keywordScore * 0.1;
+    if (keywordScore > 0) factors.push('kata_kunci_serupa');
 
-  const finalScore = Math.min(100, Math.round(score));
+    const finalScore = Math.min(100, Math.round(score));
 
-  console.log(`📊 FINAL MATCH SCORE: ${finalScore}%`);
-  console.log('🎯 FACTORS:', factors);
+    console.log(`📊 FINAL MATCH SCORE: ${finalScore}%`);
+    console.log('🎯 FACTORS:', factors);
 
-  return {
-    matchScore: finalScore,
-    confidence: factors.length > 0 ? 0.7 : 0.3,
-    reasoning: this.generateMatchReasoning(finalScore, factors),
-    keyFactors: factors,
-    playlistId: playlist.id,
-    bookId: book.id,
-    isFallback: false,
-    matchType: 'direct_metadata'
-  };
-},
+    return {
+      matchScore: finalScore,
+      confidence: factors.length > 0 ? 0.7 : 0.3,
+      reasoning: this.generateMatchReasoning(finalScore, factors),
+      keyFactors: factors,
+      playlistId: playlist.id,
+      bookId: book.id,
+      isFallback: false,
+      matchType: 'direct_metadata'
+    };
+  },
 
   // 🆕 ENHANCED KEYWORD MATCHING
   calculateEnhancedKeywordMatch(book, playlist) {
@@ -663,7 +732,6 @@ calculateDirectMetadataMatch(book, playlist) {
     
     return score;
   },
-
 
   // 🆕 ADD DEBUG TO THEME MATCHING
   calculateThemeMatch(bookThemes = [], playlistThemes = []) {
@@ -904,66 +972,66 @@ calculateDirectMetadataMatch(book, playlist) {
     return finalScore;
   },
 
-// 🆕 ENHANCED CONTEXTUAL INFERENCE
-getContextualInferenceScore(bookTheme, playlistThemes) {
-  const contextualRules = [
-    // Historical context
-    { 
-      patterns: ['hindia', 'belanda', 'indie', 'kolonial', 'penjajahan'], 
-      targets: ['sejarah', 'indonesia', 'politik', 'militer'],
-      score: 70 
-    },
-    // Art & Culture context
-    { 
-      patterns: ['gambar', 'visual', 'seni', 'foto', 'lukisan', 'karya'], 
-      targets: ['budaya', 'seni', 'tradisi', 'kesenian'],
-      score: 60 
-    },
-    // Medical context
-    { 
-      patterns: ['kesehatan', 'medis', 'penyakit', 'obat', 'dokter'], 
-      targets: ['kesehatan', 'medis', 'pengobatan'],
-      score: 80 
-    },
-    // Agricultural context
-    { 
-      patterns: ['pertanian', 'perkebunan', 'tanaman', 'pangan', 'buah'], 
-      targets: ['pertanian', 'perkebunan', 'ekonomi', 'sosial'],
-      score: 70 
-    },
-    // Transportation context
-    { 
-      patterns: ['transportasi', 'pelabuhan', 'kereta', 'angkutan'], 
-      targets: ['transportasi', 'infrastruktur', 'ekonomi'],
-      score: 65 
-    },
-    // Literature context
-    { 
-      patterns: ['sastra', 'puisi', 'prosa', 'cerita', 'bahasa'], 
-      targets: ['sastra', 'budaya', 'seni', 'pendidikan'],
-      score: 75 
-    },
-    // Regional context
-    { 
-      patterns: ['sumatra', 'jawa', 'kalimantan', 'sulawesi', 'papua', 'bali'], 
-      targets: ['sejarah', 'budaya', 'geografi', 'sosial'],
-      score: 60 
-    }
-  ];
+  // 🆕 ENHANCED CONTEXTUAL INFERENCE
+  getContextualInferenceScore(bookTheme, playlistThemes) {
+    const contextualRules = [
+      // Historical context
+      { 
+        patterns: ['hindia', 'belanda', 'indie', 'kolonial', 'penjajahan'], 
+        targets: ['sejarah', 'indonesia', 'politik', 'militer'],
+        score: 70 
+      },
+      // Art & Culture context
+      { 
+        patterns: ['gambar', 'visual', 'seni', 'foto', 'lukisan', 'karya'], 
+        targets: ['budaya', 'seni', 'tradisi', 'kesenian'],
+        score: 60 
+      },
+      // Medical context
+      { 
+        patterns: ['kesehatan', 'medis', 'penyakit', 'obat', 'dokter'], 
+        targets: ['kesehatan', 'medis', 'pengobatan'],
+        score: 80 
+      },
+      // Agricultural context
+      { 
+        patterns: ['pertanian', 'perkebunan', 'tanaman', 'pangan', 'buah'], 
+        targets: ['pertanian', 'perkebunan', 'ekonomi', 'sosial'],
+        score: 70 
+      },
+      // Transportation context
+      { 
+        patterns: ['transportasi', 'pelabuhan', 'kereta', 'angkutan'], 
+        targets: ['transportasi', 'infrastruktur', 'ekonomi'],
+        score: 65 
+      },
+      // Literature context
+      { 
+        patterns: ['sastra', 'puisi', 'prosa', 'cerita', 'bahasa'], 
+        targets: ['sastra', 'budaya', 'seni', 'pendidikan'],
+        score: 75 
+      },
+      // Regional context
+      { 
+        patterns: ['sumatra', 'jawa', 'kalimantan', 'sulawesi', 'papua', 'bali'], 
+        targets: ['sejarah', 'budaya', 'geografi', 'sosial'],
+        score: 60 
+      }
+    ];
 
-  for (const rule of contextualRules) {
-    const hasBookPattern = rule.patterns.some(pattern => bookTheme.includes(pattern));
-    const hasPlaylistTarget = rule.targets.some(target => 
-      playlistThemes.some(theme => theme.toLowerCase().includes(target))
-    );
-    
-    if (hasBookPattern && hasPlaylistTarget) {
-      return rule.score;
+    for (const rule of contextualRules) {
+      const hasBookPattern = rule.patterns.some(pattern => bookTheme.includes(pattern));
+      const hasPlaylistTarget = rule.targets.some(target => 
+        playlistThemes.some(theme => theme.toLowerCase().includes(target))
+      );
+      
+      if (hasBookPattern && hasPlaylistTarget) {
+        return rule.score;
+      }
     }
-  }
 
-  return 0;
-},
+    return 0;
+  },
 
   calculateStringSimilarity(str1, str2) {
     const longer = str1.length > str2.length ? str1 : str2;
@@ -999,7 +1067,7 @@ getContextualInferenceScore(bookTheme, playlistThemes) {
     return matrix[str2.length][str1.length];
   },
 
-// 🆕 IMPROVE GEOGRAPHIC MATCHING
+  // 🆕 IMPROVE GEOGRAPHIC MATCHING
   calculateGeographicMatch(bookLocations = [], playlistLocations = []) {
     console.log('🗺️ GEOGRAPHIC MATCHING DEBUG:');
     console.log('   Book Locations:', bookLocations);
@@ -1124,7 +1192,6 @@ getContextualInferenceScore(bookTheme, playlistThemes) {
     console.log(`   🎯 Final Geo Score: ${bestScore}%`);
     return bestScore;
   },
-
 
   calculateRegionalOverlap(bookLocs, playlistLocs) {
     const regionalHierarchy = {
@@ -1294,61 +1361,61 @@ Hanya JSON.
   },
 
   // ==================== AI ENHANCED RECOMMENDATIONS (NOVICE MODE) ====================
-async getAIEnhancedRecommendations(book, topPlaylists) {
-  console.log('🚀 Starting AI enhancement for novice mode...');
-  
-  try {
-    if (!this.isGeminiAvailable()) {
-      console.log('❌ Gemini not available, using fallback');
+  async getAIEnhancedRecommendations(book, topPlaylists) {
+    console.log('🚀 Starting AI enhancement for novice mode...');
+    
+    try {
+      if (!this.isGeminiAvailable()) {
+        console.log('❌ Gemini not available, using fallback');
+        return this.createFallbackRecommendations(topPlaylists);
+      }
+
+      const prompt = this.createNoviceRecommendationPrompt(book, topPlaylists);
+      console.log('📝 AI Prompt created, length:', prompt.length);
+      
+      // 🆕 REDUCE MAX TOKENS untuk hindari truncation
+      const aiResponse = await generateAIResponse(prompt, {
+        temperature: 0.2,
+        maxTokens: 500, // Reduced from 800
+        timeout: 15000
+      });
+      
+      if (!aiResponse) {
+        throw new Error('Empty AI response');
+      }
+      
+      console.log('✅ AI Response received, length:', aiResponse.length);
+      
+      // 🆕 CHECK FOR TRUNCATION
+      if (aiResponse.length > 450) { // Jika response hampir max tokens
+        console.log('⚠️ Response mungkin terpotong, checking completeness...');
+        if (!aiResponse.includes(']') || this.hasUnclosedQuotes(aiResponse)) {
+          console.log('🔧 Response terpotong, using smart extraction...');
+          return this.smartExtractRecommendations(aiResponse, topPlaylists);
+        }
+      }
+      
+      return this.parseNoviceAIResponse(aiResponse, topPlaylists);
+        
+    } catch (error) {
+      console.error('❌ AI enhancement failed:', error);
       return this.createFallbackRecommendations(topPlaylists);
     }
+  },
 
-    const prompt = this.createNoviceRecommendationPrompt(book, topPlaylists);
-    console.log('📝 AI Prompt created, length:', prompt.length);
-    
-    // 🆕 REDUCE MAX TOKENS untuk hindari truncation
-    const aiResponse = await generateAIResponse(prompt, {
-      temperature: 0.2,
-      maxTokens: 500, // Reduced from 800
-      timeout: 15000
-    });
-    
-    if (!aiResponse) {
-      throw new Error('Empty AI response');
-    }
-    
-    console.log('✅ AI Response received, length:', aiResponse.length);
-    
-    // 🆕 CHECK FOR TRUNCATION
-    if (aiResponse.length > 450) { // Jika response hampir max tokens
-      console.log('⚠️ Response mungkin terpotong, checking completeness...');
-      if (!aiResponse.includes(']') || this.hasUnclosedQuotes(aiResponse)) {
-        console.log('🔧 Response terpotong, using smart extraction...');
-        return this.smartExtractRecommendations(aiResponse, topPlaylists);
-      }
-    }
-    
-    return this.parseNoviceAIResponse(aiResponse, topPlaylists);
-      
-  } catch (error) {
-    console.error('❌ AI enhancement failed:', error);
-    return this.createFallbackRecommendations(topPlaylists);
-  }
-},
+  // 🆕 CHECK UNCLOSED QUOTES
+  hasUnclosedQuotes(text) {
+    const quoteCount = (text.match(/"/g) || []).length;
+    return quoteCount % 2 !== 0;
+  },
 
-// 🆕 CHECK UNCLOSED QUOTES
-hasUnclosedQuotes(text) {
-  const quoteCount = (text.match(/"/g) || []).length;
-  return quoteCount % 2 !== 0;
-},
+  // 🆕 UPDATE PROMPT FOR BETTER JSON GENERATION
+  createNoviceRecommendationPrompt(book, topPlaylists) {
+    const playlistsInfo = topPlaylists.map((item, index) => 
+      `"${item.playlist.name}"`
+    ).join(', ');
 
-// 🆕 UPDATE PROMPT FOR BETTER JSON GENERATION
-createNoviceRecommendationPrompt(book, topPlaylists) {
-  const playlistsInfo = topPlaylists.map((item, index) => 
-    `"${item.playlist.name}"`
-  ).join(', ');
-
-  return `
+    return `
 BUKU: "${book.judul}"
 TEMA: ${book.metadata_structured?.key_themes?.join(', ') || 'Umum'}
 
@@ -1365,333 +1432,333 @@ HANYA JSON array:
 
 Hanya JSON.
 `.trim();
-},
+  },
 
-// 🆕 IMPROVED PARSING - HANDLES TRUNCATED RESPONSES BETTER
-parseNoviceAIResponse(aiResponse, topPlaylists) {
-  try {
-    console.log('🔍 Parsing AI response...');
-    console.log('📨 Raw AI response length:', aiResponse.length);
-    
-    let cleanResponse = aiResponse
-      .replace(/```json|```|`/g, '')
-      .trim();
+  // 🆕 IMPROVED PARSING - HANDLES TRUNCATED RESPONSES BETTER
+  parseNoviceAIResponse(aiResponse, topPlaylists) {
+    try {
+      console.log('🔍 Parsing AI response...');
+      console.log('📨 Raw AI response length:', aiResponse.length);
+      
+      let cleanResponse = aiResponse
+        .replace(/```json|```|`/g, '')
+        .trim();
 
-    console.log('🧹 Cleaned response length:', cleanResponse.length);
-    console.log('📝 Cleaned response sample:', cleanResponse.substring(0, 200) + '...');
+      console.log('🧹 Cleaned response length:', cleanResponse.length);
+      console.log('📝 Cleaned response sample:', cleanResponse.substring(0, 200) + '...');
 
-    // 🆕 ENHANCED FIX: Handle various truncation scenarios
-    cleanResponse = this.fixAllJSONIssues(cleanResponse);
-    
-    const jsonMatch = cleanResponse.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.log('❌ No JSON array found, trying object extraction...');
-      return this.smartExtractRecommendations(cleanResponse, topPlaylists);
-    }
-
-    let jsonText = jsonMatch[0];
-    console.log('📄 JSON text found, length:', jsonText.length);
-    
-    jsonText = this.validateAndFixJSON(jsonText);
-    
-    console.log('✅ Final JSON ready for parsing, length:', jsonText.length);
-    
-    const parsed = JSON.parse(jsonText);
-    
-    if (!Array.isArray(parsed)) {
-      throw new Error('AI response is not an array');
-    }
-
-    console.log(`✅ Successfully parsed ${parsed.length} AI recommendations`);
-    
-    return this.formatAIRecommendations(parsed, topPlaylists);
-
-  } catch (error) {
-    console.error('❌ Novice AI parse failed:', error.message);
-    console.log('📝 Failed response (first 500 chars):', aiResponse.substring(0, 500));
-    return this.smartExtractRecommendations(aiResponse, topPlaylists);
-  }
-},
-
-// 🆕 COMPREHENSIVE JSON FIXING
-fixAllJSONIssues(jsonString) {
-  let fixed = jsonString.trim();
-  
-  console.log('🔄 Fixing JSON issues...');
-  
-  // Case 1: Response terpotong di tengah array
-  if (fixed.includes('[') && !fixed.endsWith(']')) {
-    console.log('🔧 Case 1: Truncated array detected');
-    fixed = this.fixTruncatedArray(fixed);
-  }
-  
-  // Case 2: Response terpotong di tengah object
-  if (fixed.includes('{') && !fixed.includes('}]')) {
-    console.log('🔧 Case 2: Truncated object detected');
-    fixed = this.fixTruncatedObjects(fixed);
-  }
-  
-  // Case 3: Unclosed strings
-  fixed = this.fixUnclosedStrings(fixed);
-  
-  // Case 4: Trailing commas
-  fixed = this.removeTrailingCommas(fixed);
-  
-  // Case 5: Ensure proper array closure
-  if (fixed.includes('[') && !fixed.endsWith(']')) {
-    fixed += ']';
-  }
-  
-  console.log('✅ JSON fixes applied');
-  return fixed;
-},
-
-// 🆕 FIX TRUNCATED ARRAY
-fixTruncatedArray(jsonString) {
-  let fixed = jsonString;
-  
-  // Count brackets to ensure proper closure
-  const openBrackets = (fixed.match(/\[/g) || []).length;
-  const closeBrackets = (fixed.match(/\]/g) || []).length;
-  
-  if (openBrackets > closeBrackets) {
-    fixed += ']'.repeat(openBrackets - closeBrackets);
-  }
-  
-  // If still doesn't end with ], find last complete object and close
-  if (!fixed.endsWith(']')) {
-    // Find the last complete JSON object
-    const lastObjectMatch = fixed.match(/\{"playlistName":"[^"]*","finalScore":\d+,"reason":"[^"]*"\}/g);
-    if (lastObjectMatch && lastObjectMatch.length > 0) {
-      const lastCompleteObject = lastObjectMatch[lastObjectMatch.length - 1];
-      const lastIndex = fixed.lastIndexOf(lastCompleteObject);
-      if (lastIndex !== -1) {
-        fixed = fixed.substring(0, lastIndex + lastCompleteObject.length) + ']';
+      // 🆕 ENHANCED FIX: Handle various truncation scenarios
+      cleanResponse = this.fixAllJSONIssues(cleanResponse);
+      
+      const jsonMatch = cleanResponse.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.log('❌ No JSON array found, trying object extraction...');
+        return this.smartExtractRecommendations(cleanResponse, topPlaylists);
       }
-    } else {
-      // Fallback: just close the array
+
+      let jsonText = jsonMatch[0];
+      console.log('📄 JSON text found, length:', jsonText.length);
+      
+      jsonText = this.validateAndFixJSON(jsonText);
+      
+      console.log('✅ Final JSON ready for parsing, length:', jsonText.length);
+      
+      const parsed = JSON.parse(jsonText);
+      
+      if (!Array.isArray(parsed)) {
+        throw new Error('AI response is not an array');
+      }
+
+      console.log(`✅ Successfully parsed ${parsed.length} AI recommendations`);
+      
+      return this.formatAIRecommendations(parsed, topPlaylists);
+
+    } catch (error) {
+      console.error('❌ Novice AI parse failed:', error.message);
+      console.log('📝 Failed response (first 500 chars):', aiResponse.substring(0, 500));
+      return this.smartExtractRecommendations(aiResponse, topPlaylists);
+    }
+  },
+
+  // 🆕 COMPREHENSIVE JSON FIXING
+  fixAllJSONIssues(jsonString) {
+    let fixed = jsonString.trim();
+    
+    console.log('🔄 Fixing JSON issues...');
+    
+    // Case 1: Response terpotong di tengah array
+    if (fixed.includes('[') && !fixed.endsWith(']')) {
+      console.log('🔧 Case 1: Truncated array detected');
+      fixed = this.fixTruncatedArray(fixed);
+    }
+    
+    // Case 2: Response terpotong di tengah object
+    if (fixed.includes('{') && !fixed.includes('}]')) {
+      console.log('🔧 Case 2: Truncated object detected');
+      fixed = this.fixTruncatedObjects(fixed);
+    }
+    
+    // Case 3: Unclosed strings
+    fixed = this.fixUnclosedStrings(fixed);
+    
+    // Case 4: Trailing commas
+    fixed = this.removeTrailingCommas(fixed);
+    
+    // Case 5: Ensure proper array closure
+    if (fixed.includes('[') && !fixed.endsWith(']')) {
       fixed += ']';
     }
-  }
-  
-  return fixed;
-},
-
-// 🆕 FIX TRUNCATED OBJECTS
-fixTruncatedObjects(jsonString) {
-  let fixed = jsonString;
-  
-  // Pattern untuk incomplete objects
-  const incompleteObjectPattern = /\{"playlistName":"[^"]*","finalScore":\d+,"reason":"[^"]*$/;
-  
-  if (incompleteObjectPattern.test(fixed)) {
-    // Find the last incomplete object and complete it
-    const match = fixed.match(/\{"playlistName":"([^"]*)","finalScore":(\d+),"reason":"([^"]*)$/);
-    if (match) {
-      const [fullMatch, playlistName, finalScore, partialReason] = match;
-      const completeObject = `{"playlistName":"${playlistName}","finalScore":${finalScore},"reason":"${partialReason}"}`;
-      fixed = fixed.replace(fullMatch, completeObject);
-    }
-  }
-  
-  return fixed;
-},
-
-// 🆕 FIX UNCLOSED STRINGS
-fixUnclosedStrings(jsonString) {
-  let fixed = jsonString;
-  
-  // Count quotes to detect unclosed strings
-  const quoteCount = (fixed.match(/"/g) || []).length;
-  if (quoteCount % 2 !== 0) {
-    // Odd number of quotes means unclosed string
-    console.log('🔧 Fixing unclosed string...');
-    fixed += '"';
-  }
-  
-  // Fix specific pattern: "reason": "partial text...
-  const unclosedReasonPattern = /"reason":\s*"([^"]*)$/;
-  if (unclosedReasonPattern.test(fixed)) {
-    fixed = fixed.replace(unclosedReasonPattern, '"reason": "$1"');
-  }
-  
-  return fixed;
-},
-
-// 🆕 REMOVE TRAILING COMMAS
-removeTrailingCommas(jsonString) {
-  let fixed = jsonString;
-  
-  // Remove trailing commas before ] or }
-  fixed = fixed.replace(/,\s*([\]}])/g, '$1');
-  
-  return fixed;
-},
-
-// 🆕 VALIDATE AND FIX JSON
-validateAndFixJSON(jsonString) {
-  let fixed = jsonString;
-  
-  try {
-    // Quick validation parse
-    JSON.parse(fixed);
-    console.log('✅ JSON is valid, no fixes needed');
+    
+    console.log('✅ JSON fixes applied');
     return fixed;
-  } catch (error) {
-    console.log('🔧 JSON validation failed, applying fixes...');
+  },
+
+  // 🆕 FIX TRUNCATED ARRAY
+  fixTruncatedArray(jsonString) {
+    let fixed = jsonString;
     
-    // Apply comprehensive fixes
-    fixed = this.fixCommonJSONErrors(fixed);
+    // Count brackets to ensure proper closure
+    const openBrackets = (fixed.match(/\[/g) || []).length;
+    const closeBrackets = (fixed.match(/\]/g) || []).length;
     
-    // Try parsing again
-    try {
-      JSON.parse(fixed);
-      console.log('✅ JSON fixed successfully');
-      return fixed;
-    } catch (secondError) {
-      console.log('❌ JSON still invalid after fixes, using extraction method');
-      throw new Error('JSON cannot be fixed: ' + secondError.message);
+    if (openBrackets > closeBrackets) {
+      fixed += ']'.repeat(openBrackets - closeBrackets);
     }
-  }
-},
-
-// 🆕 SMART EXTRACTION AS FALLBACK
-smartExtractRecommendations(text, topPlaylists) {
-  console.log('🔍 Using smart extraction for recommendations...');
-  const recommendations = [];
-  
-  for (let i = 0; i < topPlaylists.length; i++) {
-    const playlist = topPlaylists[i].playlist;
-    const playlistName = this.escapeRegex(playlist.name);
     
-    console.log(`🔍 Extracting data for: ${playlistName}`);
-    
-    const extracted = this.extractPlaylistData(text, playlistName, playlist, i);
-    recommendations.push(extracted);
-  }
-  
-  console.log(`✅ Smart extraction completed: ${recommendations.length} recommendations`);
-  return recommendations;
-},
-
-// 🆕 EXTRACT DATA FOR SPECIFIC PLAYLIST
-extractPlaylistData(text, playlistName, playlist, index) {
-  // Multiple extraction patterns dengan prioritas
-  const patterns = [
-    // Pattern 1: Complete object match
-    new RegExp(`\\{"playlistName":\\s*"${playlistName}"[^}]*"finalScore":\\s*(\\d+)[^}]*"reason":\\s*"([^"]*)"`, 'i'),
-    
-    // Pattern 2: Partial object match
-    new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"finalScore":\\s*(\\d+)`, 'i'),
-    
-    // Pattern 3: Simple score match
-    new RegExp(`"${playlistName}"[^}]*?(\\d{1,3})`, 'i'),
-    
-    // Pattern 4: Generic score in context
-    new RegExp(`${playlistName}.*?(\\d{1,3})(?=\\D|$)`, 'i')
-  ];
-  
-  let score = 70 - (index * 10); // Default fallback score
-  let reason = 'Analisis berdasarkan konten playlist';
-  let extracted = false;
-  
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      score = parseInt(match[1]);
-      
-      // Try to extract reason from different patterns
-      const reasonPatterns = [
-        new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"reason":\\s*"([^"]*)"`, 'i'),
-        new RegExp(`"${playlistName}"[^}]*?"reason":\\s*"([^"]*)"`, 'i')
-      ];
-      
-      for (const reasonPattern of reasonPatterns) {
-        const reasonMatch = text.match(reasonPattern);
-        if (reasonMatch) {
-          reason = reasonMatch[1];
-          break;
+    // If still doesn't end with ], find last complete object and close
+    if (!fixed.endsWith(']')) {
+      // Find the last complete JSON object
+      const lastObjectMatch = fixed.match(/\{"playlistName":"[^"]*","finalScore":\d+,"reason":"[^"]*"\}/g);
+      if (lastObjectMatch && lastObjectMatch.length > 0) {
+        const lastCompleteObject = lastObjectMatch[lastObjectMatch.length - 1];
+        const lastIndex = fixed.lastIndexOf(lastCompleteObject);
+        if (lastIndex !== -1) {
+          fixed = fixed.substring(0, lastIndex + lastCompleteObject.length) + ']';
         }
+      } else {
+        // Fallback: just close the array
+        fixed += ']';
       }
+    }
+    
+    return fixed;
+  },
+
+  // 🆕 FIX TRUNCATED OBJECTS
+  fixTruncatedObjects(jsonString) {
+    let fixed = jsonString;
+    
+    // Pattern untuk incomplete objects
+    const incompleteObjectPattern = /\{"playlistName":"[^"]*","finalScore":\d+,"reason":"[^"]*$/;
+    
+    if (incompleteObjectPattern.test(fixed)) {
+      // Find the last incomplete object and complete it
+      const match = fixed.match(/\{"playlistName":"([^"]*)","finalScore":(\d+),"reason":"([^"]*)$/);
+      if (match) {
+        const [fullMatch, playlistName, finalScore, partialReason] = match;
+        const completeObject = `{"playlistName":"${playlistName}","finalScore":${finalScore},"reason":"${partialReason}"}`;
+        fixed = fixed.replace(fullMatch, completeObject);
+      }
+    }
+    
+    return fixed;
+  },
+
+  // 🆕 FIX UNCLOSED STRINGS
+  fixUnclosedStrings(jsonString) {
+    let fixed = jsonString;
+    
+    // Count quotes to detect unclosed strings
+    const quoteCount = (fixed.match(/"/g) || []).length;
+    if (quoteCount % 2 !== 0) {
+      // Odd number of quotes means unclosed string
+      console.log('🔧 Fixing unclosed string...');
+      fixed += '"';
+    }
+    
+    // Fix specific pattern: "reason": "partial text...
+    const unclosedReasonPattern = /"reason":\s*"([^"]*)$/;
+    if (unclosedReasonPattern.test(fixed)) {
+      fixed = fixed.replace(unclosedReasonPattern, '"reason": "$1"');
+    }
+    
+    return fixed;
+  },
+
+  // 🆕 REMOVE TRAILING COMMAS
+  removeTrailingCommas(jsonString) {
+    let fixed = jsonString;
+    
+    // Remove trailing commas before ] or }
+    fixed = fixed.replace(/,\s*([\]}])/g, '$1');
+    
+    return fixed;
+  },
+
+  // 🆕 VALIDATE AND FIX JSON
+  validateAndFixJSON(jsonString) {
+    let fixed = jsonString;
+    
+    try {
+      // Quick validation parse
+      JSON.parse(fixed);
+      console.log('✅ JSON is valid, no fixes needed');
+      return fixed;
+    } catch (error) {
+      console.log('🔧 JSON validation failed, applying fixes...');
       
-      extracted = true;
-      console.log(`✅ Extracted: ${playlistName} = ${score}%`);
-      break;
+      // Apply comprehensive fixes
+      fixed = this.fixCommonJSONErrors(fixed);
+      
+      // Try parsing again
+      try {
+        JSON.parse(fixed);
+        console.log('✅ JSON fixed successfully');
+        return fixed;
+      } catch (secondError) {
+        console.log('❌ JSON still invalid after fixes, using extraction method');
+        throw new Error('JSON cannot be fixed: ' + secondError.message);
+      }
     }
-  }
-  
-  if (!extracted) {
-    console.log(`⚠️ Using fallback for: ${playlistName}`);
-  }
-  
-  return {
-    playlistId: playlist.id,
-    playlistName: playlist.name,
-    matchScore: score,
-    confidence: extracted ? 0.8 : 0.6,
-    reasoning: reason,
-    strengths: extracted ? ['Analisis AI'] : ['Analisis sistem'],
-    considerations: [],
-    improvementSuggestions: [],
-    isFallback: !extracted,
-    aiEnhanced: extracted
-  };
-},
+  },
 
-// 🆕 FORMAT AI RECOMMENDATIONS
-formatAIRecommendations(parsedData, topPlaylists) {
-  return parsedData.map((item, index) => {
-    const playlist = topPlaylists[index]?.playlist;
-    if (!playlist) {
-      console.log(`❌ No playlist found for index ${index}`);
-      return null;
+  // 🆕 SMART EXTRACTION AS FALLBACK
+  smartExtractRecommendations(text, topPlaylists) {
+    console.log('🔍 Using smart extraction for recommendations...');
+    const recommendations = [];
+    
+    for (let i = 0; i < topPlaylists.length; i++) {
+      const playlist = topPlaylists[i].playlist;
+      const playlistName = this.escapeRegex(playlist.name);
+      
+      console.log(`🔍 Extracting data for: ${playlistName}`);
+      
+      const extracted = this.extractPlaylistData(text, playlistName, playlist, i);
+      recommendations.push(extracted);
     }
+    
+    console.log(`✅ Smart extraction completed: ${recommendations.length} recommendations`);
+    return recommendations;
+  },
 
-    // Validate and sanitize data
-    const finalScore = this.validateScore(item.finalScore || item.matchScore || 50);
-    const reason = this.sanitizeReason(item.reason || item.reasoning || 'Analisis AI');
-
+  // 🆕 EXTRACT DATA FOR SPECIFIC PLAYLIST
+  extractPlaylistData(text, playlistName, playlist, index) {
+    // Multiple extraction patterns dengan prioritas
+    const patterns = [
+      // Pattern 1: Complete object match
+      new RegExp(`\\{"playlistName":\\s*"${playlistName}"[^}]*"finalScore":\\s*(\\d+)[^}]*"reason":\\s*"([^"]*)"`, 'i'),
+      
+      // Pattern 2: Partial object match
+      new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"finalScore":\\s*(\\d+)`, 'i'),
+      
+      // Pattern 3: Simple score match
+      new RegExp(`"${playlistName}"[^}]*?(\\d{1,3})`, 'i'),
+      
+      // Pattern 4: Generic score in context
+      new RegExp(`${playlistName}.*?(\\d{1,3})(?=\\D|$)`, 'i')
+    ];
+    
+    let score = 70 - (index * 10); // Default fallback score
+    let reason = 'Analisis berdasarkan konten playlist';
+    let extracted = false;
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        score = parseInt(match[1]);
+        
+        // Try to extract reason from different patterns
+        const reasonPatterns = [
+          new RegExp(`"playlistName":\\s*"${playlistName}"[^}]*?"reason":\\s*"([^"]*)"`, 'i'),
+          new RegExp(`"${playlistName}"[^}]*?"reason":\\s*"([^"]*)"`, 'i')
+        ];
+        
+        for (const reasonPattern of reasonPatterns) {
+          const reasonMatch = text.match(reasonPattern);
+          if (reasonMatch) {
+            reason = reasonMatch[1];
+            break;
+          }
+        }
+        
+        extracted = true;
+        console.log(`✅ Extracted: ${playlistName} = ${score}%`);
+        break;
+      }
+    }
+    
+    if (!extracted) {
+      console.log(`⚠️ Using fallback for: ${playlistName}`);
+    }
+    
     return {
       playlistId: playlist.id,
       playlistName: playlist.name,
-      matchScore: finalScore,
-      confidence: 0.9,
+      matchScore: score,
+      confidence: extracted ? 0.8 : 0.6,
       reasoning: reason,
-      strengths: item.strengths || [],
-      considerations: item.considerations || [],
+      strengths: extracted ? ['Analisis AI'] : ['Analisis sistem'],
+      considerations: [],
       improvementSuggestions: [],
-      isFallback: false,
-      aiEnhanced: true
+      isFallback: !extracted,
+      aiEnhanced: extracted
     };
-  }).filter(Boolean);
-},
+  },
 
-// 🆕 VALIDATE SCORE
-validateScore(score) {
-  const numScore = parseInt(score);
-  if (isNaN(numScore) || numScore < 0 || numScore > 100) {
-    console.log(`⚠️ Invalid score: ${score}, using 50 as default`);
-    return 50;
-  }
-  return numScore;
-},
+  // 🆕 FORMAT AI RECOMMENDATIONS
+  formatAIRecommendations(parsedData, topPlaylists) {
+    return parsedData.map((item, index) => {
+      const playlist = topPlaylists[index]?.playlist;
+      if (!playlist) {
+        console.log(`❌ No playlist found for index ${index}`);
+        return null;
+      }
 
-// 🆕 SANITIZE REASON
-sanitizeReason(reason) {
-  if (typeof reason !== 'string') {
-    return 'Analisis AI';
-  }
-  
-  // Remove any problematic characters and truncate if too long
-  return reason
-    .replace(/[^\w\s.,!?\-()]/g, '')
-    .substring(0, 200);
-},
+      // Validate and sanitize data
+      const finalScore = this.validateScore(item.finalScore || item.matchScore || 50);
+      const reason = this.sanitizeReason(item.reason || item.reasoning || 'Analisis AI');
 
-// 🆕 ESCAPE REGEX CHARACTERS
-escapeRegex(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-},
+      return {
+        playlistId: playlist.id,
+        playlistName: playlist.name,
+        matchScore: finalScore,
+        confidence: 0.9,
+        reasoning: reason,
+        strengths: item.strengths || [],
+        considerations: item.considerations || [],
+        improvementSuggestions: [],
+        isFallback: false,
+        aiEnhanced: true
+      };
+    }).filter(Boolean);
+  },
+
+  // 🆕 VALIDATE SCORE
+  validateScore(score) {
+    const numScore = parseInt(score);
+    if (isNaN(numScore) || numScore < 0 || numScore > 100) {
+      console.log(`⚠️ Invalid score: ${score}, using 50 as default`);
+      return 50;
+    }
+    return numScore;
+  },
+
+  // 🆕 SANITIZE REASON
+  sanitizeReason(reason) {
+    if (typeof reason !== 'string') {
+      return 'Analisis AI';
+    }
+    
+    // Remove any problematic characters and truncate if too long
+    return reason
+      .replace(/[^\w\s.,!?\-()]/g, '')
+      .substring(0, 200);
+  },
+
+  // 🆕 ESCAPE REGEX CHARACTERS
+  escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  },
 
   // 🆕 FIX: Handle truncated JSON responses
   fixTruncatedJSON(jsonString) {
